@@ -27,6 +27,12 @@ class Todo < ApplicationRecord
     "year_closed" => "その年度を締めたら"
   }.freeze
 
+  # 待ちが解ける決まり(待ちのやることを作業中に戻す)。n-bato の記録で分かるものだけ。
+  RESUME_RULES = {
+    "" => "人が戻す",
+    "registration_completed" => "登記の申請が完了したら"
+  }.freeze
+
   belongs_to :incoming_request, optional: true
 
   validates :title, presence: true
@@ -34,10 +40,20 @@ class Todo < ApplicationRecord
   validates :kind, inclusion: { in: KINDS.keys }
   validates :target, inclusion: { in: TARGETS.keys }
   validates :done_rule, inclusion: { in: DONE_RULES.keys }
+  validates :resume_rule, inclusion: { in: RESUME_RULES.keys }
 
   scope :unfinished, -> { where.not(status: "done") }
 
   def status_label = STATUSES.fetch(status)
+  def resume_rule_label = RESUME_RULES.fetch(resume_rule)
+
+  # 決まりに合う「待ち」のやることを作業中に戻す。戻したやることを返す。
+  def self.resume!(rule, note:)
+    where(status: "wait", resume_rule: rule).to_a.each do |t|
+      t.update!(status: "doing", waiting_on: "", note: [ t.note.presence, note ].compact.join("\n"))
+    end
+  end
+
   def kind_label = KINDS.fetch(kind)
   def target_label = TARGETS.dig(target, 0)
   def done? = status == "done"

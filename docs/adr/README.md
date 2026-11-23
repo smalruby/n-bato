@@ -32,6 +32,10 @@
 | [0026](0026-journal-entry-cancellation.md) | 記帳した仕訳の取消 | 採用 |
 | [0027](0027-filing-destinations.md) | 提出先を法人ごとに設定し、確認済みのものだけを書類に使う | 採用 |
 | [0028](0028-ai-web-search-for-destinations.md) | 提出先の窓口を AI に Web で調べてもらう | 採用 |
+| [0029](0029-person-address-and-name-history.md) | 会員の住所・氏名を、日付つきの出来事で持つ — 見直し票 第20回 | 採用 |
+| [0030](0030-member-domain-events.md) | 会員の作り替え(入会・会員資格・役員の任期) — 見直し票 第20回 | 採用 |
+| [0031](0031-registration-filings.md) | 登記の申請を 1 件ずつ記録し、申請書の文と添付書類を作る — 見直し票 第20回 | 採用 |
+| [0032](0032-filing-destination-list.md) | 提出先の一覧: 行のボタン・連絡先の列・足し方 — 見直し票 第18回・第19回 | 採用 |
 
 関係するもの: データモデルの台帳 `docs/data-model.md`、デザインシステム `docs/design-system/`。
 

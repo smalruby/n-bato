@@ -1,11 +1,10 @@
+# 登記(見直し第20回、docs/adr/0031)。登記がいること(登記の事由)と、登記の申請の一覧。年度には依存しない。
 class RegistrationsController < ApplicationController
   def index
-    @registrations = Registration.includes(officer_term: :person).order(:due_on).where(cause_on: FiscalYear.new(Current.working_year).range)
-  end
-
-  def update
-    registration = Registration.find(params[:id])
-    registration.update!(params.require(:registration).permit(:registered_on, :note))
-    redirect_to registrations_path, notice: "登記の記録を更新しました"
+    @registrations = Registration.includes(:registration_filing, :person_address_change, :person_name_change, officer_term: :person).chronological.to_a
+    @pending = @registrations.reject(&:done?)
+    @done = @registrations.select(&:done?)
+    @filings = RegistrationFiling.includes(:registrations).recent
+    @online = RegistrationOnline.status
   end
 end

@@ -66,7 +66,18 @@ Rails.application.routes.draw do
     get "documents/:doc", to: "resolutions#document", as: :document, on: :member
     post "items/:item_id/apply", to: "resolutions#apply_item", as: :apply_item, on: :member
   end
-  resources :registrations, only: %i[index update]
+  resources :registrations, only: %i[index]
+  # 登記の申請(見直し第20回、docs/adr/0031)
+  resources :registration_filings, only: %i[create show update] do
+    post :include, on: :member
+    post :exclude, on: :member
+    get "documents/:doc", to: "registration_filings#document", as: :document, on: :member
+    resource :submission, only: :create, module: :registration_filings
+    resource :acceptance, only: :create, module: :registration_filings
+    resource :completion, only: :create, module: :registration_filings
+    resource :withdrawal, only: :create, module: :registration_filings
+    resources :corrections, only: :create, module: :registration_filings
+  end
   # 入会申込(デザインシステム「入会申込」)
   resources :member_applications, only: %i[index show] do
     post :approve, on: :member
@@ -76,6 +87,10 @@ Rails.application.routes.draw do
     post :apply_to_years, on: :member
     resources :memberships, only: %i[create destroy]
     resources :officer_terms, only: %i[create destroy]
+    # 住所が変わった・氏名が変わった(出来事を足す)と、その取消(docs/adr/0029)
+    resources :address_changes, only: :create, module: :people
+    resources :name_changes, only: :create, module: :people
+    post "changes/:change_type/:change_id/cancellation", to: "people/change_cancellations#create", as: :change_cancellation
   end
   resources :annual_reports, param: :year, only: %i[index show new create edit update] do
     get "documents/:doc", to: "filings#show", as: :document, on: :member

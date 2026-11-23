@@ -1,0 +1,52 @@
+<%# 登記の申請の添付書類(紙で郵送する)。見直し第20回、docs/adr/0031。記載例: https://houmukyoku.moj.go.jp/homu/content/001386707.pdf %>
+<style>
+  .right { text-align: right; } .center { text-align: center; } .block-right { margin-left: 45%; } .box { border: 1px solid #000; padding: 6px 10px; }
+  .seal { display: inline-block; width: 2.6em; height: 2.6em; border: 1px dashed #000; border-radius: 50%; vertical-align: middle; margin-left: 1em; }
+  .note { font-size: 9pt; } .page { page-break-after: always; } .page:last-child { page-break-after: auto; }
+  pre.articles { white-space: pre-wrap; font-family: inherit; }
+</style>
+<% f = @filing; org = @organization; st = @statement %>
+<% case @doc %>
+<% when "cover" %>
+  <h1>書面により提出する添付書面の内訳</h1>
+  <p class="box">申請番号　<%= f.submission&.application_number.presence || "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿" %>
+    <span class="note">(申請用総合ソフトの「到達のお知らせ」の番号を書く)</span></p>
+  <p>申請人　<%= org&.name %><br>主たる事務所　<%= org&.address %></p>
+  <p>登記の事由　<%= st.reason %></p>
+  <h2>添付書面</h2>
+  <ul><% st.attachments.reject { it.start_with?("就任承諾書", "（") }.each do |a| %><li><%= a %></li><% end %></ul>
+  <% if st.attachments.any? { it.start_with?("就任承諾書") } %><p>就任承諾書は、社員総会議事録の記載を援用する。</p><% end %>
+  <p class="note">互選書(理事会議事録)には、重任した理事が法務局に届け出た印鑑(届出印)を押します。押してあれば、印鑑証明書は要りません。</p>
+  <p class="right" style="margin-top:2em"><%= org&.name %><br><%= org&.representative %><span class="seal"></span></p>
+  <% registry = FilingDestination.where(kind: "registry").ordered.find(&:confirmed?) %>
+  <p class="right"><%= registry ? "#{registry.name}　御中" : "＿＿＿＿＿＿法務局　御中" %></p>
+<% when "mutual_election" %>
+  <% groups = f.registrations.select { it.kind == "representative_change" && it.officer_term }.group_by(&:cause_on) %>
+  <% if groups.empty? %><p>理事長・副理事長の重任・就任が入っていないので、互選書はいりません。</p><% end %>
+  <% groups.sort.each do |date, regs| %>
+    <div class="page">
+      <h1>理 事 の 互 選 書</h1>
+      <p><%= wareki_date(date, zen: true) %>、＿＿＿＿＿＿＿＿＿＿＿＿＿において、定款の規定に基づき<%= regs.map { it.officer_term.role_label }.uniq.join("及び") %>を選定するため、理事全員の互選の結果、次のとおり決定した。</p>
+      <% regs.sort_by { OfficerTerm::ROLES.keys.index(it.officer_term.role) }.each_with_index do |r, i| %>
+        <p><%= Wareki.zenkaku((i + 1).to_s) %>．<%= r.officer_term.role_label %>に理事<%= r.person.display_name_on(date) %>（<%= r.person.address_on(date) %>）を選定すること。</p>
+      <% end %>
+      <p>なお、被選定者は、いずれもその就任を承諾した。</p>
+      <p>上記決定を明確にするため、本互選書を作成し、理事全員が次に記名押印する。</p>
+      <p><%= wareki_date(date, zen: true) %></p>
+      <div class="block-right">
+        <p><%= org&.name %></p>
+        <% OfficerTerm.serving_on(date).select(&:director?).map(&:person).uniq.each do |p| %>
+          <p>理　事　<%= p.display_name_on(date) %><span class="seal"></span></p>
+        <% end %>
+      </div>
+      <p class="note">日付・場所・理事は、実際に互選した内容と合っているかを確かめてください。重任した理事は届出印を押します。</p>
+    </div>
+  <% end %>
+<% when "articles" %>
+  <% v = ArticleVersion.current %>
+  <h1>定　款</h1>
+  <% if v %><pre class="articles"><%= v.body %></pre><% else %><p>定款の版が登録されていません(「定款と事業」から入れてください)。</p><% end %>
+  <p style="margin-top:2em">上記は、当法人の現行定款に相違ありません。</p>
+  <p>令和　　年　　月　　日</p>
+  <p class="right"><%= org&.name %><br><%= org&.representative %><span class="seal"></span></p>
+<% end %>

@@ -435,6 +435,67 @@ textarea.nb-input { height: auto; padding: var(--space-2) var(--space-3); border
 .nb-dest-state.is-confirmed { color: var(--saved); background: var(--saved-fill); }
 .nb-dest-samples h2 { font-size: 13px; margin: 0 0 var(--space-2); }
 .nb-dest-samples p { margin: 0 0 var(--space-2); }
+/* 提出先の一覧(見直し第19回): 機関・窓口を 1 列に、連絡先の列、「提出先を足す ▼」のメニュー */
+.nb-dest-sub { color: var(--ink-muted); font-size: 12px; }
+.nb-dest-contact { white-space: nowrap; font-size: 12px; }
+.nb-dest-tel { color: var(--accent); }
+.nb-dest-none { color: var(--ink-muted); font-size: 11px; }
+.nb-dest-addmenu { position: relative; }
+.nb-dest-addmenu > summary { list-style: none; cursor: pointer; }
+.nb-dest-addmenu > summary::-webkit-details-marker { display: none; }
+.nb-dest-menu { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; min-width: 200px; display: grid; gap: 2px; padding: var(--space-2) var(--space-3); background: var(--sheet); border: 1px solid var(--grid-line-strong); box-shadow: 0 2px 6px rgb(0 0 0 / .12); }
+.nb-dest-menu-head { color: var(--ink-muted); font-size: 11px; padding-top: var(--space-1); }
+.nb-dest-menu-item { display: block; width: 100%; text-align: left; background: none; border: 0; padding: var(--space-1) var(--space-2); color: var(--ink); cursor: pointer; font: inherit; }
+.nb-dest-menu-item:hover, .nb-dest-menu-item:focus-visible { background: var(--select-fill); }
+.nb-dest-ai { display: grid; gap: var(--space-1); }
+/* 住所・氏名の移り変わり(見直し第20回) */
+.nb-hist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.nb-hist-table th, .nb-hist-table td { border-bottom: 1px solid var(--grid-line); padding: var(--space-2) var(--space-3); text-align: left; vertical-align: top; }
+.nb-hist-table thead th { color: var(--ink-muted); font-weight: 400; background: var(--sheet-alt); }
+.nb-hist-table tr.is-cancelled td { color: var(--ink-muted); text-decoration: line-through; }
+.nb-hist-table tr.is-cancelled td:nth-child(4) { text-decoration: none; }
+.nb-hist-mute { color: var(--ink-muted); font-size: 12px; }
+.nb-hist-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); align-items: flex-start; }
+.nb-hist-add > summary { list-style: none; cursor: pointer; }
+.nb-hist-add > summary::-webkit-details-marker { display: none; }
+.nb-hist-add[open] > summary { background: var(--select-fill); border-color: var(--accent); }
+.nb-hist-form { display: grid; gap: var(--space-2); margin-top: var(--space-2); padding: var(--space-3); border: 2px solid var(--accent); background: var(--select-fill); min-width: 300px; }
+.nb-hist-form label { display: grid; gap: var(--space-1); font-size: 12px; color: var(--ink-muted); }
+.nb-hist-form fieldset { border: 0; padding: 0; margin: 0; font-size: 12px; }
+.nb-hist-form legend { color: var(--ink-muted); }
+.nb-hist-form input[size] { width: auto; }
+/* 登記(見直し第20回) */
+.nb-reg { display: grid; gap: var(--space-5); padding: var(--space-5); font-size: 13px; }
+.nb-reg h2 { font-size: 14px; margin: 0 0 var(--space-2); }
+.nb-reg h3 { font-size: 13px; margin: var(--space-3) 0 var(--space-1); }
+.nb-reg-lead { margin: 0; }
+.nb-reg-mute { color: var(--ink-muted); font-size: 12px; }
+.nb-reg-head { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.nb-reg-head .page-title { margin: 0; }
+.nb-reg-table { width: 100%; border-collapse: collapse; background: var(--sheet); }
+.nb-reg-table th, .nb-reg-table td { border-bottom: 1px solid var(--grid-line); padding: var(--space-2) var(--space-3); text-align: left; vertical-align: top; }
+.nb-reg-table thead th { color: var(--ink-muted); font-weight: 400; background: var(--sheet-alt); }
+.nb-reg-table tr.is-overdue td { color: var(--dirty); }
+.nb-reg-steps { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
+.nb-reg-steps li { border: 1px solid var(--grid-line-strong); padding: 0 var(--space-3); font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.nb-reg-steps li.is-done { color: var(--saved); background: var(--saved-fill); border-color: var(--saved); }
+.nb-reg-steps li.is-now { color: var(--accent); background: var(--select-fill); border-color: var(--accent); }
+.nb-reg-steps li.is-skip { font-weight: 400; border-style: dashed; }
+.nb-reg-row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin: var(--space-2) 0; }
+.nb-reg-text { display: grid; gap: var(--space-1); padding: var(--space-3); background: var(--sheet); border: 1px solid var(--grid-line); }
+.nb-reg-text-head { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.nb-reg-text pre { margin: 0 0 var(--space-2); white-space: pre-wrap; font-family: var(--font-num); font-size: 12px; }
+.nb-reg-docs { margin: 0; padding-left: 1.2em; }
+.nb-reg-docs a { color: var(--accent); }
+.nb-reg-events { margin: 0; padding-left: 1.2em; }
+.nb-reg-forms { display: grid; gap: var(--space-1); }
+.nb-online { display: grid; gap: var(--space-1); padding: var(--space-3); background: var(--sheet); border: 1px solid var(--grid-line); }
+.nb-online-row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.nb-online-now { font-size: 12px; font-weight: 700; padding: 0 var(--space-3); border: 1px solid; }
+.nb-online-now.is-open { color: var(--saved); background: var(--saved-fill); }
+.nb-online-now.is-closed { color: var(--dirty); background: var(--dirty-fill); }
+.nb-online-note { margin: 0; color: var(--ink-muted); font-size: 12px; }
+.nb-online-note a { color: var(--accent); }
 .nb-setup { max-width: 640px; margin: var(--space-5) auto; display: grid; gap: var(--space-5); font-size: 13px; background: var(--sheet); border: 1px solid var(--grid-line); padding: var(--space-5) calc(var(--space-5) * 2); }
 .nb-setup h1 { font-size: 16px; margin: 0; }
 .nb-setup form { display: grid; gap: var(--space-4); }

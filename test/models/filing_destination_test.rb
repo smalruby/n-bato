@@ -66,16 +66,18 @@ class FilingDestinationTest < ActiveSupport::TestCase
     assert_match "市内だけに事務所がある法人の担当", d.notes
   end
 
-  test "AI の調べもの: 確認済みの種類は調べさせず、案も足さない" do
-    FilingDestination::Confirmation.confirm!(authority, by: users(:one))
+  test "AI の調べもの: 行のある種類は調べさせず、案も足さない(見直し第19回)" do
+    authority # 確かめていなくても、行があれば調べない
+    assert_not_includes FilingDestination.missing_kinds, "authority"
+    assert_includes FilingDestination.missing_kinds, "registry"
     row = ->(kind, name) { { "kind" => kind, "name" => name, "addressee" => "", "office" => "", "address" => "", "phone" => "", "fax" => "", "email" => "",
                              "hours" => "", "forms_url" => "", "source" => "https://example.jp/#{kind}", "notes" => "" } }
     client = FakeClient.new({ "destinations" => [ row.("authority", "テスト市"), row.("registry", "テスト法務局") ] })
     search = FilingDestinationSearch.create!(address: "テスト県テスト市1-1", requested_at: Time.current)
     search.run!(client:)
-    assert_includes client.prompt, "調べなくてよい種類(人が確かめ済み): 所轄庁(NPO 法人の担当)"
+    assert_includes client.prompt, "調べなくてよい種類(すでにある): 所轄庁(NPO 法人の担当)"
     assert_equal 1, search.reload.found_count
-    assert_equal 1, FilingDestination.where(kind: "authority").count, "確認済みの所轄庁と重なる案は足さない"
+    assert_equal 1, FilingDestination.where(kind: "authority").count, "すでにある所轄庁と重なる案は足さない"
     assert_equal "テスト法務局", FilingDestination.where(origin: "ai").sole.name
   end
 

@@ -20,6 +20,7 @@
     <dl class="grid grid-cols-3 gap-y-2 text-sm">
       <dt class="text-stone-500">よみ</dt><dd class="col-span-2"><%= @person.name_kana %></dd>
       <dt class="text-stone-500">住所</dt><dd class="col-span-2"><%= @person.address %></dd>
+      <% if (nc = @person.latest_name_change)&.show_former_name %><dt class="text-stone-500">旧氏の併記</dt><dd class="col-span-2"><%= nc.name_with_former %></dd><% end %>
       <dt class="text-stone-500">メール</dt><dd class="col-span-2"><%= @person.email %></dd>
       <dt class="text-stone-500">電話</dt><dd class="col-span-2"><%= @person.phone %></dd>
       <dt class="text-stone-500">メモ</dt><dd class="col-span-2 whitespace-pre-wrap"><%= @person.notes %></dd>
@@ -40,6 +41,7 @@
       <%= f.submit "追加", class: "btn-secondary" %>
     <% end %>
   </div>
+  <%= render "people/history", person: @person %>
   <div class="card md:col-span-2">
     <h2 class="section-title mt-0">役員の任期</h2>
     <table class="data-table">

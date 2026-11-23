@@ -23,6 +23,7 @@ module Compliance
 
     def status_for(due_on, done)
       return :done if done
+      return :open if due_on.nil? # 期限が分からない(例: 住所を移した日が不明)
       return :overdue if due_on < @today
       return :upcoming if due_on <= @today + UPCOMING_DAYS
 

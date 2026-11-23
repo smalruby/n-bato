@@ -42,8 +42,16 @@
   rules: [name]
   files: ['test/**/*.rb', app/models/resolution_item.rb, app/views/resolutions/_form.html.erb, config/organization.example.yml]
   reason: 架空の氏名(入力の例・テスト)
+- pattern: '(山田|田中|鈴木|佐藤|会員|申込|直す|消す|監査|新しい|別の|日田中)　(花子|太郎|次郎|一郎|花|一|人)'
+  rules: [name]
+  files: ['test/**/*.rb']
+  reason: 架空の氏名(住所・氏名の移り変わりと登記の申請のテスト。改姓・名変更を試すため、ありふれた氏と名を組み合わせた)
 
 # --- 人の名前ではないもの ---
+- pattern: '理　事|定　款|法務局　御中'
+  rules: [name]
+  files: [app/views/registration_filings/document.html.erb]
+  reason: 登記の添付書類の様式の見出し・記名欄(字の間を空ける書き方。人名ではない)
 - pattern: '第[0-9０-９一二三四五六七八九十]+章　\S+|少年団　定款'
   rules: [name]
   files: ['config/articles.example/*.md', app/models/articles/document.rb]

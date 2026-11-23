@@ -18,16 +18,16 @@ class MemberApplicationsController < ApplicationController
     year = params[:fiscal_year].presence&.to_i || a.default_year
     joined = params[:joined_on].presence&.then { Date.parse(it) } || Date.current
     Audit.label!("#{a.name}さんの入会を認めた(#{year}年度の正会員)")
-    a.approve!(fiscal_year: year, joined_on: joined, person:)
-    redirect_to member_application_path(a, anchor: "mail"), notice: "入会を認めました。#{year}年度の正会員になりました(元に戻せます)"
+    MemberApplication::Approval.approve!(a, fiscal_year: year, joined_on: joined, person:, by: Current.user)
+    redirect_to member_application_path(a, anchor: "mail"), notice: "入会を認めました。#{year}年度の正会員になりました(元に戻せない操作です。間違えたときは人の記録と会員資格を直してください)"
   rescue ArgumentError, Date::Error, ActiveRecord::RecordInvalid => e
     redirect_to a, alert: e.message
   end
 
   def reject
     Audit.label!("#{@application.name}さんの入会申込を認めないことにした")
-    @application.reject!(params[:reason])
-    redirect_to @application, notice: "認めないことにしました(元に戻せます)"
+    MemberApplication::Rejection.reject!(@application, reason: params[:reason], by: Current.user)
+    redirect_to @application, notice: "認めないことにしました(元に戻せない操作です)"
   rescue ArgumentError => e
     redirect_to @application, alert: e.message
   end

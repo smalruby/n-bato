@@ -18,7 +18,7 @@ class FilingDestinationsTest < ActionDispatch::IntegrationTest
     get filing_destinations_path
     assert_select "tr#dest-#{d.id}", text: /まだ確かめていない/
     # 見直し第18回: 行の中のボタンで、その行のすぐ下の入力欄を開く。どの行を直しているかを書く
-    assert_select "tr#dest-#{d.id} button[aria-controls=?]", "dest-detail-#{d.id}", text: /直す・確かめる/
+    assert_select "tr#dest-#{d.id} button.nb-btn--primary[aria-controls=?]", "dest-detail-#{d.id}", text: "確かめる ▼"
     assert_select "tr#dest-#{d.id} + tr#dest-detail-#{d.id}[hidden] .nb-dest-editing", text: "所轄庁(NPO 法人の担当)・テスト市 を直しています"
     assert_select "a[href=?]", filing_samples_path(format: :pdf)
 
@@ -57,6 +57,32 @@ class FilingDestinationsTest < ActionDispatch::IntegrationTest
     yield
   ensure
     before ? ENV["ANTHROPIC_API_KEY"] = before : ENV.delete("ANTHROPIC_API_KEY")
+  end
+
+  test "一覧(見直し第19回): 確認済みは「くわしく」・連絡先の列・「提出先を足す ▼」はまだ無い種類とその他" do
+    d = FilingDestination.create!(kind: "authority", name: "テスト市", addressee: "テスト市長　山田　太郎", office: "市民課", phone: "000-0000-0000")
+    FilingDestination::Confirmation.confirm!(d, by: users(:one))
+    get filing_destinations_path
+    assert_select "tr#dest-#{d.id} button:not(.nb-btn--primary)", text: "くわしく ▼"
+    assert_select "tr#dest-#{d.id} a[href='tel:00000000000']", text: "☎ 000-0000-0000"
+    assert_select "tr#dest-#{d.id} .nb-dest-none", text: "メールなし"
+    assert_select "tr#dest-#{d.id} .nb-dest-sub", text: /宛先: テスト市長/
+    assert_select ".nb-dest-menu button", text: "所轄庁(NPO 法人の担当)", count: 0
+    assert_select ".nb-dest-menu button", text: "登記"
+    assert_select ".nb-dest-menu button", text: "その他"
+    with_key("sk-test") do
+      get filing_destinations_path
+      assert_select ".nb-dest-ai", text: /調べる種類: 法人住民税\(県\)・法人住民税\(市\)・登記・税務署/
+      (FilingDestination::KINDS.keys - %w[authority other]).each { FilingDestination.create!(kind: it) }
+      get filing_destinations_path
+      assert_select ".nb-dest-ai", text: /まだ無い種類はありません/
+      assert_select ".nb-dest-ai button[disabled]"
+      post filing_destination_searches_path
+      assert_match "まだ無い種類はありません", flash[:alert]
+    end
+    d.update!(email: "office@example.jp")
+    get filing_destinations_path
+    assert_select "tr#dest-#{d.id} a[href='mailto:office@example.jp']", text: "✉ メール"
   end
 
   test "様式の例: 架空の法人で一式を出す(宛先も例)" do

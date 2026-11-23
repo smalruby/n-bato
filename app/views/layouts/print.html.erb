@@ -28,6 +28,8 @@
       <div class="toolbar">
         <% if @annual_report %>
           <%= link_to "← 事業報告書等に戻る", annual_report_path(@annual_report.fiscal_year) %>
+        <% elsif @filing %>
+          <%= link_to "← 登記の申請に戻る", registration_filing_path(@filing) %>
         <% elsif @fiscal_year %>
           <%= link_to "← 年度に戻る", fiscal_year_path(@fiscal_year.year) %>
         <% end %>

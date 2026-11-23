@@ -1,0 +1,121 @@
+<% content_for :title, "登記の申請 ##{@filing.id}" %>
+<%# 登記の申請 1 件(デザインシステム「登記の申請」、見直し第20回、docs/adr/0031) %>
+<% f = @filing; st = @statement; auditor = Current.user&.auditor? %>
+<div class="nb-reg">
+  <%= render "registrations/online", online: @online %>
+  <div class="nb-reg-head">
+    <h1 class="page-title">登記の申請 #<%= f.id %></h1>
+    <span class="nb-st nb-st--<%= f.finished? ? 'done' : (f.drafting? ? 'todo' : 'doing') %>"><%= f.status_label %></span>
+    <%= link_to "登記の一覧へ", registrations_path, class: "nb-btn" %>
+  </div>
+  <ol class="nb-reg-steps">
+    <% RegistrationFiling::STEPS.each do |key, label| %>
+      <% state = f.step_state(key) %>
+      <li class="is-<%= state %>"><%= label %><%= "(なし)" if state == :skip %></li>
+    <% end %>
+  </ol>
+
+  <section id="items">
+    <h2>1 何を登記するか</h2>
+    <table class="nb-reg-table">
+      <thead><tr><th>登記すること</th><th>人</th><th>原因</th><th></th></tr></thead>
+      <tbody>
+        <% f.registrations.each do |r| %>
+          <tr><td><%= r.kind_label %></td><td><%= r.person&.name %><%= "(#{r.officer_term.role_label})" if r.officer_term %></td><td><%= r.cause_line.delete_prefix("「原因年月日」") %></td>
+            <td><% if f.drafting? && !auditor %><%= button_to "外す", exclude_registration_filing_path(f, registration_id: r.id), class: "nb-btn" %><% end %></td></tr>
+        <% end %>
+      </tbody>
+    </table>
+    <% if f.drafting? && !auditor && (others = @available.reject { it.registration_filing_id == f.id }).any? %>
+      <%= form_with url: include_registration_filing_path(f), class: "nb-reg-row" do %>
+        <select name="registration_id" class="nb-input" aria-label="足す登記の事由"><% others.each do |r| %><option value="<%= r.id %>"><%= r.person&.name %>の<%= r.kind_label %>(<%= r.cause_on.strftime("%Y/%m/%d") %>)</option><% end %></select>
+        <button class="nb-btn">登記することを足す</button>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section id="documents">
+    <h2>2 書類を作る</h2>
+    <% if st.warnings.any? %>
+      <div class="nb-flash nb-flash--alert" role="alert"><b>確かめること</b><ul><% st.warnings.each do |w| %><li><%= w %></li><% end %></ul></div>
+    <% end %>
+    <div class="nb-reg-text">
+      <div class="nb-reg-text-head"><b>登記の事由</b></div>
+      <pre><%= st.reason %></pre>
+      <div class="nb-reg-text-head"><b>登記すべき事項</b>(申請用総合ソフトの欄に貼る)
+        <button type="button" class="nb-btn nb-btn--primary" data-controller="copy" data-copy-target-value="matters-text" data-action="copy#copy">登記すべき事項の文をコピー</button></div>
+      <pre id="matters-text"><%= st.matters %></pre>
+      <div class="nb-reg-text-head"><b>添付書類</b></div>
+      <pre><%= st.attachments.join("\n") %></pre>
+      <p class="nb-reg-mute">書き方は法務局の記載例(NPO 法人の重任・住所移転、役員の氏名変更)に合わせています。法務局の相談で別の書き方を言われたら、Nばとを直します。</p>
+    </div>
+
+    <h3>添付書類(紙で郵送する)</h3>
+    <p class="nb-reg-mute">申請書だけを申請用総合ソフトで送り(理事長のマイナンバーカードで電子署名)、添付書類は印刷して届出印を押し、申請番号を書いて法務局に郵送します。</p>
+    <ul class="nb-reg-docs">
+      <li><%= link_to "書面により提出する添付書面の内訳(申請番号を書く欄つき)PDF", document_registration_filing_path(f, doc: "cover", format: :pdf), target: "_blank", rel: "noopener" %></li>
+      <% if f.general_meeting_resolution %><li><%= link_to "社員総会議事録(#{f.general_meeting_resolution.title})PDF", document_resolution_path(f.general_meeting_resolution, doc: "minutes", format: :pdf), target: "_blank", rel: "noopener" %></li><% end %>
+      <% if f.board_resolution %>
+        <li><%= link_to "理事会議事録(#{f.board_resolution.title})PDF", document_resolution_path(f.board_resolution, doc: "minutes", format: :pdf), target: "_blank", rel: "noopener" %></li>
+      <% else %>
+        <li><%= link_to "理事の互選書(届出印の欄つき)PDF", document_registration_filing_path(f, doc: "mutual_election", format: :pdf), target: "_blank", rel: "noopener" %></li>
+      <% end %>
+      <li><%= link_to "定款 PDF", document_registration_filing_path(f, doc: "articles", format: :pdf), target: "_blank", rel: "noopener" %></li>
+    </ul>
+    <% unless auditor %>
+      <%= form_with model: f, class: "nb-reg-row" do |form| %>
+        <label>社員総会議事録にする決議 <%= form.select :general_meeting_resolution_id, @resolutions.select { it.body == "general_meeting" }.map { [ it.title, it.id ] }, { include_blank: "(選ぶ)" }, class: "nb-input" %></label>
+        <label>理事長・副理事長を選んだ決議 <%= form.select :board_resolution_id, @resolutions.select { it.body == "board" }.map { [ it.title, it.id ] }, { include_blank: "(互選書を作る)" }, class: "nb-input" %></label>
+        <button class="nb-btn">保存</button>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section id="events">
+    <h2>3〜6 申請したあと</h2>
+    <ul class="nb-reg-events">
+      <% if (e = f.submission) %><li>申請した: <%= e.submitted_on.strftime("%Y/%m/%d") %><%= " 申請番号 #{e.application_number}" if e.application_number.present? %></li><% end %>
+      <% if (e = f.acceptance) %><li>受付: <%= e.accepted_on.strftime("%Y/%m/%d") %><%= " 受付番号 #{e.receipt_number}" if e.receipt_number.present? %></li><% end %>
+      <% f.corrections.each do |e| %><li>補正を求められた: <%= e.noticed_on.strftime("%Y/%m/%d") %> <%= e.note %></li><% end %>
+      <% if (e = f.completion) %><li>完了: <%= e.completed_on.strftime("%Y/%m/%d") %></li><% end %>
+      <% if (e = f.withdrawal) %><li>取り下げた: <%= e.withdrawn_on.strftime("%Y/%m/%d") %> <%= e.reason %></li><% end %>
+    </ul>
+    <% unless auditor || f.finished? %>
+      <div class="nb-reg-forms">
+        <% case f.status %>
+        <% when "drafting" %>
+          <%= form_with url: registration_filing_submission_path(f), class: "nb-reg-row" do %>
+            <b>申請した</b><label>日 <input type="date" name="on" class="nb-input" value="<%= Date.current %>" required></label>
+            <label>申請番号(到達のお知らせ) <input name="application_number" class="nb-input"></label>
+            <button class="nb-btn nb-btn--primary">申請したことを記録する</button>
+          <% end %>
+        <% when "submitted" %>
+          <%= form_with url: registration_filing_acceptance_path(f), class: "nb-reg-row" do %>
+            <b>受付</b><label>日 <input type="date" name="on" class="nb-input" value="<%= Date.current %>" required></label>
+            <label>受付番号(受付のお知らせ) <input name="receipt_number" class="nb-input"></label>
+            <button class="nb-btn nb-btn--primary">受け付けられたことを記録する</button>
+          <% end %>
+        <% end %>
+        <% unless f.drafting? %>
+          <%= form_with url: registration_filing_corrections_path(f), class: "nb-reg-row" do %>
+            <b>補正</b><label>日 <input type="date" name="on" class="nb-input" value="<%= Date.current %>" required></label>
+            <label>求められたこと <input name="note" class="nb-input" required></label>
+            <button class="nb-btn">補正を求められたことを記録する</button>
+          <% end %>
+          <%= form_with url: registration_filing_completion_path(f), class: "nb-reg-row", data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do %>
+            <b>完了</b><label>日 <input type="date" name="on" class="nb-input" value="<%= Date.current %>" required></label>
+            <button class="nb-btn nb-btn--primary" data-confirm-twice-target="button" data-armed-label="もう一度押すと記録します(元に戻せません)">登記が完了したことを記録する</button>
+            <span class="nb-reg-mute">完了すると、登記の完了を待っているやること(TechSoup に送るなど)が作業中に戻ります。</span>
+          <% end %>
+        <% end %>
+        <%= form_with url: registration_filing_withdrawal_path(f), class: "nb-reg-row", data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do %>
+          <b>取り下げ</b><label>日 <input type="date" name="on" class="nb-input" value="<%= Date.current %>" required></label>
+          <label>理由 <input name="reason" class="nb-input" required></label>
+          <button class="nb-btn nb-btn--danger" data-confirm-twice-target="button" data-armed-label="もう一度押すと取り下げます(元に戻せません)">取り下げる</button>
+        <% end %>
+      </div>
+      <p class="nb-reg-mute">記録は元に戻せません(出来事として残ります)。</p>
+    <% end %>
+  </section>
+</div>
+<% content_for :side do %><div><h2>操作履歴</h2><%= history_panel("registrations") %></div><% end %>

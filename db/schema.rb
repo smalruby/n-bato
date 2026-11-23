@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_092000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "code", null: false
     t.string "name", null: false
@@ -331,6 +331,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_110000) do
     t.index ["voucher_id"], name: "index_journal_proposals_on_voucher_id"
   end
 
+  create_table "member_application_approvals", force: :cascade do |t|
+    t.integer "member_application_id", null: false
+    t.integer "approver_id"
+    t.integer "person_id", null: false
+    t.integer "fiscal_year", null: false
+    t.date "joined_on", null: false
+    t.datetime "approved_at", null: false
+    t.index ["approver_id"], name: "index_member_application_approvals_on_approver_id"
+    t.index ["member_application_id"], name: "index_member_application_approvals_on_member_application_id", unique: true
+    t.index ["person_id"], name: "index_member_application_approvals_on_person_id"
+  end
+
+  create_table "member_application_rejections", force: :cascade do |t|
+    t.integer "member_application_id", null: false
+    t.integer "rejecter_id"
+    t.text "reason", null: false
+    t.datetime "rejected_at", null: false
+    t.index ["member_application_id"], name: "index_member_application_rejections_on_member_application_id", unique: true
+    t.index ["rejecter_id"], name: "index_member_application_rejections_on_rejecter_id"
+  end
+
   create_table "member_applications", force: :cascade do |t|
     t.date "applied_on", null: false
     t.string "name", null: false
@@ -453,12 +474,44 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_110000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "person_address_changes", force: :cascade do |t|
+    t.integer "person_id", null: false
+    t.text "address"
+    t.date "moved_on", null: false
+    t.string "date_precision", default: "day", null: false
+    t.integer "recorded_by_id"
+    t.text "note", default: "", null: false
+    t.index ["person_id"], name: "index_person_address_changes_on_person_id"
+    t.index ["recorded_by_id"], name: "index_person_address_changes_on_recorded_by_id"
+  end
+
+  create_table "person_change_cancellations", force: :cascade do |t|
+    t.string "change_type", null: false
+    t.integer "change_id", null: false
+    t.integer "canceller_id"
+    t.text "reason", null: false
+    t.datetime "cancelled_at", null: false
+    t.index ["canceller_id"], name: "index_person_change_cancellations_on_canceller_id"
+    t.index ["change_type", "change_id"], name: "index_person_change_cancellations_on_change", unique: true
+  end
+
+  create_table "person_name_changes", force: :cascade do |t|
+    t.integer "person_id", null: false
+    t.string "name", null: false
+    t.string "name_kana", default: "", null: false
+    t.string "former_name", default: "", null: false
+    t.boolean "show_former_name", default: false, null: false
+    t.date "changed_on", null: false
+    t.string "date_precision", default: "day", null: false
+    t.integer "recorded_by_id"
+    t.text "note", default: "", null: false
+    t.index ["person_id"], name: "index_person_name_changes_on_person_id"
+    t.index ["recorded_by_id"], name: "index_person_name_changes_on_recorded_by_id"
+  end
+
   create_table "person_years", force: :cascade do |t|
     t.integer "person_id", null: false
     t.integer "fiscal_year", null: false
-    t.string "name", null: false
-    t.string "name_kana", default: "", null: false
-    t.text "address"
     t.text "email"
     t.text "phone"
     t.text "notes", default: "", null: false
@@ -513,16 +566,77 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_110000) do
     t.index ["code"], name: "index_program_profiles_on_code", unique: true
   end
 
+  create_table "registration_filing_acceptances", force: :cascade do |t|
+    t.integer "registration_filing_id", null: false
+    t.string "receipt_number", default: "", null: false
+    t.integer "recorded_by_id"
+    t.date "accepted_on", null: false
+    t.index ["recorded_by_id"], name: "index_registration_filing_acceptances_on_recorded_by_id"
+    t.index ["registration_filing_id"], name: "idx_on_registration_filing_id_abc3738848", unique: true
+  end
+
+  create_table "registration_filing_completions", force: :cascade do |t|
+    t.integer "registration_filing_id", null: false
+    t.integer "recorded_by_id"
+    t.date "completed_on", null: false
+    t.index ["recorded_by_id"], name: "index_registration_filing_completions_on_recorded_by_id"
+    t.index ["registration_filing_id"], name: "idx_on_registration_filing_id_cb65893cd7", unique: true
+  end
+
+  create_table "registration_filing_corrections", force: :cascade do |t|
+    t.integer "registration_filing_id", null: false
+    t.text "note", null: false
+    t.integer "recorded_by_id"
+    t.date "noticed_on", null: false
+    t.index ["recorded_by_id"], name: "index_registration_filing_corrections_on_recorded_by_id"
+    t.index ["registration_filing_id"], name: "idx_on_registration_filing_id_5592bd7d28"
+  end
+
+  create_table "registration_filing_submissions", force: :cascade do |t|
+    t.integer "registration_filing_id", null: false
+    t.string "application_number", default: "", null: false
+    t.integer "recorded_by_id"
+    t.date "submitted_on", null: false
+    t.index ["recorded_by_id"], name: "index_registration_filing_submissions_on_recorded_by_id"
+    t.index ["registration_filing_id"], name: "idx_on_registration_filing_id_ec022f44bf", unique: true
+  end
+
+  create_table "registration_filing_withdrawals", force: :cascade do |t|
+    t.integer "registration_filing_id", null: false
+    t.text "reason", null: false
+    t.integer "recorded_by_id"
+    t.date "withdrawn_on", null: false
+    t.index ["recorded_by_id"], name: "index_registration_filing_withdrawals_on_recorded_by_id"
+    t.index ["registration_filing_id"], name: "idx_on_registration_filing_id_dfa64cb908", unique: true
+  end
+
+  create_table "registration_filings", force: :cascade do |t|
+    t.string "status", default: "drafting", null: false
+    t.text "note", default: "", null: false
+    t.integer "general_meeting_resolution_id"
+    t.integer "board_resolution_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["board_resolution_id"], name: "index_registration_filings_on_board_resolution_id"
+    t.index ["general_meeting_resolution_id"], name: "index_registration_filings_on_general_meeting_resolution_id"
+  end
+
   create_table "registrations", force: :cascade do |t|
     t.string "kind", null: false
     t.date "cause_on", null: false
-    t.date "due_on", null: false
+    t.date "due_on"
     t.date "registered_on"
     t.text "note", default: "", null: false
     t.integer "officer_term_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "registration_filing_id"
+    t.integer "person_address_change_id"
+    t.integer "person_name_change_id"
     t.index ["officer_term_id"], name: "index_registrations_on_officer_term_id"
+    t.index ["person_address_change_id"], name: "index_registrations_on_person_address_change_id"
+    t.index ["person_name_change_id"], name: "index_registrations_on_person_name_change_id"
+    t.index ["registration_filing_id"], name: "index_registrations_on_registration_filing_id"
   end
 
   create_table "resolution_items", force: :cascade do |t|
@@ -607,6 +721,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_110000) do
     t.string "done_note", default: "", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "resume_rule", default: "", null: false
     t.index ["incoming_request_id"], name: "index_todos_on_incoming_request_id"
     t.index ["status", "fiscal_year"], name: "index_todos_on_status_and_fiscal_year"
   end
@@ -673,17 +788,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_110000) do
   add_foreign_key "journal_proposals", "departments", column: "debit_department_id"
   add_foreign_key "journal_proposals", "journal_proposals", column: "reproposed_from_id"
   add_foreign_key "journal_proposals", "vouchers"
+  add_foreign_key "member_application_approvals", "member_applications"
+  add_foreign_key "member_application_approvals", "people"
+  add_foreign_key "member_application_approvals", "users", column: "approver_id"
+  add_foreign_key "member_application_rejections", "member_applications"
+  add_foreign_key "member_application_rejections", "users", column: "rejecter_id"
   add_foreign_key "member_applications", "people"
   add_foreign_key "memberships", "people"
   add_foreign_key "officer_terms", "people"
   add_foreign_key "opening_balances", "accounts"
   add_foreign_key "organization_years", "organizations"
   add_foreign_key "passkeys", "users"
+  add_foreign_key "person_address_changes", "people"
+  add_foreign_key "person_address_changes", "users", column: "recorded_by_id"
+  add_foreign_key "person_change_cancellations", "users", column: "canceller_id"
+  add_foreign_key "person_name_changes", "people"
+  add_foreign_key "person_name_changes", "users", column: "recorded_by_id"
   add_foreign_key "person_years", "people"
   add_foreign_key "procedure_steps", "procedure_runs"
   add_foreign_key "program_activities", "annual_reports"
   add_foreign_key "program_activities", "departments"
+  add_foreign_key "registration_filing_acceptances", "registration_filings"
+  add_foreign_key "registration_filing_acceptances", "users", column: "recorded_by_id"
+  add_foreign_key "registration_filing_completions", "registration_filings"
+  add_foreign_key "registration_filing_completions", "users", column: "recorded_by_id"
+  add_foreign_key "registration_filing_corrections", "registration_filings"
+  add_foreign_key "registration_filing_corrections", "users", column: "recorded_by_id"
+  add_foreign_key "registration_filing_submissions", "registration_filings"
+  add_foreign_key "registration_filing_submissions", "users", column: "recorded_by_id"
+  add_foreign_key "registration_filing_withdrawals", "registration_filings"
+  add_foreign_key "registration_filing_withdrawals", "users", column: "recorded_by_id"
+  add_foreign_key "registration_filings", "resolutions", column: "board_resolution_id"
+  add_foreign_key "registration_filings", "resolutions", column: "general_meeting_resolution_id"
   add_foreign_key "registrations", "officer_terms"
+  add_foreign_key "registrations", "person_address_changes"
+  add_foreign_key "registrations", "person_name_changes"
+  add_foreign_key "registrations", "registration_filings"
   add_foreign_key "resolution_items", "resolutions"
   add_foreign_key "resolutions", "people", column: "minutes_author_id"
   add_foreign_key "resolutions", "people", column: "proposer_id"

@@ -5,22 +5,31 @@
   <%= render "filing_destinations/waiting", search: @search %>
 
   <table class="nb-dest-table" data-controller="row-detail">
-    <thead><tr><th>種類</th><th>機関</th><th>宛先(役職と氏名)</th><th>窓口</th><th>状態</th><th></th></tr></thead>
+    <thead><tr><th>種類</th><th>機関・窓口</th><th>連絡先</th><th>状態</th><th></th></tr></thead>
     <tbody>
       <% if @destinations.empty? %>
-        <tr><td colspan="6" class="nb-dest-empty">まだありません。下の「提出先を足す」か「AI に調べてもらう」から始めてください。</td></tr>
+        <tr><td colspan="5" class="nb-dest-empty">まだありません。下の「提出先を足す」か「まだ無い提出先を AI に調べてもらう」から始めてください。</td></tr>
       <% end %>
       <% @destinations.each do |d| %>
         <tr id="dest-<%= d.id %>" class="nb-dest-row">
-          <td><%= d.kind_label %></td><td><%= d.name.presence || "—" %></td><td><%= d.addressee.presence || "—" %></td><td><%= d.office.presence || "—" %></td>
+          <td><%= d.kind_label %></td>
+          <td><%= d.name.presence || "—" %>
+            <div class="nb-dest-sub"><%= d.office.presence || "窓口: —" %><% if d.addressee.present? %><br>宛先: <%= d.addressee %><% end %></div></td>
+          <td class="nb-dest-contact">
+            <div><% if d.phone.present? %><%= link_to "☎ #{d.phone}", "tel:#{d.phone.gsub(/[^\d+]/, '')}", class: "nb-dest-tel" %><% else %><span class="nb-dest-none">電話なし</span><% end %></div>
+            <div><% if d.email.present? %><%= mail_to d.email, "✉ メール", class: "nb-dest-tel", title: d.email %><% else %><span class="nb-dest-none">メールなし</span><% end %></div>
+          </td>
           <td><%= render "filing_destinations/state", d: %></td>
           <td class="nb-dest-toggle">
-            <button type="button" class="nb-btn" aria-expanded="false" aria-controls="dest-detail-<%= d.id %>"
+            <%# 見直し第19回: 確認済みは「くわしく」、確かめていないものは主のボタンの「確かめる」(監査はいつも「くわしく」) %>
+            <% check = !d.confirmed? && !Current.user&.auditor? %>
+            <% label = check ? "確かめる ▼" : "くわしく ▼" %>
+            <button type="button" class="nb-btn<%= ' nb-btn--primary' if check %>" aria-expanded="false" aria-controls="dest-detail-<%= d.id %>"
                     data-row-detail-target="button" data-action="row-detail#toggle"
-                    data-closed-label="<%= Current.user&.auditor? ? "くわしく見る ▼" : "直す・確かめる ▼" %>" data-open-label="閉じる ▲"><%= Current.user&.auditor? ? "くわしく見る ▼" : "直す・確かめる ▼" %></button>
+                    data-closed-label="<%= label %>" data-open-label="閉じる ▲"><%= label %></button>
           </td>
         </tr>
-        <tr class="nb-dest-detail" id="dest-detail-<%= d.id %>" hidden><td colspan="6">
+        <tr class="nb-dest-detail" id="dest-detail-<%= d.id %>" hidden><td colspan="5">
           <div class="nb-dest-editing"><%= d.kind_label %>・<%= d.name.presence || "(機関の名前がまだ無い)" %> を<%= Current.user&.auditor? ? "見ています" : "直しています" %></div>
             <%= form_with url: filing_destination_path(d), method: :patch, data: { controller: "autosave", autosave_scope_value: @undo_scope, action: "change->autosave#save input->autosave#mark keydown->autosave#cancel" } do %>
               <div class="nb-dest-fields">
@@ -34,7 +43,7 @@
               <% if d.last_confirmation %><span class="nb-dest-mute">最後に確かめた: <%= l(d.last_confirmation.confirmed_at, format: :short) %> <%= d.last_confirmation.confirmed_by&.name %></span><% end %>
               <% unless Current.user&.auditor? %>
                 <% unless d.confirmed? %><%= button_to "この内容で確認済みにする", filing_destination_confirmation_path(d), class: "nb-btn nb-btn--primary" %><% end %>
-                <%= button_to "消す", filing_destination_path(d), method: :delete, class: "nb-btn nb-btn--danger", data: { controller: "confirm-twice", action: "click->confirm-twice#click" } %>
+                <%= button_to "消す", filing_destination_path(d), method: :delete, class: "nb-btn nb-btn--danger", form: { data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } }, data: { confirm_twice_target: "button", armed_label: "もう一度押すと消します" } %>
               <% end %>
             </div>
         </td></tr>
@@ -43,18 +52,28 @@
   </table>
 
   <% unless Current.user&.auditor? %>
+    <%# 見直し第19回: 「提出先を足す ▼」(まだ無い種類+その他)と「まだ無い提出先を AI に調べてもらう」の 2 つ %>
+    <% missing = FilingDestination.missing_kinds %>
     <div class="nb-dest-add">
-      <%= form_with url: filing_destinations_path do %>
-        <%= select_tag :kind, options_for_select(FilingDestination::KINDS.invert), class: "nb-input", "aria-label": "足す提出先の種類" %>
-        <%= submit_tag "提出先を足す", class: "nb-btn" %>
-      <% end %>
-      <% if @ai_ready %>
-        <%= button_to "AI に調べてもらう(所在地だけを送る)", filing_destination_searches_path, class: "nb-btn", disabled: @search&.searching? %>
-      <% else %>
-        <span class="nb-dest-mute">AI の鍵が未設定なので、AI には調べてもらえません。</span>
-      <% end %>
+      <details class="nb-dest-addmenu">
+        <summary class="nb-btn">提出先を足す ▼</summary>
+        <div class="nb-dest-menu" role="menu">
+          <% if missing.any? %><div class="nb-dest-menu-head">まだ無い種類</div><% end %>
+          <% missing.each do |k| %><%= button_to FilingDestination::KINDS[k], filing_destinations_path(kind: k), class: "nb-dest-menu-item", role: "menuitem" %><% end %>
+          <div class="nb-dest-menu-head">ほかに足す</div>
+          <%= button_to FilingDestination::KINDS["other"], filing_destinations_path(kind: "other"), class: "nb-dest-menu-item", role: "menuitem" %>
+        </div>
+      </details>
+      <div class="nb-dest-ai">
+        <% if !@ai_ready %>
+          <span class="nb-dest-mute">AI の鍵が未設定なので、AI には調べてもらえません。</span>
+        <% else %>
+          <%= button_to "まだ無い提出先を AI に調べてもらう(所在地だけを送る)", filing_destination_searches_path, class: "nb-btn", disabled: @search&.searching? || missing.empty? %>
+          <div class="nb-dest-mute"><%= missing.any? ? "調べる種類: #{missing.map { FilingDestination::KINDS[it] }.join('・')}" : "まだ無い種類はありません" %></div>
+        <% end %>
+      </div>
     </div>
-    <p class="nb-dest-mute">AI に調べてもらうと、法人の所在地(<%= Organization.current.address.presence || "未設定" %>)と法人の種類だけを Claude API に送り、Web で窓口を探します。見つけたものは「AI の案」として足します。出どころのページを見て、合っていれば「確認済みにする」を押してください。</p>
+    <p class="nb-dest-mute">AI に調べてもらうと、法人の所在地(<%= Organization.current.address.presence || "未設定" %>)と法人の種類だけを Claude API に送り、Web でまだ無い種類の窓口を探します。見つけたものは「AI の案」として足します。出どころのページを見て、合っていれば「確認済みにする」を押してください。</p>
   <% end %>
 
   <div class="nb-dest-samples">

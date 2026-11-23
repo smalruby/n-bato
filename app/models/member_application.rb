@@ -1,5 +1,5 @@
 # 入会申込(デザインシステム「入会申込」)。AI がフォームの回答から入れる。理事長が「入会を認める」を押すと、
-# 人の記録とその年度の正会員の資格ができる(定款第7条)。住所・メール・電話は人の記録と同じく暗号化する。
+# 人の記録とその年度の正会員の資格ができる(定款第7条)。認めた・認めないは詳細のイベント(docs/adr/0030)。住所・メール・電話は人の記録と同じく暗号化する。
 class MemberApplication < ApplicationRecord
   encrypts :postal_code, :address, :email, :phone, :referral, :help_offers, :comments
   belongs_to :person, optional: true
@@ -20,22 +20,15 @@ class MemberApplication < ApplicationRecord
   def full_address = [ postal_code.presence && "〒#{postal_code}", address ].compact.join(" ")
   def same_name_people = Person.where(name:).or(Person.where(name: name.to_s.gsub(/[\s　]+/, "　"))).distinct
 
-  # 入会を認める。person を渡せばその人に資格を足す(人を二重に作らない)。
-  def approve!(fiscal_year:, joined_on:, person: nil)
-    raise ArgumentError, "届いた申込ではありません" unless received?
-    raise ArgumentError, "#{fiscal_year}年度は締めてあります。年度の締めを解いてから認めてください" if FiscalPeriod.for(fiscal_year)&.closed?
+  has_one :approval, class_name: "MemberApplication::Approval", dependent: :restrict_with_error
+  has_one :rejection, class_name: "MemberApplication::Rejection", dependent: :restrict_with_error
 
-    transaction do
-      person ||= Person.create!(name:, name_kana:, address: full_address, email:, phone:)
-      person.memberships.find_or_create_by!(fiscal_year:, kind: "regular") { it.joined_on = joined_on }
-      update!(status: "approved", person:, fiscal_year:, joined_on:, decided_on: Date.current)
+  # いまの状態は、認めた・認めないのイベントから決まる(docs/adr/0005・0030)。照合は model:verify。
+  def derived_status
+    if approval then "approved"
+    elsif rejection then "rejected"
+    else "received"
     end
-  end
-
-  def reject!(reason)
-    raise ArgumentError, "認めない理由を書いてください" if reason.to_s.strip.empty?
-
-    update!(status: "rejected", reason: reason.strip, decided_on: Date.current)
   end
 
   # 入会のお知らせメールの下書き(n-bato からは送らない。理事長がコピーして送る)

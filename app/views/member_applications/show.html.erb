@@ -28,7 +28,7 @@
         <% end %>
         <button class="nb-btn nb-btn--primary">入会を認める</button>
       <% end %>
-      <p class="text-xs" style="color:var(--ink-muted);margin:4px 0 0">人の記録と、その年度の正会員の資格ができます。元に戻せます。<%= "同じ氏名の人が登録されています。同じ人なら、資格を足してください(二重に作らない)。" if @same.any? %></p>
+      <p class="text-xs" style="color:var(--ink-muted);margin:4px 0 0">人の記録と、その年度の正会員の資格ができます。元に戻せない操作です。<%= "同じ氏名の人が登録されています。同じ人なら、資格を足してください(二重に作らない)。" if @same.any? %></p>
     </section>
     <section>
       <%= form_with url: reject_member_application_path(a), class: "flex flex-wrap gap-2 items-center", data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do %>

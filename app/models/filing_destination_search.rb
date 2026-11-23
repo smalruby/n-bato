@@ -49,7 +49,7 @@ class FilingDestinationSearch < ApplicationRecord
   def run!(client: Bookkeeper::Client.new)
     result = client.search_json(system: system_prompt, prompt: prompt, schema: SCHEMA)
     found = Array(result["destinations"]).select { it["source"].present? && it["name"].present? }
-                                          .reject { confirmed_kinds.include?(it["kind"]) }
+                                          .reject { existing_kinds.include?(it["kind"]) }
     transaction do
       found.each do |d|
         notes = [ "AI が #{requested_at.to_date} に調べた案(人が確かめる)", d["notes"].presence ].compact.join("。")
@@ -61,9 +61,9 @@ class FilingDestinationSearch < ApplicationRecord
     update!(status: "failed", error_message: e.message)
   end
 
-  # 確認済みの提出先がある種類。人が確かめた内容と重ならないよう、調べず、案も足さない。
-  def confirmed_kinds
-    @confirmed_kinds ||= FilingDestination.all.select(&:confirmed?).map(&:kind).uniq - [ "other" ]
+  # 行が 1 件でもある種類。重ならないよう、調べず、案も足さない(見直し第19回: 確かめていない行があっても調べ直さない)。
+  def existing_kinds
+    @existing_kinds ||= FilingDestination.existing_kinds
   end
 
   def system_prompt = <<~TEXT
@@ -76,9 +76,9 @@ class FilingDestinationSearch < ApplicationRecord
   TEXT
 
   def prompt
-    skip = confirmed_kinds.map { FilingDestination::KINDS[it] }
+    skip = existing_kinds.map { FilingDestination::KINDS[it] }
     [ "法人の種類: #{ORG_KIND}", "主たる事務所の所在地: #{address}",
-      ("調べなくてよい種類(人が確かめ済み): #{skip.join('、')}" if skip.any?),
+      ("調べなくてよい種類(すでにある): #{skip.join('、')}" if skip.any?),
       "この法人が書類を出す先の窓口を調べてください。" ].compact.join("\n")
   end
 end

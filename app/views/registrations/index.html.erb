@@ -1,21 +1,63 @@
 <% content_for :title, "登記" %>
-<h1 class="page-title">登記</h1>
-<p class="text-sm text-stone-600 mb-4">代表権のある理事（理事長・副理事長）が就任・重任したときは、2 週間以内に法務局で変更登記をします。任期 2 年ごとの重任でも必要です。</p>
-<div class="card">
-  <table class="data-table">
-    <thead><tr><th>種類</th><th>内容</th><th>原因の日</th><th>期限</th><th>登記した日</th></tr></thead>
-    <% @registrations.each do |r| %>
-      <tr class="<%= 'bg-red-50' if !r.done? && r.due_on < Date.current %>">
-        <td><%= r.kind_label %></td><td><%= r.note %></td><td><%= l r.cause_on %></td>
-        <td class="<%= 'text-red-700 font-bold' if !r.done? && r.due_on < Date.current %>"><%= l r.due_on %></td>
-        <td>
-          <%= form_with model: r, class: "flex gap-2" do |f| %>
-            <%= f.date_field :registered_on, class: "rounded border border-stone-300 px-2 py-1 text-sm" %>
-            <%= f.submit "記録", class: "btn-secondary" %>
-          <% end %>
-        </td>
-      </tr>
+<%# 登記(デザインシステム「登記の申請」、見直し第20回、docs/adr/0031) %>
+<div class="nb-reg">
+  <%= render "registrations/online", online: @online %>
+  <p class="nb-reg-lead">代表権のある理事(理事長・副理事長)が就任・重任したときと、その人の住所・氏名が変わったときは、2 週間以内に法務局で変更の登記をします。任期 2 年ごとの重任でも要ります。</p>
+
+  <section>
+    <h2>登記がいること</h2>
+    <% if @pending.empty? %>
+      <p class="nb-reg-mute">登記がいることはありません。</p>
+    <% else %>
+      <%= form_with url: registration_filings_path do %>
+        <table class="nb-reg-table">
+          <thead><tr><th></th><th>登記すること</th><th>人</th><th>原因の日</th><th>期限</th><th>申請</th></tr></thead>
+          <tbody>
+            <% @pending.each do |r| %>
+              <tr class="<%= 'is-overdue' if r.overdue? %>">
+                <td><% if r.available? && !Current.user&.auditor? %><input type="checkbox" name="registration_ids[]" value="<%= r.id %>" aria-label="<%= r.kind_label %>を申請に入れる"><% end %></td>
+                <td><%= r.kind_label %></td>
+                <td><%= r.person&.name %><%= "(#{r.officer_term.role_label})" if r.officer_term %></td>
+                <td class="nb-num"><%= r.change ? r.change.date_label : r.cause_on.strftime("%Y/%m/%d") %></td>
+                <td class="nb-num"><%= r.due_on ? r.due_on.strftime("%Y/%m/%d") : "日が分かってから" %><%= " 過ぎている" if r.overdue? %></td>
+                <td><%= r.registration_filing && !r.registration_filing.withdrawn? ? link_to("申請 ##{r.registration_filing.id}(#{r.registration_filing.status_label})", r.registration_filing) : "—" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        <% unless Current.user&.auditor? %><p><button class="nb-btn nb-btn--primary">選んだもので登記の申請を始める</button> <span class="nb-reg-mute">重任・住所の変更・氏名の変更を 1 件にまとめられます(まとめられないと法務局で言われたら、分けて申請します)。</span></p><% end %>
+      <% end %>
     <% end %>
-  </table>
-  <% if @registrations.empty? %><p class="text-stone-500 mt-3">登記が必要な記録はありません。</p><% end %>
+  </section>
+
+  <section>
+    <h2>登記の申請</h2>
+    <% if @filings.empty? %>
+      <p class="nb-reg-mute">まだありません。</p>
+    <% else %>
+      <table class="nb-reg-table">
+        <thead><tr><th>申請</th><th>登記すること</th><th>状態</th></tr></thead>
+        <tbody>
+          <% @filings.each do |f| %>
+            <tr><td><%= link_to "申請 ##{f.id}", f %></td><td><%= f.registrations.map { "#{it.person&.name}の#{it.kind_label}" }.join("、").presence || "—" %></td>
+              <td><span class="nb-st nb-st--<%= f.finished? ? 'done' : (f.drafting? ? 'todo' : 'doing') %>"><%= f.status_label %></span></td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </section>
+
+  <% if @done.any? %>
+    <section>
+      <h2>登記したこと</h2>
+      <table class="nb-reg-table">
+        <thead><tr><th>登記したこと</th><th>人</th><th>原因の日</th><th>登記した日</th></tr></thead>
+        <tbody>
+          <% @done.each do |r| %>
+            <tr><td><%= r.kind_label %></td><td><%= r.person&.name %></td><td class="nb-num"><%= r.cause_on.strftime("%Y/%m/%d") %></td><td class="nb-num"><%= r.registered_on.strftime("%Y/%m/%d") %></td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </section>
+  <% end %>
 </div>

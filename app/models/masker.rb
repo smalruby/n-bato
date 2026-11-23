@@ -46,9 +46,11 @@ class Masker
 
   def mark(kind) = "【伏せた#{LABELS.fetch(kind)}】"
 
-  # n-bato に登録されている人と法人以外の住所・メール・電話(年度ごとの記録と、入会申込も)
+  # n-bato に登録されている人と法人以外の住所・メール・電話(年度ごとの記録・住所の移り変わり・入会申込も)
   def self.known_values
-    rows = Person.all.to_a + PersonYear.all.to_a + MemberApplication.all.to_a
-    rows.flat_map { |r| [ [ :address, r.address ], [ :email, r.email ], [ :phone, r.phone ] ] }.reject { it[1].blank? }.uniq
+    people = Person.includes(:address_changes, :name_changes).to_a
+    addresses = people.flat_map { [ it.address_at_start, *it.address_changes.map(&:address) ] }
+    contacts = (people + PersonYear.all.to_a + MemberApplication.all.to_a).flat_map { |r| [ [ :email, r.email ], [ :phone, r.phone ] ] }
+    (addresses.map { [ :address, it ] } + MemberApplication.all.map { [ :address, it.address ] } + contacts).reject { it[1].blank? }.uniq
   end
 end

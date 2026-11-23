@@ -1,4 +1,6 @@
-# 会員・役員(年度ごとの記録)。操作している年度の記録を出し、直す。
+# 会員・役員。メール・電話・メモは年度ごとの記録(操作している年度の記録を出し、直す)。
+# 氏名・よみ・住所は「記録の始まり」の値で、住所・氏名が変わったときは出来事で足す(docs/adr/0029)。
+# 出来事がまだ無い人だけ、記録の始まりの値を画面で直せる(打ち間違いの訂正。操作履歴に残る)。
 class PeopleController < ApplicationController
   include ClosedYearGuard
   before_action :set_person, only: %i[show edit update destroy apply_to_years]
@@ -34,12 +36,13 @@ class PeopleController < ApplicationController
     record = @person.year_record!(year)
     before = record.persisted? ? record.slice(*Person.year_attrs) : @person.year_values(year)
     unless closed_year_reason_ok?(year, "会員・役員の記録")
-      @person.assign_attributes(person_params)
+      @person.assign_attributes(start_params) unless @person.changes_recorded?
       flash.now[:alert] = @reason_needed
       return render :edit, status: :unprocessable_entity
     end
-    record.assign_attributes(person_params)
-    if record.save
+    record.assign_attributes(year_params)
+    @person.assign_attributes(start_params) unless @person.changes_recorded?
+    if @person.save && record.save
       flash[:also] = also_years(record, before)
       redirect_to @person, notice: "#{FiscalPeriod.for(year)&.label}の記録を保存しました"
     else
@@ -53,7 +56,7 @@ class PeopleController < ApplicationController
     source = @person.record_for(params[:from].to_i) or return redirect_to(@person)
     fields = Array(params[:fields]) & Person.year_attrs
     years = Array(params[:years]).map(&:to_i).reject { FiscalPeriod.for(it)&.closed? }
-    Audit.label!("#{source.name}の#{fields.map { Person.human_attribute_name(it) }.join('・')}を #{years.map { "#{it}年度" }.join('・')}にも効かせた")
+    Audit.label!("#{@person.name}の#{fields.map { Person.human_attribute_name(it) }.join('・')}を #{years.map { "#{it}年度" }.join('・')}にも効かせた")
     years.each do |y|
       rec = @person.year_record!(y)
       rec.update!(source.slice(*fields))
@@ -73,6 +76,8 @@ class PeopleController < ApplicationController
 
   def set_person = @person = Person.find(params[:id])
   def person_params = params.require(:person).permit(:name, :name_kana, :address, :email, :phone, :notes)
+  def start_params = person_params.slice(:name, :name_kana, :address)
+  def year_params = person_params.slice(*Person.year_attrs)
 
   def also_years(record, before)
     fields = Person.year_attrs.select { record.public_send(it) != before[it] }

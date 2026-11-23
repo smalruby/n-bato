@@ -30,7 +30,7 @@ class ResolutionItem < ApplicationRecord
     @unknown_names = []
     list = text.to_s.lines.map(&:strip).compact_blank.filter_map do |line|
       name, _, word = line.rpartition(/[[:space:]]+/)
-      person = Person.find_by(name: name.strip)
+      person = Person.find_by_current_name(name)
       next @unknown_names << name unless person && ROLE_WORDS.key?(word)
 
       { "person_id" => person.id, "role" => ROLE_WORDS.fetch(word) }

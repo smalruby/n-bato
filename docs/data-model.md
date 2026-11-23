@@ -38,9 +38,11 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | JournalProposal::Approval | 提案の承認(記帳) | E | 1 つの提案の承認 | 提案が同じ(1 提案に 1 つ) | 人が承認して仕訳にする | approved_at | 済 |
 | JournalProposal::Rejection | 提案の却下 | E | 1 つの提案の却下 | 提案が同じ(1 提案に 1 つ) | 人が却下する | rejected_at | 済 |
 | JournalProposal::Withdrawal | 提案の取り下げ | E | 1 つの提案の取り下げ | 提案が同じ(1 提案に 1 つ) | AI に提案をやり直させたとき | withdrawn_at | 済 |
-| MemberApplication | 入会 | LE | 1 人の 1 回の入会の申込から決定まで | 申込の出どころのキー | フォームなどからの入会申込 | 申込・入会・決めた日(詳細のイベントへ分ける) | 待 |
-| Membership | 会員資格 | 交差 | 1 人の 1 年度の会員資格 | 人と年度が同じ | 正会員・活動会員など | 入会日・会費を納めた日(会費の納入はイベントへ) | 待 |
-| OfficerTerm | 役員の任期 | 交差 | 1 人の 1 つの役の 1 期 | 人・役・始まりが同じ | 理事・監事・理事長・副理事長 | 始まり・終わり・退任(就任・退任はイベントへ) | 待 |
+| MemberApplication | 入会 | LE | 1 人の 1 回の入会の申込から決定まで | 申込の出どころのキー | フォームなどからの入会申込。いまの状態(status・人・年度・入会日・決めた日・理由)は認めた・認めないのイベントから決まる(docs/adr/0030) | applied_on(申し込んだ日) | 済 |
+| MemberApplication::Approval | 入会を認めた | E | 1 つの申込の承認 | 申込が同じ(1 申込に 1 つ) | 人の記録と正会員の資格を作る | approved_at | 済 |
+| MemberApplication::Rejection | 入会を認めなかった | E | 1 つの申込の不承認 | 申込が同じ(1 申込に 1 つ) | 理由は必須(定款第7条第4項) | rejected_at | 済 |
+| Membership | 会員資格 | 交差 | 1 人の 1 年度の会員資格 | 人と年度が同じ | 正会員・活動会員など | 入会日・会費を納めた日(会費の納入はイベントへ。会費の画面ができるとき。docs/adr/0030) | 待 |
+| OfficerTerm | 役員の任期 | 交差 | 1 人の 1 つの役の 1 期 | 人・役・始まりが同じ | 理事・監事・理事長・副理事長。代表権のある任期ができると登記の事由を作る | starts_on・ends_on は中身の日付(選ばれた任期)。退任(left_on)はイベントへ(退任の画面ができるとき。docs/adr/0030) | 待 |
 | OpeningBalance | 期首残高 | R | 1 年度の 1 科目の繰越額 | 年度と科目が同じ | 仕訳より前の年度の繰越 | — | 待 |
 | Organization | 法人 | R | 利用団体 1 つ | — | 法人 | 設立日(中身の日付) | 待 |
 | FilingDestination | 提出先 | R | 書類を出す 1 つの窓口 | 種類と機関が同じ | 所轄庁・法人住民税(県・市)・登記・税務署・その他(docs/adr/0027) | — | 済 |
@@ -48,13 +50,22 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | FilingDestinationSearch | 提出先の調べもの | LE | AI に頼んだ 1 回の調べもの | — | 所在地から窓口を Web で調べる(docs/adr/0028)。いまの状態は status | requested_at | 済 |
 | OrganizationYear | 法人の年度ごとの記録 | R | 1 年度の法人の情報(世代) | 年度が同じ | 名称・所在地などの年度ごとの値 | — | 待 |
 | Passkey | パスキー | R | 1 つの端末の鍵 | 認証器の ID | ログインの手段 | last_used_at(使ったことの記録。ログインのたびに増えるので履歴は残さない) | 待 |
-| Person | 人 | R | 1 人 | — | 会員・役員・関係者 | — | 待 |
-| PersonYear | 人の年度ごとの記録 | R | 1 人の 1 年度の住所・氏名など(世代) | 人と年度が同じ | 名簿の年度ごとの値 | — | 待 |
+| Person | 人 | R | 1 人 | — | 会員・役員・関係者。氏名・よみ・住所の列は記録の始まりの値(打ち間違いは直してよい)。いまの値・ある日の値は出来事から(docs/adr/0029) | — | 済 |
+| Person::AddressChange | 住所の変更 | E | 1 人の 1 回の転居 | — | 住所が変わった。日の分かり方(日・月・年度)を持つ。代表権のある理事なら登記の事由を作る | moved_on | 済 |
+| Person::NameChange | 氏名の変更 | E | 1 人の 1 回の改姓・改名 | — | 氏名が変わった。変わる前の氏名・旧氏の併記を持つ。代表権のある理事なら登記の事由を作る | changed_on | 済 |
+| Person::ChangeCancellation | 住所・氏名の出来事の取消 | E | 1 つの出来事の取消 | 出来事が同じ(1 つに 1 つ) | 打ち間違いのとき。いちばん新しい出来事だけ。理由は必須 | cancelled_at | 済 |
+| PersonYear | 人の年度ごとの記録 | R | 1 人の 1 年度のメール・電話・メモ(世代) | 人と年度が同じ | 年度ごとの連絡先。氏名・住所は持たない(docs/adr/0029) | — | 済 |
 | ProcedureRun | 手続き | LE | 1 年度の 1 つの年に一度の手続き | 手続きの種類と年度が同じ | 事業報告・役員の改選など | — | 待 |
 | ProcedureStep | 手続きの手順の記録 | E | 1 つの手続きの 1 つの手順 | 手続きと手順の種類が同じ | 済み・対象外・確かめたこと | completed_on | 待 |
 | ProgramActivity | 事業の実施内容 | R | 1 年度の 1 事業の実施内容 | 事業報告書と部門が同じ | 事業報告書の事業ごとの記載 | — | 待 |
 | ProgramProfile | 事業の主な活動 | R | 1 つの事業の主な活動 | 部門コードが同じ | 定款の事業(年度によらない) | — | 待 |
-| Registration | 登記 | LE | 1 つの登記の事由から登記まで | — | 役員の変更・資産の総額など | 事由の日・期限・登記した日(分ける) | 待 |
+| Registration | 登記の事由 | LE | 1 つの登記の事由から登記まで | 任期・住所の変更・氏名の変更が同じ | 理事の重任・就任・住所の変更・氏名の変更。どの申請に入れたかと、登記した日(いまの状態。申請の完了で決まる)を持つ(docs/adr/0031) | cause_on(原因の日)・due_on(期限。日が不明なら空) | 済 |
+| RegistrationFiling | 登記の申請 | LE | 法務局への 1 回の申請 | — | 登記の事由をまとめて申請する。いまの状態は詳細のイベントから(docs/adr/0031) | — | 済 |
+| RegistrationFiling::Submission | 登記を申請した | E | 1 つの申請の送信 | 申請が同じ(1 つに 1 つ) | 申請番号(到達のお知らせ) | submitted_on | 済 |
+| RegistrationFiling::Acceptance | 登記の申請の受付 | E | 1 つの申請の受付 | 申請が同じ(1 つに 1 つ) | 受付番号(受付のお知らせ) | accepted_on | 済 |
+| RegistrationFiling::Correction | 登記の申請の補正 | E | 1 回の補正の求め | — | 法務局から求められたこと | noticed_on | 済 |
+| RegistrationFiling::Completion | 登記の完了 | E | 1 つの申請の完了 | 申請が同じ(1 つに 1 つ) | 登記の事由を登記したにし、待っていたやることを作業中に戻す | completed_on | 済 |
+| RegistrationFiling::Withdrawal | 登記の申請の取下げ | E | 1 つの申請の取下げ | 申請が同じ(1 つに 1 つ) | 理由は必須。登記の事由は新しい申請に入れ直せる | withdrawn_on | 済 |
 | Resolution | 決議 | LE | 1 つの総会・理事会の決議 | — | 総会・理事会(書面決議を含む) | 提案した日・開いた日 | 待 |
 | ResolutionItem | 決議の議案 | E | 1 つの議案 | — | 役員の選任・事業報告の承認など | applied_on(記録へ反映した日) | 待 |
 | Session | ログインのセッション | システム | 1 回のログイン | — | ログイン | verified_at(本人を確かめ直した日時) | — |
@@ -86,6 +97,14 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | はじめに(最初の起動のウィザード) | Organization・FilingDestination | 法人が無いときホームから移る |
 | 定款と事業 | ArticleVersion・ProgramProfile | |
 | ログインのしかた | Passkey | |
+| 住所が変わった・氏名が変わった | Person::AddressChange.record!・Person::NameChange.record! | 元に戻せない操作。打ち間違いは Person::ChangeCancellation.cancel!(いちばん新しい出来事だけ) |
+| 住所・氏名の移り変わり | Person#history | 名簿・届出書・登記は Person#address_on・display_name_on(その日の値) |
+| 入会を認める・認めない | MemberApplication::Approval.approve!・MemberApplication::Rejection.reject! | 元に戻せない操作(ADR-0007) |
+| 登記がいること | Registration | 年度に依存しない |
+| 選んだもので登記の申請を始める | RegistrationFiling.start! | 書類を作っている間は、登記することを足す・外す(include!・exclude!) |
+| 申請した・受付・補正・完了・取り下げ | RegistrationFiling::Submission.submit! ほか | 元に戻せない操作 |
+| 登記すべき事項 | RegistrationFiling::Statement | 法務局の記載例に合わせて記録から作る |
+| 登記・供託オンライン申請システム | RegistrationOnline | URL と使える時間は config/registration_online.yml |
 
 ## 会計の ER 図
 
@@ -108,3 +127,31 @@ erDiagram
 
 - 証憑(LE)のいまの状態: 確認待ちの提案があれば「提案あり」、なければ承認があれば「記帳済み」、どちらもなければ「未処理」。AI の作業中・エラー・記帳しない は、提案のイベントからは決まらないのでそのまま持つ。照合は `bin/rails model:verify`。
 - 承認でできた仕訳は消さない。記帳したあとの訂正は、取消の仕訳と正しい仕訳で行う(ADR-0007。仕訳の表の画面での訂正の仕方は、見直し票で合意してから作る)。
+
+## 会員と登記の ER 図
+
+```mermaid
+erDiagram
+  Person ||--o{ "Person::AddressChange" : "住所が変わった"
+  Person ||--o{ "Person::NameChange" : "氏名が変わった"
+  "Person::AddressChange" ||--o| "Person::ChangeCancellation" : "取り消す"
+  "Person::NameChange" ||--o| "Person::ChangeCancellation" : "取り消す"
+  Person ||--o{ PersonYear : "年度ごとの連絡先"
+  Person ||--o{ Membership : "会員資格"
+  Person ||--o{ OfficerTerm : "役員の任期"
+  MemberApplication ||--o| "MemberApplication::Approval" : "認める"
+  MemberApplication ||--o| "MemberApplication::Rejection" : "認めない"
+  "MemberApplication::Approval" }o--|| Person : "人の記録"
+  OfficerTerm ||--o{ Registration : "重任・就任"
+  "Person::AddressChange" ||--o| Registration : "住所移転"
+  "Person::NameChange" ||--o| Registration : "氏変更"
+  RegistrationFiling ||--o{ Registration : "まとめて申請する"
+  RegistrationFiling ||--o| "RegistrationFiling::Submission" : "申請した"
+  RegistrationFiling ||--o| "RegistrationFiling::Acceptance" : "受付"
+  RegistrationFiling ||--o{ "RegistrationFiling::Correction" : "補正"
+  RegistrationFiling ||--o| "RegistrationFiling::Completion" : "完了"
+  RegistrationFiling ||--o| "RegistrationFiling::Withdrawal" : "取り下げ"
+```
+
+- 人の住所・氏名: いまの値 = 取り消していない最後の出来事(無ければ記録の始まり)。日が分からない出来事は、分かっている範囲の初めの日(月の 1 日・年度の 4/1)と精度を持ち、推測で日を埋めない。登記すべき事項では「日が不明」と出す。
+- 登記の申請のいまの状態: 取下げ → 完了 → 補正 → 受付 → 申請 の順にイベントがあるかで決まる。照合は `bin/rails model:verify`(登記の事由の登記した日・入会申込の状態・氏名の出来事のつながりも)。

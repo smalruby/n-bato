@@ -27,17 +27,10 @@ module ApplicationHelper
     end || nil
   end
 
-  def wareki_date(date, zen: false)
-    return "" unless date
-
-    era, base = date >= Date.new(2019, 5, 1) ? [ "令和", 2018 ] : [ "平成", 1988 ]
-    y = date.year - base
-    text = "#{era}#{y == 1 ? '元' : y}年#{date.month}月#{date.day}日"
-    zen ? zenkaku(text) : text
-  end
+  def wareki_date(date, zen: false) = Wareki.date(date, zen:)
 
   # 数字を全角にする(所轄庁の様式に合わせる)
-  def zenkaku(text) = text.to_s.tr("0-9", "０-９")
+  def zenkaku(text) = Wareki.zenkaku(text)
 
   def fiscal_year_wareki(year, zen: false)
     label = FiscalYear.new(year).wareki_label

@@ -1,0 +1,12 @@
+# 登記・供託オンライン申請システム(法務省)。どの法人でも同じなので、提出先には入れず、ここに決まった設定として持つ。
+# 出典: https://www.touki-kyoutaku-online.moj.go.jp/ (ご利用可能時間)・https://www.moj.go.jp/MINJI/minji60.html (受付時間)。2026-11-23 に確かめた。
+shared:
+  url: https://www.touki-kyoutaku-online.moj.go.jp/
+  condition_url: http://www.touki-kyoutaku-online.moj.go.jp/condition.html
+  # システムを使える時間
+  weekday: ["08:30", "23:00"]
+  holiday: ["08:30", "18:00"]
+  # 年末年始は使えない(月-日)
+  closed: ["12-29", "01-03"]
+  # 法務局が受け付ける時間(平日)。これより後に送ると、次の平日の受付になる
+  office: ["08:30", "17:15"]

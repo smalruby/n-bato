@@ -32,6 +32,10 @@ class FilingDestination < ApplicationRecord
     last_confirmation ? "直したあと、まだ確かめていない" : "まだ確かめていない"
   end
 
+  # 行が 1 件でもある種類(「その他」を除く)と、まだ無い種類(「提出先を足す ▼」・AI が調べる種類)。見直し第19回
+  def self.existing_kinds = distinct.pluck(:kind) - [ "other" ]
+  def self.missing_kinds = KINDS.keys - [ "other" ] - existing_kinds
+
   def self.confirmed_authority = where(kind: "authority").ordered.find(&:confirmed?)
 
   # 書類の「（あて先）」。確認済みの所轄庁が無ければ「未設定」と書く(推測で埋めない)

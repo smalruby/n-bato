@@ -1,10 +1,15 @@
 <%= form_with model: person, class: "card max-w-2xl" do |f| %>
   <% if person.errors.any? %><ul class="mb-4 text-red-800 text-sm"><% person.errors.full_messages.each do |m| %><li><%= m %></li><% end %></ul><% end %>
-  <div class="grid md:grid-cols-2 gap-x-4">
-    <div class="field"><%= f.label :name, "氏名" %><%= f.text_field :name %></div>
-    <div class="field"><%= f.label :name_kana, "よみ" %><%= f.text_field :name_kana %></div>
-  </div>
-  <div class="field"><%= f.label :address, "住所（暗号化して保存）" %><%= f.text_field :address %></div>
+  <% if person.persisted? && person.changes_recorded? %>
+    <p class="text-sm" style="color:var(--ink-muted)">氏名・よみ・住所は、人の画面の「住所・氏名の移り変わり」から「住所が変わった」「氏名が変わった」で記録します(打ち間違いは、その出来事を取り消して入れ直す)。</p>
+  <% else %>
+    <div class="grid md:grid-cols-2 gap-x-4">
+      <div class="field"><%= f.label :name, "氏名" %><%= f.text_field :name %></div>
+      <div class="field"><%= f.label :name_kana, "よみ" %><%= f.text_field :name_kana %></div>
+    </div>
+    <div class="field"><%= f.label :address, "住所（暗号化して保存）" %><%= f.text_field :address %></div>
+    <% if person.persisted? %><p class="text-xs" style="color:var(--ink-muted)">ここで直すのは打ち間違いだけです。引っ越し・改姓は、人の画面の「住所が変わった」「氏名が変わった」から記録します。</p><% end %>
+  <% end %>
   <div class="grid md:grid-cols-2 gap-x-4">
     <div class="field"><%= f.label :email, "メール（暗号化）" %><%= f.email_field :email %></div>
     <div class="field"><%= f.label :phone, "電話（暗号化）" %><%= f.text_field :phone %></div>

@@ -1,0 +1,9 @@
+<%# 登記・供託オンライン申請システムへのボタンと、使える時間(見直し第20回。設定は config/registration_online.yml) %>
+<div class="nb-online">
+  <div class="nb-online-row">
+    <%= link_to "登記・供託オンライン申請システムを開く ↗", RegistrationOnline.url, target: "_blank", rel: "noopener", class: "nb-btn nb-btn--primary" %>
+    <span class="nb-online-now <%= online.open ? 'is-open' : 'is-closed' %>"><%= online.message %></span>
+  </div>
+  <p class="nb-online-note">使える時間: <%= RegistrationOnline.hours_label %>。<%= RegistrationOnline.office_label %>で、それより後に送ると次の平日の受付になります(期限の 2 週間に関わります)。<%= online.office_message %>
+    止まっていることもあります(<%= link_to "運転状況を見る", RegistrationOnline.condition_url, target: "_blank", rel: "noopener" %>)。</p>
+</div>
