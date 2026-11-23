@@ -1,45 +1,48 @@
-# AI が提案した仕訳。人が承認すると JournalEntry になる(承認なしに記帳しない)。
+# AI の仕訳の提案(イベント。日時は proposed_at)。人が承認すると仕訳(JournalEntry)になる(承認なしに記帳しない)。
+# 提案は書き換えない。人が直してから承認したときは、直した内容は承認でできた仕訳に入る(提案は AI が出したまま残る)。
+# いまの状態は、詳細のイベント(承認・却下・取り下げ)の有無で決まる。docs/data-model.md
 class JournalProposal < ApplicationRecord
-  STATUSES = { "proposed" => "確認待ち", "approved" => "承認済み", "rejected" => "却下" }.freeze
+  include EventRecord
+  event_of :proposed_at, entry: :propose!
+
+  STATUSES = { "proposed" => "確認待ち", "approved" => "承認済み", "rejected" => "却下", "withdrawn" => "取り下げ" }.freeze
   CONFIDENCES = { "high" => "高", "medium" => "中", "low" => "低" }.freeze
+  ENTRY_FIELDS = %i[entry_date amount debit_account_id debit_department_id credit_account_id credit_department_id summary sub_summary].freeze
 
   belongs_to :voucher
   belongs_to :debit_account, class_name: "Account"
   belongs_to :credit_account, class_name: "Account"
   belongs_to :debit_department, class_name: "Department", optional: true
   belongs_to :credit_department, class_name: "Department", optional: true
-  belongs_to :journal_entry, optional: true
-  belongs_to :reviewed_by, class_name: "User", optional: true
+  has_one :approval, class_name: "JournalProposal::Approval", dependent: nil
+  has_one :rejection, class_name: "JournalProposal::Rejection", dependent: nil
+  has_one :withdrawal, class_name: "JournalProposal::Withdrawal", dependent: nil
+  has_one :journal_entry, through: :approval
 
   validates :entry_date, presence: true
   validates :amount, numericality: { only_integer: true, greater_than: 0 }
-  validates :status, inclusion: { in: STATUSES.keys }
   validates :confidence, inclusion: { in: CONFIDENCES.keys }
+
+  scope :approved, -> { where(id: Approval.select(:journal_proposal_id)) }
+  scope :pending, lambda {
+    where.not(id: Approval.select(:journal_proposal_id)).where.not(id: Rejection.select(:journal_proposal_id))
+         .where.not(id: Withdrawal.select(:journal_proposal_id))
+  }
+
+  # 提案を作る(作る入口)。AI の答えから作る Bookkeeper::ProposalGenerator が使う。
+  def self.propose!(voucher:, model:, at: Time.current, **attrs)
+    create!(voucher:, ai_model: model, proposed_at: at, **attrs)
+  end
+
+  def status
+    if approval then "approved"
+    elsif rejection then "rejected"
+    elsif withdrawal then "withdrawn"
+    else "proposed"
+    end
+  end
 
   def status_label = STATUSES[status]
   def confidence_label = CONFIDENCES[confidence]
   def proposed? = status == "proposed"
-
-  # 承認して仕訳を作る。内容を直してから承認することもできる(attrs)。
-  def approve!(user, attrs = {})
-    transaction do
-      assign_attributes(attrs)
-      entry = JournalEntry.create!(
-        entry_date: entry_date, amount: amount,
-        debit_account: debit_account, debit_department: debit_department,
-        credit_account: credit_account, credit_department: credit_department,
-        summary: summary, sub_summary: sub_summary,
-        memo: "証憑 ##{voucher_id} から AI が提案（#{ai_model}）",
-        approved_by: user, approved_at: Time.current
-      )
-      update!(status: "approved", journal_entry: entry, reviewed_by: user, reviewed_at: Time.current)
-      voucher.refresh_status!
-      entry
-    end
-  end
-
-  def reject!(user)
-    update!(status: "rejected", reviewed_by: user, reviewed_at: Time.current)
-    voucher.refresh_status!
-  end
 end

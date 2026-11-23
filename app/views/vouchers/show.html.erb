@@ -54,7 +54,7 @@
     </div>
     <p class="text-sm text-stone-700 mb-3">理由: <%= p.rationale %></p>
     <% if p.proposed? %>
-      <%= form_with model: p, url: approve_journal_proposal_path(p), method: :post do |f| %>
+      <%= form_with model: p, url: journal_proposal_approval_path(p), method: :post do |f| %>
         <div class="grid md:grid-cols-4 gap-x-3 text-sm">
           <div class="field"><%= f.label :entry_date, "日付" %><%= f.date_field :entry_date %></div>
           <div class="field"><%= f.label :amount, "金額" %><%= f.number_field :amount %></div>
@@ -69,9 +69,10 @@
           <%= f.submit "この内容で承認して記帳", class: "btn" %>
         </div>
       <% end %>
-      <%= button_to "却下", reject_journal_proposal_path(p), class: "btn-danger mt-2" %>
+      <%= button_to "却下", journal_proposal_rejection_path(p), class: "btn-danger mt-2" %>
     <% else %>
-      <p class="text-sm"><%= l p.entry_date %>　借方 <%= p.debit_account.display_name %><%= " / #{p.debit_department}" if p.debit_department %>　貸方 <%= p.credit_account.display_name %><%= " / #{p.credit_department}" if p.credit_department %>　<%= yen(p.amount) %> 円　<%= p.summary %>（<%= p.sub_summary %>）</p>
+      <% e = p.journal_entry || p %><%# 承認したものは、人が直した内容(できた仕訳)を出す %>
+      <p class="text-sm"><%= l e.entry_date %>　借方 <%= e.debit_account.display_name %><%= " / #{e.debit_department}" if e.debit_department %>　貸方 <%= e.credit_account.display_name %><%= " / #{e.credit_department}" if e.credit_department %>　<%= yen(e.amount) %> 円　<%= e.summary %>（<%= e.sub_summary %>）</p>
     <% end %>
   </div>
 <% end %>

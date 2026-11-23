@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_071857) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "code", null: false
     t.string "name", null: false
@@ -236,6 +236,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_071857) do
     t.index ["siwake_import_id"], name: "index_journal_entries_on_siwake_import_id"
   end
 
+  create_table "journal_proposal_approvals", force: :cascade do |t|
+    t.integer "journal_proposal_id", null: false
+    t.integer "approver_id"
+    t.integer "journal_entry_id"
+    t.datetime "approved_at", null: false
+    t.index ["approver_id"], name: "index_journal_proposal_approvals_on_approver_id"
+    t.index ["journal_entry_id"], name: "index_journal_proposal_approvals_on_journal_entry_id"
+    t.index ["journal_proposal_id"], name: "index_journal_proposal_approvals_on_journal_proposal_id", unique: true
+  end
+
+  create_table "journal_proposal_rejections", force: :cascade do |t|
+    t.integer "journal_proposal_id", null: false
+    t.integer "rejecter_id"
+    t.datetime "rejected_at", null: false
+    t.index ["journal_proposal_id"], name: "index_journal_proposal_rejections_on_journal_proposal_id", unique: true
+    t.index ["rejecter_id"], name: "index_journal_proposal_rejections_on_rejecter_id"
+  end
+
+  create_table "journal_proposal_withdrawals", force: :cascade do |t|
+    t.integer "journal_proposal_id", null: false
+    t.datetime "withdrawn_at", null: false
+    t.index ["journal_proposal_id"], name: "index_journal_proposal_withdrawals_on_journal_proposal_id", unique: true
+  end
+
   create_table "journal_proposals", force: :cascade do |t|
     t.integer "voucher_id", null: false
     t.date "entry_date", null: false
@@ -248,19 +272,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_071857) do
     t.string "sub_summary", default: "", null: false
     t.text "rationale", default: "", null: false
     t.string "confidence", default: "medium", null: false
-    t.string "status", default: "proposed", null: false
     t.string "ai_model"
-    t.integer "journal_entry_id"
-    t.integer "reviewed_by_id"
-    t.datetime "reviewed_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "proposed_at", null: false
     t.index ["credit_account_id"], name: "index_journal_proposals_on_credit_account_id"
     t.index ["credit_department_id"], name: "index_journal_proposals_on_credit_department_id"
     t.index ["debit_account_id"], name: "index_journal_proposals_on_debit_account_id"
     t.index ["debit_department_id"], name: "index_journal_proposals_on_debit_department_id"
-    t.index ["journal_entry_id"], name: "index_journal_proposals_on_journal_entry_id"
-    t.index ["reviewed_by_id"], name: "index_journal_proposals_on_reviewed_by_id"
     t.index ["voucher_id"], name: "index_journal_proposals_on_voucher_id"
   end
 
@@ -589,12 +606,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_071857) do
   add_foreign_key "journal_entries", "departments", column: "debit_department_id"
   add_foreign_key "journal_entries", "siwake_imports"
   add_foreign_key "journal_entries", "users", column: "approved_by_id"
+  add_foreign_key "journal_proposal_approvals", "journal_entries"
+  add_foreign_key "journal_proposal_approvals", "journal_proposals"
+  add_foreign_key "journal_proposal_approvals", "users", column: "approver_id"
+  add_foreign_key "journal_proposal_rejections", "journal_proposals"
+  add_foreign_key "journal_proposal_rejections", "users", column: "rejecter_id"
+  add_foreign_key "journal_proposal_withdrawals", "journal_proposals"
   add_foreign_key "journal_proposals", "accounts", column: "credit_account_id"
   add_foreign_key "journal_proposals", "accounts", column: "debit_account_id"
   add_foreign_key "journal_proposals", "departments", column: "credit_department_id"
   add_foreign_key "journal_proposals", "departments", column: "debit_department_id"
-  add_foreign_key "journal_proposals", "journal_entries"
-  add_foreign_key "journal_proposals", "users", column: "reviewed_by_id"
   add_foreign_key "journal_proposals", "vouchers"
   add_foreign_key "member_applications", "people"
   add_foreign_key "memberships", "people"

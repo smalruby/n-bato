@@ -6,7 +6,7 @@ class Voucher < ApplicationRecord
   ACCEPTED_TYPES = %w[image/jpeg image/png image/gif image/webp application/pdf].freeze
 
   has_many_attached :files
-  has_many :journal_proposals, dependent: :destroy
+  has_many :journal_proposals, dependent: :restrict_with_error # 提案はイベントなので消さない
 
   validates :kind, inclusion: { in: KINDS.keys }
   validates :status, inclusion: { in: STATUSES.keys }
@@ -17,17 +17,23 @@ class Voucher < ApplicationRecord
 
   def kind_label = KINDS[kind]
   def status_label = STATUSES[status]
-  def open_proposals = journal_proposals.where(status: "proposed")
+  def open_proposals = journal_proposals.pending
 
-  def refresh_status!
-    return if status.in?(%w[proposing error rejected])
+  # 証憑は長いイベント(docs/data-model.md)。いまの状態(status)を書き換えてよいのは、詳細のイベントの作る入口だけ。
+  # AI の作業中・エラー・記帳しない は、提案のイベントからは決まらない状態なので、そのまま残す。
+  MANUAL_STATUSES = %w[proposing error rejected].freeze
 
-    new_status = if journal_proposals.where(status: "proposed").exists? then "proposed"
-    elsif journal_proposals.where(status: "approved").exists? then "booked"
+  # 提案のイベント(承認・却下・取り下げ)から決まる、いまの状態
+  def derived_status
+    return status if status.in?(MANUAL_STATUSES)
+
+    if journal_proposals.pending.exists? then "proposed"
+    elsif journal_proposals.approved.exists? then "booked"
     else "pending"
     end
-    update!(status: new_status)
   end
+
+  def advance_status! = update!(status: derived_status)
 
   private
 

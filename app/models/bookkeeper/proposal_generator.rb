@@ -47,8 +47,8 @@ module Bookkeeper
     def apply(result, model:)
       @model = model
       proposals = JournalProposal.transaction do
-        @voucher.journal_proposals.where(status: "proposed").destroy_all
-        result.fetch("entries").map { build_proposal(it) }.each(&:save!)
+        @voucher.journal_proposals.pending.each { JournalProposal::Withdrawal.withdraw!(it) }
+        result.fetch("entries").map { propose(it) }
       end
       @voucher.update!(status: proposals.any? ? "proposed" : "pending", ai_error: nil, ai_questions: Array(result["questions"]).join("\n"))
       proposals
@@ -117,8 +117,9 @@ module Bookkeeper
       end.join("\n").presence || "(まだありません)"
     end
 
-    def build_proposal(item)
-      @voucher.journal_proposals.new(
+    def propose(item)
+      JournalProposal.propose!(
+        voucher: @voucher, model: @model || @client.model,
         entry_date: Date.iso8601(item.fetch("entry_date")),
         debit_account: Account.in_year(FiscalYear.for(Date.iso8601(item.fetch("entry_date"))).year).find_by!(code: item.fetch("debit_account_code")),
         debit_department: department(item.fetch("debit_department_code"), item.fetch("entry_date")),
@@ -126,8 +127,7 @@ module Bookkeeper
         credit_department: department(item.fetch("credit_department_code"), item.fetch("entry_date")),
         amount: item.fetch("amount"),
         summary: item.fetch("summary"), sub_summary: item.fetch("sub_summary"),
-        rationale: item.fetch("rationale"), confidence: item.fetch("confidence"),
-        ai_model: @model || @client.model
+        rationale: item.fetch("rationale"), confidence: item.fetch("confidence")
       )
     rescue ActiveRecord::RecordNotFound => e
       raise ArgumentError, "AI が一覧に無いコードを使いました（#{e.message}）"

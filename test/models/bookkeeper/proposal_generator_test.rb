@@ -79,8 +79,9 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
   test "承認すると仕訳になり、承認者と日時が残る" do
     user = users(:one)
     proposal = Bookkeeper::ProposalGenerator.new(@voucher, client: FakeClient.new(response([ entry ]))).call.first
-    journal = proposal.approve!(user, amount: 2000)
+    journal = JournalProposal::Approval.approve!(proposal, by: user, entry: { amount: 2000 }).journal_entry
     assert_equal 2000, journal.debit_amount
+    assert_equal proposal.reload.amount, proposal.amount # 提案は AI が出したまま(書き換えない)
     assert_equal user, journal.approved_by
     assert journal.approved_at
     assert_equal 2025, journal.fiscal_year
@@ -89,11 +90,13 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
     assert_equal journal, proposal.reload.journal_entry
   end
 
-  test "提案し直すと未承認の提案は置き換わる" do
+  test "提案し直すと、確認待ちだった前の提案は消さずに取り下げになる" do
     gen = -> { Bookkeeper::ProposalGenerator.new(@voucher, client: FakeClient.new(response([ entry ]))).call }
+    first = gen.call.first
     gen.call
-    gen.call
-    assert_equal 1, @voucher.journal_proposals.count
+    assert_equal 2, @voucher.journal_proposals.count
+    assert_equal "withdrawn", first.reload.status
+    assert_equal 1, @voucher.journal_proposals.pending.count
   end
 
   test "Claude Code が作った答えを API なしで登録する" do

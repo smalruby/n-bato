@@ -82,9 +82,10 @@ Rails.application.routes.draw do
     post :propose, on: :member
     post :reject, on: :member
   end
+  # AI の提案への出来事(イベント)は、それぞれ「作る」で表す(docs/adr/0008)
   resources :journal_proposals, only: [] do
-    post :approve, on: :member
-    post :reject, on: :member
+    resource :approval, only: :create, module: :journal_proposals
+    resource :rejection, only: :create, module: :journal_proposals
   end
   resources :siwake_imports, only: %i[index new create show destroy]
   resources :accounts, only: %i[index edit update] do

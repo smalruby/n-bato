@@ -9,7 +9,9 @@ class JournalEntry < ApplicationRecord
   belongs_to :debit_department, class_name: "Department", optional: true
   belongs_to :credit_department, class_name: "Department", optional: true
   belongs_to :approved_by, class_name: "User", optional: true
-  has_one :journal_proposal, dependent: :nullify
+  # AI の提案を承認してできた仕訳なら、その承認(イベント)。承認でできた仕訳は消さない(訂正は訂正の仕訳。docs/adr/0007)
+  has_one :proposal_approval, class_name: "JournalProposal::Approval", dependent: :restrict_with_error
+  has_one :journal_proposal, through: :proposal_approval
 
   validates :entry_date, presence: true
   validates :debit_amount, :credit_amount, numericality: { only_integer: true }
