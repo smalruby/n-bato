@@ -5,6 +5,9 @@ ja:
       department: 部門
       article_version: 定款の版
       program_profile: 事業の主な活動
+      filing_destination: 提出先
+      filing_destination/confirmation: 提出先の確認
+      filing_destination_search: 提出先の調べもの
       journal_entry: 仕訳
       opening_balance: 期首残高
       balance_check: 残高の照合
