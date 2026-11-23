@@ -1,0 +1,21 @@
+<% content_for :title, "登記" %>
+<h1 class="page-title">登記</h1>
+<p class="text-sm text-stone-600 mb-4">代表権のある理事（理事長・副理事長）が就任・重任したときは、2 週間以内に法務局で変更登記をします。任期 2 年ごとの重任でも必要です。</p>
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>種類</th><th>内容</th><th>原因の日</th><th>期限</th><th>登記した日</th></tr></thead>
+    <% @registrations.each do |r| %>
+      <tr class="<%= 'bg-red-50' if !r.done? && r.due_on < Date.current %>">
+        <td><%= r.kind_label %></td><td><%= r.note %></td><td><%= l r.cause_on %></td>
+        <td class="<%= 'text-red-700 font-bold' if !r.done? && r.due_on < Date.current %>"><%= l r.due_on %></td>
+        <td>
+          <%= form_with model: r, class: "flex gap-2" do |f| %>
+            <%= f.date_field :registered_on, class: "rounded border border-stone-300 px-2 py-1 text-sm" %>
+            <%= f.submit "記録", class: "btn-secondary" %>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+  <% if @registrations.empty? %><p class="text-stone-500 mt-3">登記が必要な記録はありません。</p><% end %>
+</div>

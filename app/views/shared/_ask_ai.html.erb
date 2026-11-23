@@ -1,0 +1,13 @@
+<%# 右ペイン「AI に聞く」(デザインシステム AskAI)。AI は答えと操作の案を返し、操作は人が「実行」を押してから行う。 %>
+<section class="nb-ask" data-controller="ask" data-ask-url-value="<%= assistant_path %>" data-ask-perform-url-value="<%= assistant_perform_path %>" data-ask-screen-value="<%= controller_name %>" aria-label="AI に聞く">
+  <form data-action="submit->ask#send" class="nb-ask-form">
+    <label for="ask-q" class="nb-ask-label"><%= icon(:search) %>AI に聞く</label>
+    <textarea id="ask-q" name="q" rows="2" data-ask-target="q" placeholder="やりたいことを書く(例: レシートの画像を添えて「仕訳して」/ 締めた年度を直すには?)"></textarea>
+    <div class="nb-ask-row">
+      <label class="nb-ask-file">画像を添える<input type="file" name="image" accept="image/*" data-ask-target="image"></label>
+      <button type="submit" class="nb-btn nb-btn--primary" data-ask-target="send">聞く</button>
+    </div>
+    <p class="nb-ask-note">ここに書いた文と添えた画像は、Anthropic の Claude API に送ります。会員の住所・電話などの個人情報は書かないでください(人の記録は「会員・役員」の画面で直します)。</p>
+  </form>
+  <div class="nb-ask-answer" data-ask-target="answer" role="status" hidden></div>
+</section>

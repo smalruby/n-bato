@@ -1,0 +1,21 @@
+<% content_for :title, "仕訳 #{@entry.slip_number}" %>
+<h1 class="page-title">仕訳（<%= @entry.fiscal_year %>年度 伝票 <%= @entry.slip_number %>）</h1>
+<div class="card max-w-2xl">
+  <dl class="grid grid-cols-3 gap-y-2 text-sm">
+    <dt class="text-stone-500">日付</dt><dd class="col-span-2"><%= l @entry.entry_date %></dd>
+    <dt class="text-stone-500">借方</dt><dd class="col-span-2"><%= @entry.debit_account %> <%= @entry.debit_department&.long_name %></dd>
+    <dt class="text-stone-500">貸方</dt><dd class="col-span-2"><%= @entry.credit_account %> <%= @entry.credit_department&.long_name %></dd>
+    <dt class="text-stone-500">金額</dt><dd class="col-span-2"><%= yen(@entry.amount) %> 円</dd>
+    <dt class="text-stone-500">摘要</dt><dd class="col-span-2"><%= @entry.summary %></dd>
+    <dt class="text-stone-500">補助摘要</dt><dd class="col-span-2"><%= @entry.sub_summary %></dd>
+    <dt class="text-stone-500">メモ</dt><dd class="col-span-2 whitespace-pre-wrap"><%= @entry.memo %></dd>
+    <dt class="text-stone-500">出所</dt><dd class="col-span-2"><%= @entry.imported? ? link_to("会計王から取り込み（#{@entry.siwake_import.filename}）", @entry.siwake_import, class: "underline") : "このアプリで入力（会計王に未取り込み）" %></dd>
+  </dl>
+  <div class="mt-4 flex gap-2">
+    <%= link_to "一覧へ", journal_entries_path(year: @entry.fiscal_year), class: "btn-secondary" %>
+    <% if @entry.editable? %>
+      <%= link_to "編集", edit_journal_entry_path(@entry), class: "btn" %>
+      <%= button_to "削除", @entry, method: :delete, class: "btn-danger", form: { data: { turbo_confirm: "削除しますか？" } } %>
+    <% end %>
+  </div>
+</div>

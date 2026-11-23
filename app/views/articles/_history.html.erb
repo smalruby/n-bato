@@ -1,0 +1,30 @@
+<%# 変更の記録: 版ごとに決めた会議・議決・所轄庁・変わった条・理由・原本。前の版との違いは消した文と足した文で出す。 %>
+<div class="nb-articles-body">
+  <table class="nb-art-history">
+    <thead><tr><th scope="col">版</th><th scope="col">決めた日</th><th scope="col">議決</th><th scope="col">所轄庁</th><th scope="col">変わった条</th><th scope="col">理由</th><th scope="col">原本</th><th scope="col"></th></tr></thead>
+    <tbody>
+      <% @versions.reverse_each do |ver| %>
+        <tr class="<%= 'is-selected' if ver == version %>">
+          <td class="nb-num"><%= ver.number %><%= "(現行)" if ver == @versions.last %></td>
+          <td><%= ver.decided_on.strftime("%Y-%m-%d") %><br><small><%= ver.meeting %></small></td>
+          <td><%= ver.resolution %></td>
+          <td><%= ver.authority %></td>
+          <td><%= ver.changed_articles %></td>
+          <td><%= ver.reason %></td>
+          <td><small><%= ver.source %></small></td>
+          <td><%= link_to "全文を読む", articles_path(tab: "full", v: (ver.number unless ver == @versions.last)) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% @versions.reverse_each do |ver| %>
+    <% changes = ver.changes_from_previous %>
+    <% next if changes.empty? %>
+    <section class="nb-art-diff" aria-label="版 <%= ver.number %> と前の版との違い">
+      <h2>版 <%= ver.number %> と、前の版(版 <%= ver.previous.number %>)との違い</h2>
+      <% changes.each do |no, before, after| %>
+        <div class="nb-art-diff-row"><span class="nb-art-no">第<%= no %>条</span><div><%= article_change(before, after) %></div></div>
+      <% end %>
+    </section>
+  <% end %>
+</div>

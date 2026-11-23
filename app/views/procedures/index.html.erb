@@ -1,0 +1,29 @@
+<% content_for :title, "手続き" %>
+<p class="nb-history-empty" style="margin:0 0 8px">年に一度(役員改選は 2 年に一度)の手続きを、手順ごとに進めます。どの手順もいつでも開けて、途中でやめても続きから進められます。</p>
+<div class="card" style="padding:0">
+  <% if @runs.empty? %><p class="nb-history-empty" style="padding:8px 12px">まだ始めた手続きはありません。</p><% end %>
+  <% @runs.each do |run| %>
+    <div class="nb-proc-head">
+      <%= link_to run.name, procedure_path(run), class: "nb-proc-name" %>
+      <span class="nb-tag nb-tag--plain"><%= run.period_label %></span>
+      <%= due_badge(run) %>
+      <%= progress_bar(run) %>
+      <span class="nb-spacer"></span>
+      <% if (n = run.next_step) %><span class="nb-next">次にやること <b><%= link_to "#{run.definition.steps.index { it.key == n.key } + 1}. #{n.definition.title}", procedure_path(run, step: n.key) %></b></span><% end %>
+    </div>
+  <% end %>
+</div>
+
+<% if @startable.any? %>
+  <h2 class="section-title">始める</h2>
+  <table class="data-table" style="max-width:640px">
+    <thead><tr><th>手続き</th><th>対象</th><th>期限</th><th></th></tr></thead>
+    <tbody>
+      <% @startable.each do |kind, period| %>
+        <% d = ProcedureDefinition.find(kind) %>
+        <tr><td><%= d.name %></td><td><%= d.period_label(period) %></td><td class="num"><%= d.due_on(period).strftime("%Y/%m/%d") %></td>
+          <td><%= button_to "始める", procedures_path(kind:, period:), class: "nb-btn", form: { style: "display:inline" } %></td></tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

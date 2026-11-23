@@ -1,0 +1,21 @@
+<% content_for :title, "取り込み" %>
+<div class="flex items-center justify-between mb-4">
+  <h1 class="page-title mb-0">会計王からの取り込み</h1>
+  <%= link_to "ファイルを取り込む", new_siwake_import_path, class: "btn" %>
+</div>
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>ファイル</th><th>書き出し元</th><th>書き出し日時</th><th class="num">件数</th><th>取り込み日時</th></tr></thead>
+    <tbody>
+      <% @imports.each do |si| %>
+        <tr>
+          <td><%= link_to si.filename, si, class: "underline text-emerald-800" %></td>
+          <td><%= si.app_name %> <%= si.app_version %>（<%= si.format_name %> <%= si.format_version %>）</td>
+          <td><%= si.exported_at && l(si.exported_at, format: :short) %></td>
+          <td class="num"><%= si.entries_count %></td>
+          <td><%= l si.created_at, format: :short %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

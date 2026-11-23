@@ -1,0 +1,12 @@
+<% content_for :title, "ログイン" %>
+<div class="mx-auto max-w-md card mt-16">
+  <h1 class="page-title"><ruby>N<rt>エヌ</rt></ruby>ばと にログイン</h1>
+  <%= form_with url: session_url do |form| %>
+    <div class="field"><%= form.label :email_address, "メールアドレス" %><%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", value: params[:email_address] %></div>
+    <div class="field"><%= form.label :password, "パスワード" %><%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72 %></div>
+    <div class="flex items-center gap-4">
+      <%= form.submit "ログイン", class: "btn" %>
+      <%= link_to "パスワードを忘れたとき", new_password_path, class: "text-sm underline text-stone-600" %>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,20 @@
+<%# 年度の状態(締めた・締める前・仮)と、締め・締めを解く。 %>
+<% if period %>
+  <div class="card mb-4" style="display:grid;gap:6px">
+    <div><b>この年度の状態: <%= period.state_label %></b>
+      <% if period.closed? %>(<%= l period.closed_on %><%= " #{period.closed_by.name}" if period.closed_by&.name.present? %>に締めた)<% end %></div>
+    <% if period.closed? %>
+      <%= form_with url: reopen_fiscal_period_path(period.year), style: "display:flex;flex-wrap:wrap;gap:4px;align-items:center",
+            data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do |f| %>
+        <input type="text" name="reason" required data-no-reason-default placeholder="締めを解く理由" aria-label="締めを解く理由" class="nb-input" style="width:240px;border-color:var(--grid-line-strong)">
+        <%= f.button "締めを解く", class: "nb-btn nb-btn--danger", data: { confirm_twice_target: "button", armed_label: "もう一度押すと締めを解きます" } %>
+        <span class="nb-btn-note">直したら、もう一度締めてください。新しい年度が締めてあるときは解けません。</span>
+      <% end %>
+    <% else %>
+      <% run = ProcedureRun.find_by(kind: "annual_report", period: period.year) %>
+      <p style="margin:0">この年度は、所轄庁に提出した日を記録したあとに締めます(手続き「事業報告書等の提出」の「この年度を締める」)。
+        <%= link_to("手続きを開く", procedure_path(run, step: "close_year"), class: "underline") if run %></p>
+      <% if period.provisional? %><p style="margin:0"><%= period.previous.label %>をまだ締めていないので、この年度は仮です。</p><% end %>
+    <% end %>
+  </div>
+<% end %>

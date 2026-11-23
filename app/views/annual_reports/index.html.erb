@@ -1,0 +1,21 @@
+<% content_for :title, "事業報告・提出" %>
+<h1 class="page-title">事業報告書等（所轄庁への提出）</h1>
+<p class="text-sm text-stone-600 mb-4">毎事業年度、年度が終わってから 3 か月以内（6 月 30 日まで）に所轄庁へ提出します。</p>
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>年度</th><th>提出期限</th><th>状態</th><th>総会承認</th><th>提出日</th><th>貸借対照表の公告</th><th></th></tr></thead>
+    <% @years.each do |year| %>
+      <% r = @reports[year] %>
+      <% overdue = (r.nil? || r.submitted_on.nil?) && Date.new(year + 1, 6, 30) < Date.current %>
+      <tr>
+        <td><%= year %>年度（<%= fiscal_year_wareki(year) %>）</td>
+        <td class="<%= 'text-red-700 font-bold' if overdue %>"><%= l Date.new(year + 1, 6, 30) %><%= "（期限切れ）" if overdue %></td>
+        <td><%= r ? r.status_label : "未作成" %></td>
+        <td><%= r&.approved_on && l(r.approved_on) %></td>
+        <td><%= r&.submitted_on && l(r.submitted_on) %></td>
+        <td><%= r&.bs_published_on && l(r.bs_published_on) %></td>
+        <td><%= r ? link_to("開く", annual_report_path(year), class: "underline text-emerald-800") : link_to("作る", new_annual_report_path(year: year), class: "underline text-emerald-800") %></td>
+      </tr>
+    <% end %>
+  </table>
+</div>

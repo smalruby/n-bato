@@ -1,0 +1,7 @@
+<% bar = Audit.bar(Current.user, @undo_scope) %>
+<span class="nb-undo">
+  <button type="button" class="nb-btn" data-action="undo#undo" data-undo-target="undoButton" <%= "disabled" if bar[:undo].zero? %>
+          title="<%= bar.dig(:undo_peek, :detail) || "元に戻す" %>(⌘Z / Ctrl+Z)"><%= icon(:undo) %>元に戻す<span data-undo-target="undoItem"><%= ": #{bar.dig(:undo_peek, :item)}" if bar[:undo_peek] %></span> <kbd data-undo-target="undoCount"><%= bar[:undo] %></kbd></button>
+  <button type="button" class="nb-btn" data-action="undo#redo" data-undo-target="redoButton" <%= "disabled" if bar[:redo].zero? %>
+          title="<%= bar.dig(:redo_peek, :detail) || "やり直す" %>(⌘⇧Z / Ctrl+Y)"><%= icon(:redo) %>やり直す<span data-undo-target="redoItem"><%= ": #{bar.dig(:redo_peek, :item)}" if bar[:redo_peek] %></span> <kbd data-undo-target="redoCount"><%= bar[:redo] %></kbd></button>
+</span>

@@ -1,0 +1,30 @@
+<% content_for :title, "会員・役員" %>
+<div class="flex items-center justify-between mb-4">
+  <h1 class="page-title mb-0">会員・役員</h1>
+  <div class="flex gap-2">
+    <% n = MemberApplication.received.count %>
+    <%= link_to (n.positive? ? "入会申込(届いた #{n} 件)" : "入会申込"), member_applications_path, class: "btn-secondary" %>
+    <%= link_to "人を登録", new_person_path, class: "btn" %>
+  </div>
+</div>
+<div class="card mb-6">
+  <h2 class="section-title mt-0"><%= @year %>年度の役員</h2>
+  <table class="data-table">
+    <thead><tr><th>役</th><th>氏名</th><th>任期</th><th></th></tr></thead>
+    <% @officers.sort_by { OfficerTerm::ROLES.keys.index(it.role) }.each do |t| %>
+      <tr><td><%= t.role_label %></td><td><%= link_to t.person.name, t.person, class: "underline" %></td><td><%= l t.starts_on %> 〜 <%= l t.ends_on %></td>
+        <td><% if t.expired_on?(Date.current) %><span class="badge bg-red-100 text-red-800">任期満了（伸長中）</span><% end %></td></tr>
+    <% end %>
+  </table>
+</div>
+<div class="card">
+  <h2 class="section-title mt-0">名簿</h2>
+  <table class="data-table">
+    <thead><tr><th>氏名</th><th><%= @year %>年度の会員資格</th><th>ほかの年度</th></tr></thead>
+    <% @people.each do |p| %>
+      <tr><td><%= link_to p.name, p, class: "underline text-emerald-800" %><% if (y = p.borrowed_year) %> <span class="nb-tag nb-tag--plain" title="<%= @year %>年度の記録がないため、<%= y %>年度の記録を出しています"><%= y %>年度の記録</span><% end %></td>
+        <td><%= p.memberships.select { it.fiscal_year == @year }.map(&:kind_label).join("、") %></td>
+        <td class="text-sm"><%= p.memberships.reject { it.fiscal_year == @year }.sort_by(&:fiscal_year).map { "#{it.fiscal_year} #{it.kind_label}" }.join("、") %></td></tr>
+    <% end %>
+  </table>
+</div>

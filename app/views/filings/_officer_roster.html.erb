@@ -1,0 +1,19 @@
+<h1>前事業年度の年間役員名簿</h1>
+<p class="period"><%= wareki_date(fiscal_year.starts_on, zen: true) %>から<%= wareki_date(fiscal_year.ends_on, zen: true) %>まで</p>
+<p class="org"><%= organization.at(fiscal_year.year)&.name || organization.name %></p>
+<table class="wide">
+  <thead><tr><th>役名</th><th>氏名</th><th>住所又は居所</th><th>就任期間</th><th>報酬を受けた期間</th></tr></thead>
+  <tbody>
+    <% OfficerTerm.serving_in(fiscal_year).sort_by { [ OfficerTerm::ROLES.keys.index(it.role), it.starts_on ] }.each do |term| %>
+      <% period = term.period_in(fiscal_year) %>
+      <tr>
+        <td class="center nowrap"><%= term.role.in?(%w[chair vice_chair]) ? safe_join([ "理事", tag.br, "（#{term.role_label}）" ]) : term.role_label %></td>
+        <% r = term.person.at(fiscal_year.year) %>
+        <td class="nowrap"><%= r&.name || term.person.name %></td>
+        <td><%= r&.address || term.person.address %></td>
+        <td class="nowrap"><%= wareki_date(period.begin, zen: true) %>から<br><%= wareki_date(period.end, zen: true) %>まで</td>
+        <td class="center"><%= term.remunerated ? "有" : "無" %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

@@ -1,0 +1,24 @@
+# 定款の版と事業ごとの主な活動の例(架空)。実際の値は data/articles.yml(git 管理外)に書き、
+#   bin/rails 'articles:load[data/articles.yml]'
+# で読み込む。body_file はこのファイルからの相対パス。
+versions:
+  - number: 1
+    decided_on: 2015-06-01
+    meeting: 設立総会
+    resolution: ""
+    authority: 設立の認証
+    changed_articles: (設立時)
+    reason: ""
+    source: 設立時の定款(紙)
+    body_file: articles.example/v1.md
+  - number: 2
+    decided_on: 2017-06-01
+    meeting: 通常総会 第6号議案
+    resolution: 満場一致
+    authority: "届出: 出した。日付は不明"
+    changed_articles: 第4条(公告の方法)
+    reason: 貸借対照表の公告をホームページで行うため
+    source: 総会の議案書
+    body_file: articles.example/v2.md
+programs:
+  111: 学習の環境の開発と運用

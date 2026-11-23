@@ -1,0 +1,53 @@
+<% if FiscalYear.current.year > (FiscalPeriod.maximum(:year) || FiscalYear.current.year) %>
+  <div class="nb-flash" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    <b><%= FiscalPeriod.next_year %>年度になりました。<%= FiscalPeriod.next_year %>年度を始めますか。</b>
+    <%= link_to "会計の画面で始める", fiscal_years_path, class: "nb-btn nb-btn--primary" %>
+    <span>4 月になっても自動では始めません(前の年度の決算の作業中は、そのままでかまいません)。</span>
+  </div>
+<% end %>
+<% content_for :title, "ホーム" %>
+<h1 class="page-title"><%= @organization.name %></h1>
+
+<% runs = ProcedureRun.ordered.reject(&:finished?) %>
+<% if runs.any? %>
+  <div class="card mb-6" style="padding:0">
+    <h2 class="section-title" style="margin:8px 12px 4px">進めている手続き</h2>
+    <% runs.each do |run| %>
+      <div class="nb-proc-head" style="border-bottom:1px solid var(--grid-line)">
+        <%= link_to run.name, procedure_path(run), class: "nb-proc-name" %>
+        <span class="nb-tag nb-tag--plain"><%= run.period_label %></span>
+        <%= due_badge(run) %><%= progress_bar(run) %><span class="nb-spacer"></span>
+        <% if (n = run.next_step) %><span class="nb-next">次にやること <b><%= link_to n.definition.title, procedure_path(run, step: n.key) %></b></span><% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<div class="card mb-6" style="padding:0">
+  <div style="display:flex;align-items:baseline;gap:8px;margin:8px 12px 4px"><h2 class="section-title" style="margin:0">期限の近いやること</h2>
+    <span class="text-xs" style="color:var(--ink-muted)">期限を過ぎたものと、30 日以内のもの</span><span class="nb-spacer"></span><%= link_to "やることをすべて見る →", todos_path, class: "underline text-sm" %></div>
+  <%= render "todos/summary", summary: @todo_summary %>
+  <% if @near.empty? %>
+    <p style="padding:8px 12px" class="text-emerald-700">期限の近いやることはありません。</p>
+  <% else %>
+    <%= render "todos/table", groups: [ TodoList::Group.new(key: "near", source: nil, title: "", note: "", due_on: nil, request: nil, items: @near) ], show_groups: false %>
+  <% end %>
+</div>
+
+<div class="card mb-6">
+  <h2 class="section-title mt-0">最近の年度</h2>
+  <% if @statements.empty? %>
+    <p>仕訳がまだありません。<%= link_to "会計王の仕訳を取り込む", new_siwake_import_path, class: "underline" %></p>
+  <% else %>
+    <%= render "fiscal_years/summary_table", statements: @statements %>
+  <% end %>
+</div>
+
+<div class="card">
+  <h2 class="section-title mt-0">最近の取り込み</h2>
+  <ul class="text-sm">
+    <% @imports.each do |si| %>
+      <li><%= link_to si.filename, si, class: "underline" %>（<%= si.entries_count %> 件、<%= l si.created_at, format: :short %>）</li>
+    <% end %>
+  </ul>
+</div>

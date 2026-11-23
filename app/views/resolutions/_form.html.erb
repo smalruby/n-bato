@@ -1,0 +1,38 @@
+<%= form_with model: resolution, class: "space-y-4" do |f| %>
+  <% if resolution.errors.any? %>
+    <ul class="rounded bg-red-50 border border-red-200 px-4 py-2 text-red-900 text-sm">
+      <% resolution.errors.full_messages.each do |m| %><li><%= m %></li><% end %>
+      <% resolution.items.each { |i| i.errors.full_messages.each { |m| concat tag.li(m) } } %>
+    </ul>
+  <% end %>
+  <% people = Person.ordered.map { [ it.name, it.id ] } %>
+  <div class="card">
+    <div class="grid md:grid-cols-3 gap-x-4">
+      <div class="field"><%= f.label :body, "機関" %><%= f.select :body, ::Resolution::BODIES.invert %></div>
+      <div class="field"><%= f.label :voting_method, "方法" %><%= f.select :voting_method, ::Resolution::METHODS.invert %></div>
+      <div class="field"><%= f.label :proposed_on, "提案日" %><%= f.date_field :proposed_on %></div>
+      <div class="field md:col-span-2"><%= f.label :title, "件名" %><%= f.text_field :title, placeholder: "例: 2026年度 通常総会（書面決議）" %></div>
+      <div class="field"><%= f.label :proposer_id, "提案者" %><%= f.select :proposer_id, people %></div>
+      <div class="field"><%= f.label :minutes_author_id, "議事録の作成者" %><%= f.select :minutes_author_id, people, include_blank: true %></div>
+      <div class="field"><%= f.label :held_on, "開催日（会議のとき）" %><%= f.date_field :held_on %></div>
+      <div class="field"><%= f.label :place, "場所（会議のとき）" %><%= f.text_field :place %></div>
+    </div>
+    <div class="field"><%= f.label :note, "提案の理由・補足（提案書に載せる）" %><%= f.text_area :note, rows: 3 %></div>
+  </div>
+  <div class="card">
+    <h2 class="section-title mt-0">議案</h2>
+    <p class="text-sm text-stone-600 mb-2">役員の選任・互選は「氏名 役」を 1 行ずつ（例: <code>山田　太郎 理事</code>）。成立後に「記録に反映」で役員の任期を作れます。</p>
+    <%= f.fields_for :items do |itf| %>
+      <fieldset class="border-t border-stone-200 pt-3 mt-3 grid md:grid-cols-4 gap-x-3">
+        <%= itf.hidden_field :position %>
+        <div class="field"><%= itf.label :kind, "種類" %><%= itf.select :kind, ResolutionItem::KINDS.invert %></div>
+        <div class="field md:col-span-3"><%= itf.label :title, "議案名" %><%= itf.text_field :title, placeholder: "例: 第1号議案 役員選任の件" %></div>
+        <div class="field md:col-span-2"><%= itf.label :content, "内容" %><%= itf.text_area :content, rows: 3 %></div>
+        <div class="field"><%= itf.label :appointments_text, "選任する人（選任・互選）" %><%= itf.text_area :appointments_text, rows: 3 %></div>
+        <div class="field"><%= itf.label :fiscal_year, "承認する年度（事業報告）" %><%= itf.number_field :fiscal_year, value: itf.object.fiscal_year %>
+          <% if itf.object.persisted? %><label class="text-sm mt-2 flex gap-1"><%= itf.check_box :_destroy %> この議案を削除</label><% end %></div>
+      </fieldset>
+    <% end %>
+  </div>
+  <div class="flex gap-2"><%= f.submit "保存", class: "btn" %><%= link_to "戻る", resolutions_path, class: "btn-secondary" %></div>
+<% end %>

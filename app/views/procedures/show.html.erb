@@ -1,0 +1,114 @@
+<% content_for :title, "手続き" %>
+<% content_for :main_class, "is-sheet" %>
+<% content_for :side do %>
+  <div><h2>前回<%= "(#{@previous.period_label})" if @previous %></h2>
+    <% if @previous && (prev = @previous.step(@step.key)) && prev.persisted? %>
+      <div class="nb-fields">
+        <span class="nb-field-label">この手順</span><span class="nb-field-value" style="padding-left:6px"><%= prev.status_label %><%= " #{prev.completed_on.strftime('%Y/%m/%d')}" if prev.completed_on %></span>
+        <% if prev.note.present? %><span class="nb-field-label">メモ</span><span class="nb-field-value" style="padding-left:6px;white-space:pre-wrap"><%= prev.note %></span><% end %>
+      </div>
+    <% else %>
+      <p class="nb-history-empty">前回の記録はありません。</p>
+    <% end %>
+  </div>
+  <div><h2>操作履歴</h2><%= history_panel %></div>
+<% end %>
+<% content_for :sheet do %>
+  <% defn = @step.definition; idx = @run.definition.steps.index(defn) %>
+  <div class="nb-proc">
+    <div class="nb-proc-head">
+      <span class="nb-proc-name"><%= @run.name %></span>
+      <span class="nb-tag nb-tag--plain"><%= @run.period_label %></span>
+      <%= due_badge(@run) %>
+      <%= progress_bar(@run) %>
+      <span class="nb-spacer"></span>
+      <% if notice.present? %><span class="nb-save nb-save--saved"><%= notice %></span><% end %>
+      <% if alert.present? %><span class="nb-save nb-save--error"><%= alert %></span><% end %>
+      <% if (n = @run.next_step) %><span class="nb-next">次にやること <b><%= link_to "#{@run.definition.steps.index { it.key == n.key } + 1}. #{n.definition.title}", procedure_path(@run, step: n.key) %></b></span>
+      <% else %><span class="nb-next"><b>すべて済みました</b></span><% end %>
+    </div>
+
+    <ol class="nb-steps" aria-label="手順" data-controller="stepper">
+      <% @steps.each_with_index do |s, i| %>
+        <% if s.definition.optional? && !@steps[0...i].any? { it.definition.optional? } %><li class="nb-step-group">当てはまれば</li><% end %>
+        <li class="nb-step is-<%= s.status %>" <%= 'aria-current="step"'.html_safe if s.key == @step.key %> data-action="click->stepper#go keydown->stepper#key" data-href="<%= procedure_path(@run, step: s.key) %>" tabindex="0">
+          <span class="nb-step-marker" aria-hidden="true"><%= step_mark(s, i) %></span>
+          <span class="nb-step-title"><%= link_to "#{i + 1}. #{s.definition.title}", procedure_path(@run, step: s.key), style: "color:inherit;text-decoration:none", tabindex: -1 %><span class="sr-only">(<%= s.status_label %>)</span></span>
+          <span class="nb-step-meta"><%= step_meta(s) %></span>
+        </li>
+      <% end %>
+    </ol>
+
+    <div class="nb-stepbody">
+      <h2><%= idx + 1 %>. <%= defn.title %><span class="nb-tag <%= step_tag_class(@step) %>"><%= @step.status_label %></span></h2>
+      <div class="nb-guide">
+        <% defn.guide.each do |p| %><p><%= p %></p><% end %>
+        <% if defn.law.any? %><dl><% defn.law.each do |label, text| %><dt><%= label %></dt><dd><%= link_articles(text, year: @run.period) %></dd><% end %></dl><% end %>
+      </div>
+      <% if defn.effect == "close_year" && (open_todos = Todo.unfinished.where(fiscal_year: @run.period.to_i).includes(:incoming_request)).any? %>
+        <div class="nb-flash nb-flash--alert" role="note">
+          <b><%= @run.period %>年度が対象の、済んでいないやることが <%= open_todos.size %> 件あります。</b>締める前に確かめてください。
+          <ul style="margin:4px 0 0 1.2em"><% open_todos.each do |t| %><li><%= link_to t.title, open_todo_path(t), class: "underline" %>(<%= t.status_label %><%= "・#{t.incoming_request.title}" if t.incoming_request %>)</li><% end %></ul>
+        </div>
+      <% end %>
+
+      <form action="<%= procedure_step_path(@run, @step.key, format: :json) %>" data-controller="autosave" data-autosave-scope-value="<%= @undo_scope %>" data-autosave-refresh-value="true"
+            data-action="change->autosave#save input->autosave#mark keydown->autosave#cancel" style="display:grid;gap:12px">
+        <% if @step.check_items.any? %>
+          <div><h3>確かめること</h3>
+            <ul class="nb-check">
+              <% @step.check_items.each do |label| %>
+                <li class="<%= 'is-checked' if @step.checked?(label) %>"><input type="checkbox" name="checks[<%= label %>]" value="1" <%= "checked" if @step.checked?(label) %> <%= "disabled" if @step.status == "done" %> aria-label="<%= label %>">
+                  <span class="label"><%= label %></span><span class="meta"><%= @step.checked_on(label)&.strftime("%m/%d") %></span></li>
+              <% end %>
+            </ul></div>
+        <% end %>
+        <% if @step.wait_items.any? %>
+          <div><h3>返事を待つもの</h3>
+            <ul class="nb-check">
+              <% @step.wait_items.each do |label| %>
+                <% checked = @step.checked?(label) %>
+                <li class="<%= checked ? 'is-checked' : ('is-waiting' if @step.started?) %>"><input type="checkbox" name="checks[<%= label %>]" value="1" <%= "checked" if checked %> <%= "disabled" if @step.status == "done" %> aria-label="<%= label %>">
+                  <span class="label"><%= label %></span><span class="meta"><%= checked ? "#{@step.checked_on(label).strftime('%m/%d')} 返事あり" : ("待ち" if @step.started?) %></span></li>
+              <% end %>
+            </ul></div>
+        <% elsif defn.waits_from %>
+          <p class="nb-history-empty">返事を待つ人がいません(<%= defn.waits_from == "regular_members" ? "今年度の正会員" : "役員" %>を「会員・役員」で登録してください)。</p>
+        <% end %>
+        <div><h3>メモ(次の年の自分へ)</h3>
+          <textarea name="note" rows="2" class="nb-input" style="height:auto;max-width:640px;border-color:var(--grid-line-strong)" placeholder="やり方・気づいたこと・連絡先など"><%= @step.note %></textarea></div>
+      </form>
+
+      <% links = defn.links.filter_map { procedure_link(it, @run) } %>
+      <% if links.any? %><div><h3>この手順で使う画面と書類</h3><div class="nb-docs"><%= safe_join(links) %></div></div><% end %>
+
+      <div class="nb-stepfoot">
+        <% case @step.status %>
+        <% when "done", "skipped" %>
+          <span class="nb-btn-note"><%= step_meta(@step) %></span>
+          <% if @step.persisted? && @step[:status] != "open" && !defn.final? %><%= button_to "済みを取り消す", reopen_procedure_step_path(@run, @step.key), class: "nb-btn", form: { style: "display:inline" } %><% end %>
+        <% else %>
+          <% reason = @step.blocked_reason %>
+          <% if defn.final? %>
+            <%= form_with url: complete_procedure_step_path(@run, @step.key), style: "display:inline-flex;gap:4px;align-items:center",
+                  data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do |f| %>
+              <%= f.date_field :completed_on, value: Date.current, class: "nb-input nb-num", style: "width:140px;border-color:var(--grid-line-strong)", "aria-label": "日付", disabled: reason.present? %>
+              <%= f.button defn.final_label || "#{defn.title}を記録する", class: "nb-btn nb-btn--danger", disabled: reason.present?,
+                    data: { confirm_twice_target: "button", armed_label: "もう一度押すと記録します" } %>
+            <% end %>
+            <span class="nb-btn-note"><%= reason || "取り消せません" %></span>
+          <% else %>
+            <%= button_to "この手順を済みにする", complete_procedure_step_path(@run, @step.key), class: "nb-btn nb-btn--primary", disabled: reason.present?, form: { style: "display:inline" } %>
+            <span class="nb-btn-note"><%= reason || "元に戻せます" %></span>
+          <% end %>
+          <% if defn.optional? %>
+            <%= form_with url: skip_procedure_step_path(@run, @step.key), style: "display:inline-flex;gap:4px" do |f| %>
+              <%= f.text_field :reason, class: "nb-input", style: "width:160px;border-color:var(--grid-line-strong)", placeholder: "対象外の理由", "aria-label": "対象外の理由" %>
+              <%= f.submit "対象外にする", class: "nb-btn" %>
+            <% end %>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>

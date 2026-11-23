@@ -1,0 +1,37 @@
+<%# 要約(見直し第13回): よく見る条をまとめる。条文番号を押すと全文のその条へ。事業は部門と主な活動を並べる。 %>
+<% doc = version.document; v = (version.number unless current) %>
+<div class="nb-articles-body">
+  <% doc.summary.each do |title, list| %>
+    <section class="nb-art-sec" aria-labelledby="sum-<%= title %>">
+      <h2 id="sum-<%= title %>"><%= title %>
+        <% list.each do |a| %><%= link_to a.label, articles_path(tab: "full", v:, anchor: a.anchor), class: "nb-artref" %><% end %></h2>
+      <% if title == "事業" %>
+        <%= form_with url: articles_path, method: :patch, data: { controller: "autosave", autosave_scope_value: @undo_scope, action: "change->autosave#save input->autosave#mark keydown->autosave#cancel" } do %>
+          <table class="nb-art-programs">
+            <thead><tr><th scope="col"></th><th scope="col">事業</th><th scope="col">部門</th><th scope="col">主な活動 <small>(人が書く。仕訳の部門選び・AI 仕訳・事業報告書に出る)</small></th></tr></thead>
+            <tbody>
+              <% (doc.programs.map { |n, name| [ "①②③④⑤⑥⑦⑧⑨"[n - 1], name, 110 + n ] } + [ [ "", "管理(法人の運営)", Department::ADMIN_CODE ] ]).each do |mark, name, code| %>
+                <% profile = @profiles[code] %>
+                <tr>
+                  <td><%= mark %></td><td><%= name %></td><td class="nb-num"><%= code %></td>
+                  <td class="nb-art-act">
+                    <% if Current.user&.auditor? %>
+                      <%= profile&.activities.presence || tag.span("—", class: "nb-art-mute") %>
+                    <% else %>
+                      <%= text_field_tag "program_profile[activities]", profile&.activities, id: "act-#{code}", class: "nb-input", placeholder: "まだ書いていません",
+                            "aria-label": "#{mark}#{name} の主な活動", data: { url: program_profile_path(code, format: :json) } %>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        <% end %>
+      <% else %>
+        <% list.each do |a| %>
+          <div class="nb-art-text"><% a.paragraphs.each do |para| %><p><%= para %></p><% end %></div>
+        <% end %>
+      <% end %>
+    </section>
+  <% end %>
+</div>

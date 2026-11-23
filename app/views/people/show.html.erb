@@ -1,0 +1,61 @@
+<% content_for :title, @person.name %>
+<div class="flex items-center justify-between mb-4">
+  <h1 class="page-title mb-0"><%= @person.name %></h1>
+  <%= link_to "編集", edit_person_path(@person), class: "btn-secondary" %>
+</div>
+<% if (y = @person.borrowed_year) %>
+  <p class="nb-flash nb-flash--alert"><%= Current.working_year %>年度の記録がないため、<%= y %>年度の記録を出しています。直すと <%= Current.working_year %>年度の記録ができます。</p>
+<% end %>
+<% if (also = flash[:also]) %>
+  <%= form_with url: apply_to_years_person_path(@person), class: "nb-flash" do %>
+    <input type="hidden" name="from" value="<%= also["from"] %>">
+    <% also["fields"].each do |f| %><input type="hidden" name="fields[]" value="<%= f %>"><% end %>
+    <% also["years"].each do |y| %><input type="hidden" name="years[]" value="<%= y %>"><% end %>
+    <%= also["years"].map { FiscalPeriod.for(it)&.label }.join("・") %>の記録も同じ値です(<%= also["fields"].map { Person.human_attribute_name(it) }.join("・") %>)。
+    <button class="nb-btn nb-btn--primary" type="submit">そちらも直す</button> 引っ越しのように、過去は正しかったなら直さないでください。
+  <% end %>
+<% end %>
+<div class="grid md:grid-cols-2 gap-4">
+  <div class="card">
+    <dl class="grid grid-cols-3 gap-y-2 text-sm">
+      <dt class="text-stone-500">よみ</dt><dd class="col-span-2"><%= @person.name_kana %></dd>
+      <dt class="text-stone-500">住所</dt><dd class="col-span-2"><%= @person.address %></dd>
+      <dt class="text-stone-500">メール</dt><dd class="col-span-2"><%= @person.email %></dd>
+      <dt class="text-stone-500">電話</dt><dd class="col-span-2"><%= @person.phone %></dd>
+      <dt class="text-stone-500">メモ</dt><dd class="col-span-2 whitespace-pre-wrap"><%= @person.notes %></dd>
+    </dl>
+  </div>
+  <div class="card">
+    <h2 class="section-title mt-0">会員資格</h2>
+    <table class="data-table">
+      <% @person.memberships.sort_by(&:fiscal_year).each do |m| %>
+        <tr><td><%= m.fiscal_year %>年度</td><td><%= m.kind_label %></td><td><%= m.fee_paid_on && "会費 #{yen(m.fee_amount)} 円（#{l m.fee_paid_on}）" %></td>
+          <td><%= render "shared/delete_with_reason", url: person_membership_path(@person, m), closed: FiscalPeriod.for(m.fiscal_year)&.closed? %></td></tr>
+      <% end %>
+    </table>
+    <%= form_with model: [ @person, Membership.new(fiscal_year: Current.working_year) ], class: "flex flex-wrap gap-2 mt-3 text-sm" do |f| %>
+      <%= f.number_field :fiscal_year, class: "w-24 rounded border border-stone-300 px-2 py-1" %>
+      <%= f.select :kind, Membership::KINDS.invert, {}, class: "rounded border border-stone-300 px-2 py-1" %>
+      <input type="text" name="reason" placeholder="締めた年度なら理由" aria-label="締めた年度を直す理由" class="rounded border border-stone-300 px-2 py-1">
+      <%= f.submit "追加", class: "btn-secondary" %>
+    <% end %>
+  </div>
+  <div class="card md:col-span-2">
+    <h2 class="section-title mt-0">役員の任期</h2>
+    <table class="data-table">
+      <% @person.officer_terms.chronological.each do |t| %>
+        <tr><td><%= t.role_label %></td><td><%= l t.starts_on %> 〜 <%= l t.ends_on %></td><td><%= t.appointed_by %></td>
+          <td><%= t.serving_on?(Date.current) ? "在任" : "" %><%= "（伸長中）" if t.holdover_on?(Date.current) %></td>
+          <td><%= render "shared/delete_with_reason", url: person_officer_term_path(@person, t), closed: (FiscalYear.for(t.starts_on).year..FiscalYear.for(t.left_on || t.ends_on).year).any? { FiscalPeriod.for(it)&.closed? } %></td></tr>
+      <% end %>
+    </table>
+    <%= form_with model: [ @person, OfficerTerm.new ], class: "flex flex-wrap gap-2 mt-3 text-sm" do |f| %>
+      <%= f.select :role, OfficerTerm::ROLES.invert, {}, class: "rounded border border-stone-300 px-2 py-1" %>
+      <%= f.date_field :starts_on, class: "rounded border border-stone-300 px-2 py-1" %>〜
+      <%= f.date_field :ends_on, class: "rounded border border-stone-300 px-2 py-1" %>
+      <%= f.text_field :appointed_by, placeholder: "選任した決議", class: "rounded border border-stone-300 px-2 py-1" %>
+      <input type="text" name="reason" placeholder="締めた年度にかかるなら理由" aria-label="締めた年度を直す理由" class="rounded border border-stone-300 px-2 py-1">
+      <%= f.submit "追加", class: "btn-secondary" %>
+    <% end %>
+  </div>
+</div>

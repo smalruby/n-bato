@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <title><%= [ content_for(:title), "N(エヌ)ばと" ].compact.join(" | ") %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= turbo_refreshes_with method: :morph, scroll: :preserve %>
+    <%= yield :head %>
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="nb" <%= tag.attributes(data: { year_hue: (FiscalPeriod.hue(Current.working_year) if Current.working_year), reason_default: todo_reason_hint }) %>>
+    <% if authenticated? %>
+      <div class="nb-shell has-side" data-controller="undo" data-undo-url-value="<%= undo_path %>" data-undo-scope-value="<%= @undo_scope %>">
+        <header class="nb-bar">
+          <span class="nb-brand"><%= link_to root_path, "aria-label": "Nばと(ホーム)" do %><ruby>N<rt>エヌ</rt></ruby>ばと<% end %></span>
+          <span class="nb-title"><%= content_for(:title) %></span>
+          <%= render "shared/year_bar" %>
+          <%= yield :bar %>
+          <span class="nb-spacer"></span>
+          <%= render "shared/role_switch" %>
+          <% if @undo_scope %>
+            <%= render "shared/save_status" %>
+            <%= render "shared/undo_bar" %>
+          <% end %>
+          <span class="nb-user"><%= Current.user&.name.presence || Current.user&.email_address %>
+            <%= button_to "ログアウト", session_path, method: :delete, form: { style: "display:inline" } %></span>
+        </header>
+        <nav class="nb-nav" aria-label="メニュー">
+          <%= nav_link "ホーム", root_path, icon: :home %>
+          <%= nav_link "やること", todos_path, icon: :todo, also: [ "/incoming_requests" ], count: nav_todo_count %>
+          <%= nav_link "定款と事業", articles_path, icon: :articles %>
+          <div class="nb-nav-group">ふだん</div>
+          <%= nav_link "証憑・AI 仕訳", vouchers_path, icon: :voucher, also: [ "/journal_proposals" ] %>
+          <%= nav_link "仕訳", journal_entries_path, icon: :ledger %>
+          <%= nav_link "会計(年度)", fiscal_years_path, icon: :accounting, also: [ "/balance_checks", "/opening_balances", "/siwake_imports" ] %>
+          <%= nav_link "会員・役員", people_path, icon: :people, also: [ "/memberships", "/officer_terms", "/member_applications" ] %>
+          <div class="nb-nav-group">年に一度</div>
+          <%= nav_link "手続き", procedures_path, icon: :procedure %>
+          <%= nav_link "事業報告・提出", annual_reports_path, icon: :document, also: [ "/filings" ] %>
+          <%= nav_link "決議", resolutions_path, icon: :resolution, also: [ "/consents" ] %>
+          <%= nav_link "登記", registrations_path, icon: :registration %>
+          <div class="nb-nav-group">設定</div>
+          <%= nav_link "科目と部門", accounts_path, icon: :accounts %>
+          <%= nav_link "法人情報", organization_path, icon: :organization %>
+          <%= nav_link "変更の記録", changes_path, icon: :history %>
+        </nav>
+        <main class="nb-main <%= content_for(:main_class) %>" id="main">
+          <%= render "shared/role_band" %>
+          <%= render "shared/year_band" %>
+          <% if content_for?(:sheet) %>
+            <%= yield :sheet %>
+          <% else %>
+            <div class="nb-page">
+              <% if notice.present? %><p class="nb-flash" role="status"><%= notice %></p><% end %>
+              <% if alert.present? %><p class="nb-flash nb-flash--alert" role="alert"><%= alert %></p><% end %>
+              <%= yield %>
+            </div>
+          <% end %>
+        </main>
+        <aside class="nb-side" aria-label="説明と履歴">
+          <turbo-frame id="article_ref"></turbo-frame>
+          <%= render "shared/help_panel" %>
+          <%= render "shared/ask_ai" %>
+          <%= yield :side %>
+        </aside>
+      </div>
+    <% else %>
+      <main class="nb-page" style="max-width:480px;margin:48px auto">
+        <% if alert.present? %><p class="nb-flash nb-flash--alert" role="alert"><%= alert %></p><% end %>
+        <%= yield %>
+      </main>
+    <% end %>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+<% content_for :title, "決議" %>
+<div class="flex items-center justify-between mb-4">
+  <h1 class="page-title mb-0">総会・理事会の決議</h1>
+  <div class="flex gap-2">
+    <%= link_to "総会の決議を作る", new_resolution_path(body: "general_meeting"), class: "btn" %>
+    <%= link_to "理事会の決議を作る", new_resolution_path(body: "board"), class: "btn-secondary" %>
+  </div>
+</div>
+<p class="text-sm text-stone-600 mb-4">会議を開けないときは、書面決議（みなし決議）にします。議決権を持つ全員（総会は正会員全員、理事会は理事全員）が書面か電子メールで同意した日に成立します。</p>
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>提案日</th><th>機関</th><th>件名</th><th>方法</th><th>同意</th><th>成立</th></tr></thead>
+    <% @resolutions.each do |r| %>
+      <tr>
+        <td><%= l r.proposed_on %></td><td><%= r.body_label %></td>
+        <td><%= link_to r.title, r, class: "underline text-emerald-800" %></td>
+        <td><%= r.written? ? "書面決議" : "会議" %></td>
+        <td><%= r.written? ? "#{r.consents.size} / #{r.voters.size}" : "" %></td>
+        <td><%= r.established_on ? l(r.established_on) : tag.span("未成立", class: "badge bg-amber-100 text-amber-800") %></td>
+      </tr>
+    <% end %>
+  </table>
+  <% if @resolutions.empty? %><p class="text-stone-500 mt-3">まだ決議はありません。</p><% end %>
+</div>

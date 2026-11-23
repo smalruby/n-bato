@@ -1,0 +1,9 @@
+<%# 年度の帯(デザインシステム「年度」)。仮・締めた年度、まだ年度に分けていない画面で出す。 %>
+<% period = @working_period %>
+<% if period && controller.year_split_pending_flag %>
+  <div class="nb-year-band" role="note">この画面はまだ年度に分かれていません。<%= period.label %>ではなく、いまの情報を出しています。</div>
+<% elsif period&.closed? %>
+  <div class="nb-year-band" role="note"><b><%= period.label %>は締めた年度です。</b>直すときは、理由を書いてもらいます。</div>
+<% elsif period&.provisional? %>
+  <div class="nb-year-band" role="note"><b><%= period.previous.label %>をまだ締めていません。<%= period.label %>は仮です。</b>期首の残高などは、<%= period.previous.fiscal_year.label %>を締めたときに決まります。</div>
+<% end %>

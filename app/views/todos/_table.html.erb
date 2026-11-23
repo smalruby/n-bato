@@ -1,0 +1,15 @@
+<%# やることの一覧(デザインシステム TodoList)。groups は TodoList::Group の配列 %>
+<table class="nb-todo">
+  <thead><tr><th style="width:70px">状態</th><th style="width:110px">年度</th><th>やること</th><th style="width:80px">種類</th><th style="width:90px">担当</th><th style="width:90px">期限</th><th style="width:150px"></th></tr></thead>
+  <tbody>
+    <% groups.each do |g| %>
+      <% if show_groups %>
+        <tr class="nb-todo-group"><th colspan="7">
+          <% if g.request %><%= link_to g.title, incoming_request_path(g.request), class: "underline" %><% else %><%= g.title %><% end %>
+          <span class="nb-todo-note"><%= g.note %><%= " ・期限 #{g.due_on.strftime('%Y/%m/%d')}" if g.due_on %><%= " ・解決" if g.request&.resolved? %></span>
+        </th></tr>
+      <% end %>
+      <%= render partial: "todos/item", collection: g.items, as: :item %>
+    <% end %>
+  </tbody>
+</table>

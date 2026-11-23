@@ -1,0 +1,14 @@
+<%# 右ペインに出す条文(デザインシステム ArticleRef)。その年度の時点の版。 %>
+<turbo-frame id="article_ref">
+  <% if @article %>
+    <section class="nb-artref-panel" aria-label="定款の条文">
+      <header class="nb-artref-head"><%= icon(:articles) %><span>定款 <%= @article.label %>(<%= @article.caption %>)</span>
+        <%= link_to "閉じる", article_path("close"), class: "nb-artref-close" %></header>
+      <p class="nb-artref-meta"><%= @year %>年度の時点の定款: 版 <%= @version.number %>(<%= @version.decided_on.strftime("%Y-%m-%d") %>)</p>
+      <div class="nb-art-text"><% @article.paragraphs.each do |para| %><p><%= para %></p><% end %></div>
+      <%= link_to "定款の全文で見る →", articles_path(tab: "full", v: (@version.number unless @version == ArticleVersion.current), anchor: @article.anchor), data: { turbo_frame: "_top" } %>
+    </section>
+  <% elsif params[:id] != "close" %>
+    <p class="nb-artref-meta">定款の第<%= params[:id] %>条が見つかりません(定款がまだ入っていないか、その条がありません)。</p>
+  <% end %>
+</turbo-frame>

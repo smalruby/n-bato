@@ -1,0 +1,20 @@
+<% content_for :title, "期首残高" %>
+<h1 class="page-title">期首残高</h1>
+<p class="text-sm text-stone-600 mb-4">仕訳データより前の年度からの繰越額を、最初の年度の期首残高として登録します。登録の無い年度は、前年度末の残高を自動で繰り越します。</p>
+<div class="card mb-4">
+  <table class="data-table">
+    <thead><tr><th>年度</th><th>科目</th><th class="num">金額</th><th></th></tr></thead>
+    <% @balances.each do |b| %>
+      <tr><td><%= b.fiscal_year %>年度</td><td><%= b.account %></td><td class="num"><%= yen(b.amount) %></td>
+        <td><%= button_to "削除", b, method: :delete, class: "btn-danger" %></td></tr>
+    <% end %>
+  </table>
+</div>
+<%= form_with model: @balance, class: "card max-w-2xl" do |f| %>
+  <div class="grid md:grid-cols-3 gap-x-4">
+    <div class="field"><%= f.label :fiscal_year, "年度（開始年）" %><%= f.number_field :fiscal_year %></div>
+    <div class="field"><%= f.label :account_id, "科目" %><%= f.select :account_id, Account.in_year(@balance.fiscal_year || Current.working_year).ordered.select(&:balance_sheet?).map { [ it.to_s, it.id ] } %></div>
+    <div class="field"><%= f.label :amount, "金額" %><%= f.number_field :amount %></div>
+  </div>
+  <%= f.submit "登録", class: "btn" %>
+<% end %>

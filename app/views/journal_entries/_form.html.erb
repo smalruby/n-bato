@@ -1,0 +1,22 @@
+<%= form_with model: entry, class: "card max-w-2xl" do |f| %>
+  <% if entry.errors.any? %>
+    <ul class="mb-4 rounded bg-red-50 border border-red-200 px-4 py-2 text-red-900 text-sm">
+      <% entry.errors.full_messages.each do |m| %><li><%= m %></li><% end %>
+    </ul>
+  <% end %>
+  <% year = entry.fiscal_year || Current.working_year %>
+  <% accounts = Account.in_year(year).ordered.map { |a| [ a.to_s, a.id ] } %>
+  <% departments = Department.in_year(year).ordered.map { |d| [ d.long_name, d.id ] } %>
+  <div class="grid md:grid-cols-2 gap-x-4">
+    <div class="field"><%= f.label :entry_date, "日付" %><%= f.date_field :entry_date %></div>
+    <div class="field"><%= f.label :amount, "金額（円）" %><%= f.number_field :amount, value: entry.debit_amount, min: 0 %></div>
+    <div class="field"><%= f.label :debit_account_id, "借方科目" %><%= f.select :debit_account_id, accounts, include_blank: true %></div>
+    <div class="field"><%= f.label :debit_department_id, "借方部門" %><%= f.select :debit_department_id, departments, include_blank: "（なし）" %></div>
+    <div class="field"><%= f.label :credit_account_id, "貸方科目" %><%= f.select :credit_account_id, accounts, include_blank: true %></div>
+    <div class="field"><%= f.label :credit_department_id, "貸方部門" %><%= f.select :credit_department_id, departments, include_blank: "（なし）" %></div>
+  </div>
+  <div class="field"><%= f.label :summary, "摘要" %><%= f.text_field :summary %></div>
+  <div class="field"><%= f.label :sub_summary, "補助摘要" %><%= f.text_field :sub_summary %></div>
+  <div class="field"><%= f.label :memo, "メモ" %><%= f.text_area :memo, rows: 2 %></div>
+  <div class="flex gap-2"><%= f.submit "保存", class: "btn" %><%= link_to "戻る", journal_entries_path, class: "btn-secondary" %></div>
+<% end %>

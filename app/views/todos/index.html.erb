@@ -1,0 +1,19 @@
+<% content_for :title, "やること" %>
+<% content_for :main_class, "nb-main--wide" %>
+<%= render "todos/summary", summary: @summary, due: @due, who: @who, base: { source: @source, fy: @year, done: (@include_done ? "1" : nil) } %>
+<div style="padding:8px 12px;border-top:1px solid var(--grid-line);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+  <%= form_with url: todos_path, method: :get, class: "flex flex-wrap gap-2 items-center", data: { turbo_action: "replace" } do %>
+    <label>出どころ <%= select_tag :source, options_for_select([ [ "すべて", "" ] ] + TodoList::SOURCES.map { [ _2, _1 ] }, @source), class: "nb-input", onchange: "this.form.requestSubmit()" %></label>
+    <label>年度 <%= select_tag :fy, options_for_select([ [ "すべて", "" ] ] + FiscalPeriod.ordered.reverse.map { [ it.label, it.year ] }, @year), class: "nb-input", onchange: "this.form.requestSubmit()" %></label>
+    <label><%= check_box_tag :done, "1", @include_done, onchange: "this.form.requestSubmit()" %> 済んだものも出す</label>
+    <%= hidden_field_tag :due, @due if @due %><%= hidden_field_tag :who, @who if @who %>
+  <% end %>
+  <span class="nb-spacer"></span>
+  <% unless Current.user&.auditor? %><%= link_to new_incoming_request_path, class: "nb-btn nb-btn--primary" do %><%= icon(:add, size: :sm) %>AI と依頼を整理する<% end %><% end %>
+</div>
+<p class="text-xs" style="padding:0 12px 6px;color:var(--ink-muted)">年度をまたいだ一覧です(操作している年度では絞りません)。「開く」はその年度に切り替えて移ります。</p>
+<% if @groups.empty? %>
+  <p style="padding:12px">やることはありません。</p>
+<% else %>
+  <div style="overflow:auto"><%= render "todos/table", groups: @groups, show_groups: true %></div>
+<% end %>

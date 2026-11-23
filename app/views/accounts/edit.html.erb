@@ -1,0 +1,6 @@
+<% content_for :title, "科目の区分" %>
+<h1 class="page-title"><%= @account %> の区分</h1>
+<%= form_with model: @account, class: "card max-w-md" do |f| %>
+  <div class="field"><%= f.label :category, "区分" %><%= f.select :category, Account::CATEGORIES.invert %></div>
+  <div class="flex gap-2"><%= f.submit "保存", class: "btn" %><%= link_to "戻る", accounts_path, class: "btn-secondary" %></div>
+<% end %>

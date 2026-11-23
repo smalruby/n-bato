@@ -1,0 +1,5 @@
+<%# 削除のボタン。締めた年度にかかる記録は、理由を書いて消す(デザインシステム「年度」)。 %>
+<%= form_with url: url, method: :delete, class: "flex gap-1 items-center" do %>
+  <% if closed %><input type="text" name="reason" placeholder="理由(締めた年度)" aria-label="消す理由" required class="rounded border border-stone-300 px-2 py-0 text-xs w-32"><% end %>
+  <button type="submit" class="btn-danger"><%= icon(:delete, size: :sm) %>削除</button>
+<% end %>

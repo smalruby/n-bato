@@ -1,0 +1,87 @@
+<% content_for :title, "依頼" %>
+<% r = @req %>
+<div style="padding:10px 12px;display:grid;gap:14px;max-width:1100px">
+  <div style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline">
+    <h1 class="page-title" style="margin:0"><%= r.title %></h1>
+    <span><%= r.counterpart.presence || "相手: 未設定" %></span>
+    <span class="text-xs" style="color:var(--ink-muted)">届いた日 <%= r.received_on&.strftime("%Y/%m/%d") || "—" %> ・期限 <%= r.due_on&.strftime("%Y/%m/%d") || "—" %> ・<%= r.status_label %></span>
+    <span class="nb-spacer"></span>
+    <%= link_to "やることの一覧へ", todos_path, class: "nb-btn" %>
+  </div>
+
+  <section id="todos">
+    <h2 class="section-title" style="margin:0 0 6px">やること(<%= r.done_count %> / <%= r.todos.size %> 済み)</h2>
+    <% if r.todos.any? %>
+      <% items = r.todos.map { |t| TodoList::Item.new(status: t.status, fiscal_year: t.fiscal_year, title: t.title, kind_label: t.kind_label, assignee: t.assignee, due_on: t.due_on, path: (t.target.present? ? open_todo_path(t) : nil), todo: t, note: [ (t.status == "wait" && t.waiting_on.present? ? "待ち: #{t.waiting_on}" : nil), (t.done? ? t.done_note.presence : nil) ].compact.join(" ")) } %>
+      <%= render "todos/table", groups: [ TodoList::Group.new(key: "r", source: "request", title: r.title, note: "", due_on: nil, request: r, items:) ], show_groups: false %>
+    <% else %>
+      <p class="text-sm" style="color:var(--ink-muted)">まだありません。下の対話で AI に依頼の文を送ると、やることの案が出ます。</p>
+    <% end %>
+    <% unless Current.user&.auditor? %>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px">
+        <% if r.all_done? && !r.resolved? %><%= button_to "全部済みました。依頼を解決にする", resolve_incoming_request_path(r), class: "nb-btn nb-btn--primary", form: { style: "display:inline" } %><% end %>
+        <% if r.all_done? || r.resolved? %><%= button_to (r.cover_letter.present? ? "送付状の下書きを作り直す" : "送付状(返信)の下書きを作る"), cover_letter_incoming_request_path(r), class: "nb-btn", form: { style: "display:inline" } %><% end %>
+      </div>
+    <% end %>
+    <% if r.cover_letter.present? %>
+      <div id="cover" class="nb-proposal" style="margin-top:8px"><b>送付状・返信の下書き</b>(AI が作りました。直してから使ってください。送るのは人です)<textarea class="nb-input" rows="12" style="width:100%;font-family:inherit" readonly><%= r.cover_letter %></textarea></div>
+    <% end %>
+  </section>
+
+  <section>
+    <h2 class="section-title" style="margin:0 0 6px">AI との対話</h2>
+    <div class="nb-thread">
+      <% r.messages.each do |m| %>
+        <% next if m.user? && !m.sent? %>
+        <div class="nb-msg <%= m.user? ? 'nb-msg--user' : 'nb-msg--ai' %>">
+          <div class="nb-msg-meta"><%= m.user? ? "人(AI に送った伏せた文#{'・添付つき' if m.send_attachments})" : "AI" %> ・<%= l m.created_at, format: :short %></div>
+          <% if m.user? %><%= with_masks(m.masked_body) %><% else %><%= m.body %><% end %>
+          <% if !m.user? && (m.proposal_todos.any? || m.proposal_updates.any? || m.proposal&.dig("request", "title").present?) %>
+            <div class="nb-proposal">
+              <b>AI の案<%= "(決めました)" if m.applied? %></b>
+              <% if (rq = m.proposal["request"]) && rq.values.any?(&:present?) %>
+                <div class="text-xs">依頼: <%= [ rq["title"], rq["counterpart"], ("届いた日 #{rq['received_on']}" if rq["received_on"].present?), ("期限 #{rq['due_on']}" if rq["due_on"].present?) ].compact_blank.join(" ・") %></div>
+              <% end %>
+              <% if m.proposal_todos.any? %>
+                <div>作るやること <%= m.proposal_todos.size %> 件</div>
+                <ol><% m.proposal_todos.each do |t| %><li><%= year_chip(t["fiscal_year"].to_i.positive? ? t["fiscal_year"].to_i : nil) %> <%= t["title"] %> <span class="text-xs" style="color:var(--ink-muted)">(<%= Todo::KINDS[t["kind"]] %>・<%= t["assignee"] %><%= "・期限 #{t['due_on']}" if t["due_on"].present? %><%= "・#{Todo::TARGETS.dig(t['target'], 0)}" if t["target"].present? %>)</span></li><% end %></ol>
+              <% end %>
+              <% if m.proposal_updates.any? %>
+                <div>直すやること <%= m.proposal_updates.size %> 件</div>
+                <ol><% m.proposal_updates.each do |u| %><li>#<%= u["id"] %> → <%= Todo::STATUSES[u["status"]] %> <%= u["waiting_on"].presence || u["done_note"] %></li><% end %></ol>
+              <% end %>
+              <% if m.proposal_actionable? && !Current.user&.auditor? %>
+                <div><%= button_to "この案で決める", incoming_request_message_apply_path(r, m), class: "nb-btn nb-btn--primary", form: { style: "display:inline" } %> <span class="text-xs" style="color:var(--ink-muted)">違うところは、下に書いて AI に直してもらえます</span></div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+      <span id="thread-end"></span>
+    </div>
+  </section>
+
+  <% unless Current.user&.auditor? %>
+    <section id="draft">
+      <% if @draft %>
+        <h2 class="section-title" style="margin:0 0 6px">AI に送る文(確かめてください)</h2>
+        <div class="nb-msg nb-msg--user" style="max-width:100%;justify-self:stretch"><%= with_masks(@masked.text) %></div>
+        <p class="text-xs" style="margin:6px 0"><%= @masked.masked? ? "伏せた箇所: #{@masked.summary}。黒い部分は AI に送りません。" : "伏せる箇所は見つかりませんでした。" %>伏せ忘れがあれば、下書きを消して書き直してください。</p>
+        <%= form_with url: incoming_request_message_deliver_path(r, @draft), class: "grid gap-2" do %>
+          <% if @draft.files.attached? %>
+            <div class="text-sm">添付: <%= @draft.files.map { it.filename.to_s }.join("、") %></div>
+            <label class="text-sm"><input type="checkbox" name="send_attachments" value="1"> 添付も AI に送る(添付は伏せられません。住所・電話・メールアドレスが入っていないことを確かめてから)</label>
+          <% end %>
+          <div><button class="nb-btn nb-btn--primary">AI に送る</button></div>
+        <% end %>
+        <%= button_to "下書きを消す", incoming_request_message_path(r, @draft), method: :delete, class: "nb-btn", form: { style: "margin-top:6px" } %>
+      <% else %>
+        <%= form_with url: incoming_request_messages_path(r), multipart: true, class: "grid gap-2" do %>
+          <label class="grid gap-1">AI に伝える(例: 返事が来た・終わった・このやることは要らない)<textarea name="body" rows="3" class="nb-input" style="width:100%;font-family:inherit"></textarea></label>
+          <input type="file" name="files[]" multiple accept="application/pdf,image/png,image/jpeg,image/gif,image/webp">
+          <div><button class="nb-btn">次へ(伏せた文を確かめる)</button></div>
+        <% end %>
+      <% end %>
+    </section>
+  <% end %>
+</div>

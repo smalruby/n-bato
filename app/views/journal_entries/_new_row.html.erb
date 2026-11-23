@@ -1,0 +1,14 @@
+<%# 表のいちばん下の空の行(デザインシステム Sheet の「新しい行」)。日付・科目・金額がそろったら 1 件として保存する。 %>
+<tr class="is-new" data-controller="new-row" data-new-row-url-value="<%= journal_entries_path(format: :json) %>"
+    data-action="change->new-row#check">
+  <td class="has-input"><input type="date" class="nb-cell-input nb-num" name="journal_entry[entry_date]" value="<%= @new_row_date&.iso8601 %>" aria-label="新しい仕訳の日付"></td>
+  <td class="nb-new-label">新</td>
+  <% %w[debit credit].each do |side| %>
+    <td class="has-input"><%= render "picker", source: "accounts", name: "journal_entry[#{side}_account_id]", value: nil, url: nil, label: side == "debit" ? "新しい仕訳の借方科目" : "新しい仕訳の貸方科目" %></td>
+    <td class="has-input"><%= render "picker", source: "departments", name: "journal_entry[#{side}_department_id]", value: nil, url: nil, label: side == "debit" ? "新しい仕訳の借方部門" : "新しい仕訳の貸方部門" %></td>
+  <% end %>
+  <td class="has-input"><input type="text" inputmode="numeric" class="nb-cell-input nb-num" name="journal_entry[amount]" aria-label="新しい仕訳の金額"></td>
+  <td class="has-input"><input type="text" class="nb-cell-input" name="journal_entry[summary]" aria-label="新しい仕訳の摘要" placeholder="ここに書くと 1 件増えます"></td>
+  <td class="has-input"><input type="text" class="nb-cell-input" name="journal_entry[sub_summary]" aria-label="新しい仕訳の補助摘要"></td>
+  <td colspan="2" class="nb-new-label" data-new-row-target="status">日付・科目・金額で保存</td>
+</tr>

@@ -1,0 +1,2 @@
+<%= render "statements/header", fiscal_year:, organization:, zen:, title: "財産目録", period: "#{wareki_date(fiscal_year.ends_on, zen:)}現在" %>
+<%= render "statements/lines", lines: report.inventory %>

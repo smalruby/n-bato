@@ -1,0 +1,21 @@
+<%# 操作履歴(HistoryPanel)。operations は新しい順。 %>
+<turbo-frame id="history">
+  <% if operations.empty? %>
+    <p class="nb-history-empty">まだ操作はありません。</p>
+  <% else %>
+    <ol class="nb-history">
+      <% operations.each do |op| %>
+        <li class="<%= 'is-undo' if op.kind == 'undo' %>">
+          <time datetime="<%= op.created_at.iso8601 %>" title="<%= l op.created_at, format: '%Y/%m/%d %H:%M' %>"><%= l op.created_at, format: (op.created_at.today? ? "%H:%M" : "%m/%d") %></time>
+          <span class="what"><%= op.describe %><%= "(取り消せません)" if op.final? %><%= "(元に戻し済み)" if op.kind == "do" && op.state == "undone" %></span>
+          <% if op.kind.in?(%w[do final]) && (c = op.audit_changes.first) && c.event == "update" %>
+            <% c.changeset.first(2).each do |field, (from, to)| %>
+              <span class="diff"><%= c.field_label(field) %>: <del><%= history_value(c, field, from) %></del> → <ins><%= history_value(c, field, to) %></ins></span>
+            <% end %>
+          <% end %>
+          <span class="who"><%= op.user&.name.presence || op.user&.email_address || "システム" %></span>
+        </li>
+      <% end %>
+    </ol>
+  <% end %>
+</turbo-frame>

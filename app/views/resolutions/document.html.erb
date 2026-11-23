@@ -1,0 +1,65 @@
+<style>
+  .right { text-align: right; } .center { text-align: center; } .block-right { margin-left: 50%; }
+  table.wide { width: 100%; } .item { margin: .6em 0; } .item h3 { margin-bottom: .2em; }
+</style>
+<% r = @resolution; org = @organization; voters = r.voters %>
+<% case @doc %>
+<% when "proposal" %>
+  <p class="right"><%= wareki_date(r.proposed_on, zen: true) %></p>
+  <p><%= r.body == "general_meeting" ? "正会員各位" : "理事各位" %></p>
+  <div class="block-right"><%= org.name %><br>提案者　<%= r.proposer.name %></div>
+  <h1 style="margin-top:1.2em"><%= r.body_label %>の決議事項についての提案書</h1>
+  <p>下記の事項について、<%= r.body_label %>の決議として提案します。<%= r.article_reference %>の規定により、<%= r.body == "general_meeting" ? "正会員" : "理事" %>の全員が書面又は電磁的方法により同意の意思表示をしたときは、この提案を可決する旨の<%= r.body_label %>の決議があったものとみなされます。</p>
+  <p>同封の同意書に記入して返送していただくか、電子メールで「すべての議案に同意します」と返信してください。</p>
+  <% if r.note.present? %><%= simple_format(r.note) %><% end %>
+  <p class="center">記</p>
+  <% r.items.each do |item| %>
+    <div class="item"><h3><%= item.title %></h3><%= simple_format(item.content) %>
+      <% if item.appointments.any? %><ul><% item.appointments.each do |a| %><li><%= Person.find(a["person_id"]).name %>（<%= OfficerTerm::ROLES[a["role"]] %>）</li><% end %></ul><% end %>
+    </div>
+  <% end %>
+  <p class="right">以上</p>
+<% when "consent_form" %>
+  <p class="right">令和　　年　　月　　日</p>
+  <p><%= org.name %><br><%= org.representative %>　様</p>
+  <h1 style="margin-top:1.2em">同意書</h1>
+  <p>私は、<%= wareki_date(r.proposed_on, zen: true) %>付けで提案のあった<%= r.body_label %>の決議事項について、次のとおり同意します。</p>
+  <table class="wide">
+    <thead><tr><th>議案</th><th style="width:15%">同意</th></tr></thead>
+    <% r.items.each do |item| %><tr><td><%= item.title %></td><td class="center">□</td></tr><% end %>
+  </table>
+  <p>同意する議案の □ に✓を付けてください。</p>
+  <div class="block-right" style="margin-top:2em">氏名　＿＿＿＿＿＿＿＿＿＿＿＿</div>
+<% when "minutes" %>
+  <h1><%= r.body_label %>議事録</h1>
+  <p class="center">（<%= r.written? ? "#{r.article_reference}による書面決議" : "会議" %>）</p>
+  <% if r.written? %>
+    <h2>１　決議があったものとみなされた事項の内容</h2>
+    <% r.items.each do |item| %>
+      <div class="item"><h3><%= item.title %></h3><%= simple_format(item.content) %>
+        <% if item.appointments.any? %><ul><% item.appointments.each do |a| %><li><%= Person.find(a["person_id"]).name %>（<%= OfficerTerm::ROLES[a["role"]] %>）</li><% end %></ul><% end %>
+        <p>原案のとおり可決。</p></div>
+    <% end %>
+    <h2>２　提案をした者</h2>
+    <p><%= r.proposer.name %>（提案日　<%= wareki_date(r.proposed_on, zen: true) %>）</p>
+    <h2>３　<%= r.body == "general_meeting" ? "正会員総数及び同意した正会員の数" : "理事総数及び同意した理事の数" %></h2>
+    <p><%= r.body == "general_meeting" ? "正会員総数" : "理事総数" %>　<%= zenkaku(voters.size.to_s) %>名　　同意した者　<%= zenkaku(r.consents.where(person: voters).count.to_s) %>名</p>
+    <table class="wide">
+      <thead><tr><th>氏名</th><th>同意の日</th><th>方法</th></tr></thead>
+      <% voters.each do |p| %><% c = r.consents.find_by(person: p) %>
+        <tr><td><%= p.name %></td><td><%= c ? wareki_date(c.consented_on, zen: true) : "（未同意）" %></td><td><%= c&.via_label %></td></tr>
+      <% end %>
+    </table>
+    <h2>４　<%= r.body_label %>の決議があったものとみなされた日</h2>
+    <p><%= r.established_on ? wareki_date(r.established_on, zen: true) : "（まだ全員の同意がそろっていません）" %></p>
+    <h2>５　議事録の作成に係る職務を行った者</h2>
+    <p><%= r.minutes_author&.name || r.proposer.name %></p>
+    <p style="margin-top:2em">上記のとおり、<%= r.body_label %>の決議があったものとみなされたことを明確にするため、この議事録を作成する。</p>
+    <p class="right" style="margin-top:1.5em"><%= r.established_on ? wareki_date(r.established_on, zen: true) : "令和　　年　　月　　日" %></p>
+    <div class="block-right"><%= org.name %><br>議事録作成者　<%= r.minutes_author&.name || r.proposer.name %>　　印</div>
+  <% else %>
+    <p>１　日時及び場所　<%= r.held_on && wareki_date(r.held_on, zen: true) %>　<%= r.place %></p>
+    <p>（会議の議事録は、出席者数・議事の経過・議事録署名人を書き足してください。）</p>
+    <% r.items.each do |item| %><div class="item"><h3><%= item.title %></h3><%= simple_format(item.content) %></div><% end %>
+  <% end %>
+<% end %>

@@ -1,0 +1,30 @@
+<%# 定款の全文: 章の目次と探す欄。探すと、その語を含む条だけを出す。 %>
+<% doc = version.document; v = (version.number unless current) %>
+<div class="nb-articles-full">
+  <nav class="nb-art-toc" aria-label="章の目次">
+    <% doc.chapters.each do |c| %><%= link_to c.title.presence || "前文", articles_path(tab: "full", v:, anchor: c.anchor) %><% end %>
+  </nav>
+  <div class="nb-articles-body">
+    <%= form_with url: articles_path, method: :get, class: "nb-art-search", data: { turbo_action: "replace" } do %>
+      <%= hidden_field_tag :tab, "full", id: nil %><%= hidden_field_tag :v, v, id: nil if v %>
+      <label for="articles-q">探す</label><%= search_field_tag :q, @q, id: "articles-q", class: "nb-input", placeholder: "例: 公告、書面" %>
+      <% if @q.present? %><%= link_to "探すのをやめる", articles_path(tab: "full", v:) %><% end %>
+    <% end %>
+    <% hits = 0 %>
+    <% doc.chapters.each do |c| %>
+      <% shown = @q.present? ? c.articles.select { (it.caption.to_s + it.text).include?(@q) } : c.articles %>
+      <% next if @q.present? && shown.empty? %>
+      <section class="nb-art-chapter" id="<%= c.anchor %>">
+        <h2><%= c.title %></h2>
+        <% shown.each do |a| hits += 1 %>
+          <article class="nb-art" id="<%= a.anchor %>">
+            <h3><span class="nb-art-no"><%= a.label %></span><%= a.caption %></h3>
+            <% a.paragraphs.each do |para| %><p><%= @q.present? ? highlight(para, @q) : para %></p><% end %>
+          </article>
+        <% end %>
+        <% if @q.blank? %><% c.paragraphs.each do |para| %><p class="nb-art-plain"><%= para %></p><% end %><% end %>
+      </section>
+    <% end %>
+    <% if @q.present? && hits.zero? %><p class="nb-art-mute">「<%= @q %>」を含む条はありません。</p><% end %>
+  </div>
+</div>

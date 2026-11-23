@@ -1,0 +1,2 @@
+<%= render "statements/header", fiscal_year:, organization:, zen:, title: "貸借対照表", period: "#{wareki_date(fiscal_year.ends_on, zen:)}現在" %>
+<%= render "statements/lines", lines: report.balance_sheet %>

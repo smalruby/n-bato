@@ -1,0 +1,30 @@
+<%# 右ペイン「この画面の使い方」(デザインシステム HelpPanel)。説明と一目で分かる見た目(guide の地・線・info)。 %>
+<% content = help_content %>
+<% role = Current.user&.auditor? ? "auditor" : "clerk" %>
+<% collapsed = help_collapsed? %>
+<section class="nb-help" data-controller="help" data-help-screen-value="<%= controller_name %>" data-help-collapsed-value="<%= collapsed %>" aria-label="この画面の使い方">
+  <header class="nb-help-head">
+    <%= icon(:info) %><span>この画面の使い方</span><span class="nb-help-role"><%= role == "auditor" ? "監査" : "事務" %></span>
+    <button type="button" class="nb-help-toggle" data-action="help#toggle" data-help-target="button" aria-expanded="<%= !collapsed %>"><%= collapsed ? "開く" : "畳む" %></button>
+  </header>
+  <div class="nb-help-body" data-help-target="body" <%= "hidden" if collapsed %>>
+    <% notes = help_states.filter_map { content.dig("states", it) } %>
+    <% if notes.any? %>
+      <ul class="nb-help-now"><% notes.each do |n| %><li><%= n %></li><% end %></ul>
+    <% end %>
+    <% if role == "auditor" %>
+      <% a = content["auditor"] || {} %>
+      <h3>この画面に出ているもの</h3>
+      <ul><% Array(a["shown"]).each do |t| %><li><%= t %></li><% end %></ul>
+      <h3>ほかに出せるもの</h3>
+      <ul><% Array(a["can_show"]).each do |t| %><li><%= t %></li><% end %></ul>
+      <p class="nb-help-note">監査の役割では、記録を見ることだけができます。</p>
+    <% else %>
+      <dl class="nb-help-ops">
+        <% Array(content["clerk"]).each do |what, result| %>
+          <dt><%= safe_join(what.to_s.split(/(⌘[⇧]?[A-Z]|Esc|Shift|Enter|Tab)/).map { |part| part.match?(/\A(⌘[⇧]?[A-Z]|Esc|Shift|Enter|Tab)\z/) ? tag.kbd(part) : part }) %></dt><dd><%= link_articles(result) %></dd>
+        <% end %>
+      </dl>
+    <% end %>
+  </div>
+</section>

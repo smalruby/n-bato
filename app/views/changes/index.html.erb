@@ -1,0 +1,27 @@
+<% content_for :title, "変更の記録" %>
+<% content_for :main_class, "is-sheet" %>
+<% content_for :sheet do %>
+  <div style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <div class="nb-toolbar">
+      <b><%= @period&.label %>の変更</b>
+      <% if @period&.closed_on %>
+        <% if @after_close %>
+          <span class="nb-tag nb-tag--soon"><%= icon(:filter, size: :sm) %>締めたあと(<%= l @period.closed_on %>〜)の変更だけ</span>
+          <%= link_to "すべての変更", changes_path, class: "nb-btn" %>
+        <% else %>
+          <%= link_to changes_path(after_close: 1), class: "nb-btn" do %><%= icon(:closed) %>締めたあとの変更だけ<% end %>
+        <% end %>
+      <% end %>
+      <span class="nb-spacer"></span>
+      <%= link_to changes_path(after_close: (@after_close ? 1 : nil), print: 1), class: "nb-btn", target: "_blank" do %><%= icon(:document) %>印刷用(監事に渡す PDF)<% end %>
+    </div>
+    <div class="nb-sheet-wrap" style="flex:1;border-width:0">
+      <table class="nb-sheet">
+        <thead><tr><th style="width:120px">日時</th><th style="width:80px">人</th><th>記録</th><th style="width:80px">操作</th><th>項目: 前 → 後</th><th>理由(締めた年度)</th></tr></thead>
+        <tbody><%= render "rows", changes: @changes, print: false %></tbody>
+      </table>
+      <% if @changes.empty? %><p class="nb-history-empty" style="padding:8px">この年度の変更はまだありません。</p><% end %>
+    </div>
+    <div class="nb-sheet-foot"><span class="nb-stat"><b>件数</b><span><%= @changes.size %></span></span></div>
+  </div>
+<% end %>

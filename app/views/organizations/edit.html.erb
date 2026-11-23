@@ -1,0 +1,14 @@
+<% content_for :title, "法人情報の編集" %>
+<h1 class="page-title">法人情報の編集</h1>
+<%= form_with model: @organization, url: organization_path, method: :patch, class: "card max-w-2xl" do |f| %>
+  <% { name: "名称", name_en: "英文名", address: "所在地", representative_title: "代表者の役職", representative_name: "代表者の氏名", competent_authority: "所轄庁" }.each do |attr, label| %>
+    <div class="field"><%= f.label attr, label %><%= f.text_field attr %></div>
+  <% end %>
+  <div class="field"><%= f.label :established_on, "成立日" %><%= f.date_field :established_on %></div>
+  <div class="field"><%= f.label :first_fiscal_year, "第 1 期の年度（開始年）" %><%= f.number_field :first_fiscal_year %></div>
+  <div class="field"><%= f.label :accounting_standard_note, "会計方針の注記（空なら既定の文）" %><%= f.text_area :accounting_standard_note, rows: 3 %></div>
+  <% if @working_period&.closed? %>
+    <div class="field"><label for="reason">直す理由(<%= @working_period.label %>は締めた年度です)</label><input type="text" name="reason" id="reason" value="<%= params[:reason] %>"></div>
+  <% end %>
+  <div class="flex gap-2"><%= f.submit "保存", class: "btn" %><%= link_to "戻る", organization_path, class: "btn-secondary" %></div>
+<% end %>

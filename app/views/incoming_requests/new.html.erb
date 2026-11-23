@@ -1,0 +1,10 @@
+<% content_for :title, "AI と依頼を整理する" %>
+<div style="padding:12px;max-width:820px;display:grid;gap:10px">
+  <p>外から届いた依頼(所轄庁からのメールなど)を貼ってください。まだ AI には送りません。次の画面で、住所・電話・メールアドレスを伏せた文を確かめてから送ります。</p>
+  <%= form_with url: incoming_requests_path, multipart: true, class: "grid gap-2" do %>
+    <label class="grid gap-1">依頼の文(メールの本文など)<textarea name="body" rows="14" class="nb-input" style="width:100%;font-family:inherit" required></textarea></label>
+    <label class="grid gap-1">添付(PDF・画像。表計算は PDF にしてから)<input type="file" name="files[]" multiple accept="application/pdf,image/png,image/jpeg,image/gif,image/webp"></label>
+    <p class="text-xs" style="color:var(--ink-muted)">添付は伏せられないので、送るかどうかを次の画面で選びます(最初は送らない)。</p>
+    <div><button class="nb-btn nb-btn--primary">次へ(伏せた文を確かめる)</button> <%= link_to "やることに戻る", todos_path, class: "nb-btn" %></div>
+  <% end %>
+</div>

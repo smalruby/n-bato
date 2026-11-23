@@ -1,0 +1,67 @@
+<% content_for :title, @resolution.title %>
+<div class="flex items-center justify-between mb-4">
+  <h1 class="page-title mb-0"><%= @resolution.title %></h1>
+  <%= link_to "編集", edit_resolution_path(@resolution), class: "btn-secondary" %>
+</div>
+<div class="grid md:grid-cols-3 gap-4 mb-6">
+  <div class="card"><div class="text-sm text-stone-500">機関・方法</div><div><%= @resolution.body_label %>・<%= @resolution.method_label %></div></div>
+  <div class="card"><div class="text-sm text-stone-500">提案</div><div><%= l @resolution.proposed_on %>　<%= @resolution.proposer.name %></div></div>
+  <div class="card"><div class="text-sm text-stone-500">成立</div>
+    <div class="text-lg font-bold <%= @resolution.established? ? 'text-emerald-700' : 'text-amber-700' %>"><%= @resolution.established? ? "#{l @resolution.established_on} 成立" : "未成立（あと #{@resolution.pending_voters.size} 人）" %></div></div>
+</div>
+
+<div class="card mb-6">
+  <h2 class="section-title mt-0">書類</h2>
+  <div class="flex flex-wrap gap-2">
+    <% ResolutionsController::DOCUMENTS.each do |doc, label| %>
+      <%= link_to label, document_resolution_path(@resolution, doc), class: "btn-secondary" %>
+      <%= link_to "#{label}（PDF）", document_resolution_path(@resolution, doc, format: :pdf), class: "btn-secondary" %>
+    <% end %>
+  </div>
+</div>
+
+<div class="card mb-6">
+  <h2 class="section-title mt-0">議案</h2>
+  <% @resolution.items.each do |item| %>
+    <div class="border-t border-stone-200 py-2">
+      <div class="font-medium"><%= item.title %> <span class="badge bg-stone-100"><%= item.kind_label %></span></div>
+      <div class="text-sm whitespace-pre-wrap"><%= item.content %></div>
+      <% if item.appointments.any? %><div class="text-sm text-stone-600">選任: <%= item.appointments_text.gsub("\n", "、") %></div><% end %>
+      <% if item.applicable? %>
+        <%= button_to "記録に反映する", apply_item_resolution_path(@resolution, item_id: item.id), class: "btn mt-2" %>
+      <% elsif item.applied_on %>
+        <div class="text-sm text-emerald-700">記録に反映済み（<%= l item.applied_on %>）</div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+<% if @resolution.written? %>
+  <div class="card">
+    <h2 class="section-title mt-0">同意（<%= @resolution.consents.size %> / <%= @voters.size %>）</h2>
+    <p class="text-sm text-stone-600 mb-2"><%= @resolution.body == "general_meeting" ? "#{FiscalYear.for(@resolution.proposed_on).label}の正会員" : "提案日に在任の理事" %>全員の同意で成立します（<%= @resolution.article_reference %>）。</p>
+    <table class="data-table">
+      <thead><tr><th>氏名</th><th>同意日</th><th>方法</th><th></th></tr></thead>
+      <% @voters.each do |person| %>
+        <% c = @consents[person.id] %>
+        <tr>
+          <td><%= person.name %></td>
+          <% if c %>
+            <td><%= l c.consented_on %></td><td><%= c.via_label %></td>
+            <td><%= button_to "取り消す", resolution_consent_path(@resolution, c), method: :delete, class: "btn-danger" %></td>
+          <% else %>
+            <td colspan="3">
+              <%= form_with model: Consent.new(consented_on: Date.current), url: resolution_consents_path(@resolution), class: "flex gap-2 items-center" do |f| %>
+                <%= f.hidden_field :person_id, value: person.id %>
+                <%= f.date_field :consented_on, class: "rounded border border-stone-300 px-2 py-1 text-sm" %>
+                <%= f.select :via, Consent::VIAS.invert, {}, class: "rounded border border-stone-300 px-2 py-1 text-sm" %>
+                <%= f.submit "同意を記録", class: "btn" %>
+              <% end %>
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </table>
+    <% if @voters.empty? %><p class="text-red-700 text-sm mt-2">議決権を持つ人がいません。会員・役員の記録を確認してください。</p><% end %>
+  </div>
+<% end %>

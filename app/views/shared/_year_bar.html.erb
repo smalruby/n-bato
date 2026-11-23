@@ -1,0 +1,15 @@
+<%# 上部バーの年度(デザインシステム「年度」)。操作する年度の札と、他の年度への切り替え。 %>
+<% period = @working_period %>
+<% if period %>
+  <span class="nb-year-chip" title="操作している年度"><%= icon(period.closed? ? :closed : :year) %><%= period.label %><% if period.state != :open %><span class="nb-year-state"><%= period.state_label %></span><% end %></span>
+  <details class="nb-year-switch" data-controller="year-switch">
+    <summary class="nb-btn" style="list-style:none">他の年度に切り替える<%= icon(:expand) %></summary>
+    <ul class="nb-year-menu">
+      <% FiscalPeriod.ordered.reverse_each do |p| %>
+        <li><a href="<%= year_switch_path(p.year) %>" aria-current="<%= p.year == period.year %>">
+          <span class="nb-year-dot" style="background:var(--year-<%= FiscalPeriod.hue(p.year) %>-ink)"></span>
+          <span><%= p.label %></span><span class="nb-year-meta"><%= p.state_label %></span></a></li>
+      <% end %>
+    </ul>
+  </details>
+<% end %>

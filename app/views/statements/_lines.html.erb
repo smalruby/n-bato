@@ -1,0 +1,11 @@
+<table>
+  <thead><tr><th>科目</th><th>金額（円）</th></tr></thead>
+  <tbody>
+    <% lines.each do |line| %>
+      <tr class="<%= 'strong' if line.strong %>">
+        <td class="l<%= line.level %>"><%= line.label %></td>
+        <td class="amount"><%= yen(line.amount) %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

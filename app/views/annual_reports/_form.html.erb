@@ -1,0 +1,57 @@
+<%= form_with model: annual_report, url: annual_report.persisted? ? annual_report_path(annual_report.fiscal_year) : annual_reports_path, class: "space-y-4" do |f| %>
+  <%= f.hidden_field :fiscal_year %>
+  <div class="card">
+    <h2 class="section-title mt-0">１　事業の成果</h2>
+    <div class="field"><%= f.text_area :achievements, rows: 3 %></div>
+    <h2 class="section-title">２（２）その他の事業</h2>
+    <div class="field"><%= f.text_field :other_business %></div>
+    <h2 class="section-title">３　会議に関する事項</h2>
+    <div class="grid md:grid-cols-2 gap-x-4">
+      <div class="field"><%= f.label :board_meetings, "理事会" %><%= f.text_area :board_meetings, rows: 2 %></div>
+      <div class="field"><%= f.label :general_meetings, "総会" %><%= f.text_area :general_meetings, rows: 2 %></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title mt-0">２（１）・４　事業ごとの実施内容</h2>
+    <p class="text-sm text-stone-600 mb-3">事業費は活動計算書から自動で入ります。実施報告（4 章）は Markdown で書けます（表も可）。空なら「特になし。」になります。</p>
+    <%= f.fields_for :program_activities do |pf| %>
+      <fieldset class="border-t border-stone-200 pt-3 mt-3">
+        <legend class="font-medium"><%= pf.object.department.long_name %></legend>
+        <% act = ProgramProfile.find_by(code: pf.object.department.code)&.activities %>
+        <p class="nb-art-ref-note">主な活動(定款と事業): <%= act.presence || "まだ書いていません" %> <%= link_to "見直す", articles_path %></p>
+        <%= pf.hidden_field :department_id %>
+        <%= pf.hidden_field :position %>
+        <div class="grid md:grid-cols-3 gap-x-3">
+          <div class="field"><%= pf.label :content, "事業内容" %><%= pf.text_area :content, rows: 2 %></div>
+          <div class="field"><%= pf.label :schedule, "日時、場所、従事者の人数" %><%= pf.text_area :schedule, rows: 2 %></div>
+          <div class="field"><%= pf.label :beneficiaries, "受益対象者の範囲及び人数、評価" %><%= pf.text_area :beneficiaries, rows: 2 %></div>
+        </div>
+        <div class="field"><%= pf.label :report, "実施報告（4 章）" %><%= pf.text_area :report, rows: 3, class: "font-mono text-sm" %></div>
+      </fieldset>
+    <% end %>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title mt-0">５　会員数</h2>
+    <p class="text-sm text-stone-600 mb-3">空欄の種別は、会員の記録から数えます。</p>
+    <div class="grid md:grid-cols-3 gap-x-3">
+      <% Organization.current.membership_kinds.each do |k| %>
+        <div class="field"><label><%= k["label"] %></label><%= number_field_tag "annual_report[member_counts][#{k['key']}]", (annual_report.member_counts || {})[k["key"]] %></div>
+      <% end %>
+    </div>
+    <div class="field"><%= f.label :members_note, "補足（会費など）" %><%= f.text_field :members_note %></div>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title mt-0">手続きの記録</h2>
+    <div class="grid md:grid-cols-3 gap-x-3">
+      <div class="field"><%= f.label :letter_date, "提出書の日付" %><%= f.date_field :letter_date %></div>
+      <div class="field"><%= f.label :approved_on, "総会で承認した日" %><%= f.date_field :approved_on %></div>
+      <div class="field"><%= f.label :submitted_on, "所轄庁に提出した日" %><%= f.date_field :submitted_on %></div>
+      <div class="field"><%= f.label :bs_published_on, "貸借対照表を公告した日" %><%= f.date_field :bs_published_on %></div>
+      <div class="field md:col-span-2"><%= f.label :bs_publication_place, "公告の場所（URL など）" %><%= f.text_field :bs_publication_place %></div>
+    </div>
+  </div>
+  <div class="flex gap-2"><%= f.submit "保存", class: "btn" %><%= link_to "戻る", annual_reports_path, class: "btn-secondary" %></div>
+<% end %>

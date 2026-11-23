@@ -1,0 +1,72 @@
+ja:
+  activerecord:
+    models:
+      account: 科目
+      department: 部門
+      article_version: 定款の版
+      program_profile: 事業の主な活動
+      journal_entry: 仕訳
+      opening_balance: 期首残高
+      balance_check: 残高の照合
+      voucher: 証憑
+      journal_proposal: 仕訳の提案
+      annual_report: 事業報告
+      program_activity: 事業の実施
+      person: 人
+      membership: 会員
+      officer_term: 役員の任期
+      registration: 登記
+      resolution: 決議
+      resolution_item: 議案
+      consent: 同意
+      procedure_run: 手続き
+      procedure_step: 手順
+    attributes:
+      account: { code: コード, name: 科目名, category: 区分, nature_code: 科目性格コード, group_name: 小区分, full_name: 正式名称 }
+      department: { code: コード, name: 部門名, full_name: 正式名称 }
+      journal_entry:
+        entry_date: 日付
+        slip_number: 伝票番号
+        debit_account: 借方科目
+        debit_account_id: 借方科目
+        debit_department: 借方部門
+        debit_department_id: 借方部門
+        debit_amount: 借方金額
+        credit_account: 貸方科目
+        credit_account_id: 貸方科目
+        credit_department: 貸方部門
+        credit_department_id: 貸方部門
+        credit_amount: 貸方金額
+        amount: 金額
+        summary: 摘要
+        sub_summary: 補助摘要
+        memo: メモ
+        fiscal_year: 年度
+        approved_by_id: 承認した人
+        approved_at: 承認日時
+      opening_balance: { fiscal_year: 年度, account_id: 科目, amount: 金額 }
+      balance_check: { account_id: 科目, checked_on: 確認日, actual_amount: 実際の残高, note: メモ }
+      voucher: { kind: 種類, issued_on: 日付, description: 内容, amount: 金額, status: 状態, notes: メモ, files: ファイル }
+      journal_proposal: { status: 状態, entry_date: 日付, amount: 金額, summary: 摘要 }
+      annual_report:
+        fiscal_year: 年度
+        achievements: 事業の成果
+        other_business: その他の事業
+        board_meetings: 理事会
+        general_meetings: 総会
+        members_note: 会員数の注記
+        member_counts: 会員数
+        letter_date: 提出書の日付
+        approved_on: 総会の承認日
+        submitted_on: 提出日
+        bs_published_on: 貸借対照表の公告日
+        bs_publication_place: 公告の場所
+      program_activity: { content: 事業内容, schedule: 日時・場所・従事者, beneficiaries: 受益対象者, report: 実施報告 }
+      person: { name: 氏名, name_kana: ふりがな, address: 住所, email: メール, phone: 電話, notes: メモ }
+      membership: { fiscal_year: 年度, kind: 種別, joined_on: 入会日, fee_amount: 会費, fee_paid_on: 会費の納入日 }
+      officer_term: { person_id: 人, role: 役職, starts_on: 就任日, ends_on: 任期の終わり, left_on: 退任日, remunerated: 報酬, appointed_by: 選任の経緯, notes: メモ }
+      registration: { kind: 種類, cause_on: 原因の日, due_on: 期限, registered_on: 登記した日, note: メモ }
+      resolution: { body: 機関, title: 件名, proposed_on: 提案日, voting_method: 方法, held_on: 開催日, place: 場所, note: メモ }
+      resolution_item: { title: 議案, content: 内容, applied_on: 反映した日 }
+      consent: { consented_on: 同意した日, via: 方法, note: メモ }
+      procedure_step: { status: 状態, checks: 確認, note: メモ, completed_on: 済んだ日 }

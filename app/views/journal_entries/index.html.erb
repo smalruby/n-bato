@@ -1,0 +1,69 @@
+<% content_for :title, "仕訳" %>
+<% content_for :main_class, "is-sheet" %>
+<% content_for :side do %>
+  <div><h2>操作履歴</h2><%= history_panel %></div>
+<% end %>
+<% content_for :sheet do %>
+  <%# 候補は、これまでの仕訳で使ったものだけ。残りは「すべて」で取りに行く(デザインシステム Picker) %>
+  <% pa = PickerItems.new("accounts", @year); pd = PickerItems.new("departments", @year) %>
+  <script type="application/json" id="picker-accounts" data-total="<%= pa.total %>" data-url="<%= picker_path("accounts") %>" data-noun="科目"><%= raw json_escape(pa.used.to_json) %></script>
+  <script type="application/json" id="picker-departments" data-total="<%= pd.total + 1 %>" data-url="<%= picker_path("departments") %>" data-noun="部門"><%= raw json_escape(([{ id: "", code: "", name: "(なし)" }] + pd.used).to_json) %></script>
+  <div style="display:flex;flex-direction:column;flex:1;min-height:0" data-controller="sheet-foot" data-sheet-foot-key-value="journal_entries"
+       data-action="nb:selection->sheet-foot#update">
+    <div class="nb-toolbar">
+      <% if @year %>
+        <% if @working_period&.provisional? %>
+          <button type="button" class="nb-btn" disabled title="会計王へ書き出せるのは、<%= @working_period.previous.fiscal_year.label %>を締めたあとです"><%= icon(:export) %>新規分を SIWAKE で書き出す</button>
+        <% else %>
+          <%= link_to fiscal_year_siwake_export_path(@year, only: "new"), class: "nb-btn" do %><%= icon(:export) %>新規分を SIWAKE で書き出す<% end %>
+        <% end %>
+        <%= link_to fiscal_year_path(@year), class: "nb-btn" do %><%= icon(:ledger) %>この年度の決算<% end %>
+      <% end %>
+      <span class="nb-spacer"></span>
+      <% if notice.present? %><span class="nb-save nb-save--saved"><%= notice %></span><% end %>
+      <% if alert.present? %><span class="nb-save nb-save--error"><%= alert %></span><% end %>
+    </div>
+    <%= form_with url: journal_entries_path, method: :get, class: "nb-filter", data: { controller: "filter", action: "change->filter#submit", turbo_action: "replace" } do %>
+      <input type="hidden" name="year" value="<%= @year %>">
+      <% if @filter.any? %>
+        <span class="nb-tag nb-tag--soon"><%= icon(:filter, size: :sm) %>絞り込み中: <%= @filter_label %></span>
+        <%= link_to "解除", journal_entries_path(year: @year, clear: 1), class: "nb-btn", style: "padding:0 6px" %>
+      <% end %>
+      <label>科目 <span style="width:12em;display:inline-block;position:relative"><%= render "picker", source: "accounts", name: "account_id", value: @filter[:account_id], url: nil, label: "科目で絞り込む" %></span></label>
+      <label>部門 <span style="width:9em;display:inline-block;position:relative"><%= render "picker", source: "departments", name: "department_id", value: @filter[:department_id], url: nil, label: "部門で絞り込む" %></span></label>
+      <label>摘要 <input type="search" name="q" value="<%= @filter[:q] %>" aria-label="摘要で絞り込む"></label>
+    <% end %>
+    <div class="nb-sheet-wrap" style="flex:1;border-width:0" data-controller="autosave sheet" data-autosave-scope-value="<%= @undo_scope %>" data-autosave-year-value="<%= @year %>"
+         data-action="change->autosave#save input->autosave#mark keydown->autosave#cancel keydown->sheet#move click->sheet#select">
+      <table class="nb-sheet">
+        <thead><tr>
+          <th style="width:96px">日付</th><th style="width:40px">伝票</th>
+          <th>借方科目</th><th style="width:96px">借方部門</th><th>貸方科目</th><th style="width:96px">貸方部門</th>
+          <th style="width:88px;text-align:right">金額</th><th>摘要</th><th>補助摘要</th><th style="width:56px">出所</th><th style="width:40px"></th>
+        </tr></thead>
+        <tbody>
+          <% @entries.each do |e| %>
+            <%= render "sheet_row", e: %>
+          <% end %>
+          <%= render "new_row" %>
+        </tbody>
+      </table>
+      <% if @entries.empty? %><p class="nb-history-empty" style="padding:8px"><%= @filter.any? ? "絞り込みに当てはまる仕訳はありません。" : "この年度の仕訳はありません。いちばん下の行に書くと、1 件目になります。" %></p><% end %>
+    </div>
+    <div class="nb-sheet-foot" data-sheet-foot-target="bar" data-total="<%= @entries.size %>" data-all="<%= @counts[@year] || 0 %>">
+      <span class="nb-stat" data-stat="count"><b>件数</b><span data-sheet-foot-target="count"><%= @entries.size %><%= " / #{@counts[@year] || 0}" if @filter.any? %></span></span>
+      <span class="nb-stat" data-stat="sum" hidden><b>選んだ行の合計</b><span data-sheet-foot-target="sum"></span></span>
+      <% if @balance %>
+        <span class="nb-stat" data-stat="balance"><b><%= @balance_account.display_name %>の残高</b><span><%= yen(@balance) %></span></span>
+      <% end %>
+      <span class="nb-stat" data-stat="stats" hidden><b>平均・最大・最小</b><span data-sheet-foot-target="stats"></span></span>
+      <button type="button" class="nb-foot-menu" data-action="sheet-foot#toggleMenu" aria-expanded="false" data-sheet-foot-target="menuButton">▾ 出すものを選ぶ</button>
+      <div class="nb-foot-options" data-sheet-foot-target="menu" hidden>
+        <label><input type="checkbox" value="count" data-action="sheet-foot#choose"> 件数</label>
+        <label><input type="checkbox" value="sum" data-action="sheet-foot#choose"> 選んだ行の合計</label>
+        <label><input type="checkbox" value="balance" data-action="sheet-foot#choose"> 絞り込んだ科目の残高</label>
+        <label><input type="checkbox" value="stats" data-action="sheet-foot#choose"> 平均・最大・最小(選んだ行)</label>
+      </div>
+    </div>
+  </div>
+<% end %>

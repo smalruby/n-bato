@@ -1,0 +1,17 @@
+# 法人の情報の例。実際の値は data/organization.yml(git 管理外)に書き、
+#   bin/rails 'organization:load[data/organization.yml]'
+# で読み込む。
+organization:
+  name: NPO法人サンプル少年団
+  name_en: Sample Shounendan
+  address: 島根県松江市○○町１－２－３
+  representative_title: 理事長
+  representative_name: 山田　太郎
+  established_on: 2015-09-24
+  first_fiscal_year: 2015
+  competent_authority: 松江市
+departments:
+  111: ①プログラミング教材の開発・販売事業
+  112: ②初心者向けプログラミング教室の運営事業
+  113: ③中〜上級者向けプログラミング教室の運営事業
+  900: 管理部門

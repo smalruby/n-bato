@@ -1,0 +1,26 @@
+<% url = journal_entry_path(e, format: :json) %>
+<tr id="<%= dom_id(e) %>" data-amount="<%= e.amount %>"
+    <%= tag.attributes(data: { readonly_reason: "会計王から取り込んだ仕訳です。会計王で直して、取り込み直してください。" }) unless e.editable? %>>
+  <% if e.editable? %>
+    <td class="has-input"><input type="date" class="nb-cell-input nb-num" name="journal_entry[entry_date]" value="<%= e.entry_date&.iso8601 %>" data-url="<%= url %>" data-reorder aria-label="日付"></td>
+    <td class="nb-num is-readonly"><%= e.slip_number %></td>
+    <% %w[debit credit].each do |side| %>
+      <td class="has-input"><%= render "picker", source: "accounts", name: "journal_entry[#{side}_account_id]", value: e.public_send(:"#{side}_account_id"), url:, label: side == "debit" ? "借方科目" : "貸方科目" %></td>
+      <td class="has-input"><%= render "picker", source: "departments", name: "journal_entry[#{side}_department_id]", value: e.public_send(:"#{side}_department_id"), url:, label: side == "debit" ? "借方部門" : "貸方部門" %></td>
+    <% end %>
+    <td class="has-input"><input type="text" inputmode="numeric" class="nb-cell-input nb-num" name="journal_entry[amount]" value="<%= e.amount %>" data-url="<%= url %>" aria-label="金額"></td>
+    <td class="has-input"><input type="text" class="nb-cell-input" name="journal_entry[summary]" value="<%= e.summary %>" data-url="<%= url %>" aria-label="摘要"></td>
+    <td class="has-input"><input type="text" class="nb-cell-input" name="journal_entry[sub_summary]" value="<%= e.sub_summary %>" data-url="<%= url %>" aria-label="補助摘要"></td>
+    <td><%= e.journal_proposal ? link_to("AI 提案", e.journal_proposal.voucher) : "入力" %><% if @working_period&.provisional? %> <span class="nb-tag nb-tag--soon" title="<%= @working_period.previous.fiscal_year.label %>を締める前の仕訳">仮</span><% end %></td>
+    <td><% if @working_period&.closed? %><%= render "shared/delete_with_reason", url: journal_entry_path(e), closed: true %><% else %><%= button_to journal_entry_path(e), method: :delete, class: "nb-btn", style: "padding:0 6px", form: { style: "display:inline" }, title: "削除(元に戻せます)" do %><%= icon(:delete, size: :sm) %>削除<% end %><% end %></td>
+  <% else %>
+    <td class="nb-num is-readonly"><%= e.entry_date.strftime("%Y/%m/%d") %></td>
+    <td class="nb-num is-readonly"><%= e.slip_number %></td>
+    <td class="is-readonly"><%= e.debit_account.display_name %></td><td class="is-readonly"><%= e.debit_department %></td>
+    <td class="is-readonly"><%= e.credit_account.display_name %></td><td class="is-readonly"><%= e.credit_department %></td>
+    <td class="nb-num is-readonly"><%= yen(e.amount) %></td>
+    <td class="is-readonly"><%= e.summary %></td><td class="is-readonly"><%= e.sub_summary %></td>
+    <td class="is-readonly" title="<%= e.siwake_import&.filename %>">会計王</td>
+    <td class="is-readonly"><%= link_to "詳細", e %></td>
+  <% end %>
+</tr>

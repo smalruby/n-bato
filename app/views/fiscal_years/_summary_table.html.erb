@@ -1,0 +1,17 @@
+<table class="data-table">
+  <thead><tr><th>年度</th><th class="num">仕訳</th><th class="num">期首正味財産</th><th class="num">収益</th><th class="num">費用</th><th class="num">増減</th><th class="num">期末正味財産</th><th>整合</th></tr></thead>
+  <tbody>
+    <% statements.each do |s| %>
+      <tr>
+        <td><%= link_to "#{s.fiscal_year.label}（#{s.fiscal_year.wareki_label}）", fiscal_year_path(s.year), class: "text-emerald-800 underline" %></td>
+        <td class="num"><%= s.entries.size %></td>
+        <td class="num"><%= yen(s.opening_net_assets) %></td>
+        <td class="num"><%= yen(s.revenue_total) %></td>
+        <td class="num"><%= yen(s.expense_total) %></td>
+        <td class="num <%= 'text-red-700' if s.net_assets_change.negative? %>"><%= yen(s.net_assets_change) %></td>
+        <td class="num font-medium"><%= yen(s.closing_net_assets) %></td>
+        <td><%= s.balanced? ? tag.span("OK", class: "badge bg-emerald-100 text-emerald-800") : tag.span("不一致", class: "badge bg-red-100 text-red-800") %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

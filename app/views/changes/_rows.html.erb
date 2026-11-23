@@ -1,0 +1,15 @@
+<% changes.each do |c| %>
+  <% op = c.audit_operation %>
+  <tr<%= ' class="is-group"'.html_safe if op.reason.present? && !print %>>
+    <td class="nb-num"><%= l c.created_at, format: "%Y/%m/%d %H:%M" %></td>
+    <td><%= op.user&.name.presence || op.user&.email_address || "システム" %></td>
+    <td><%= c.model_label %><%= "(#{c.record})" if c.record.respond_to?(:to_s) && c.record && c.record.to_s.length < 30 %></td>
+    <td><%= { "create" => "追加", "update" => "変更", "destroy" => "削除" }[c.event] %><%= "(元に戻す)" if op.kind == "undo" %><%= "(やり直し)" if op.kind == "redo" %></td>
+    <td>
+      <% c.changeset.each do |field, (from, to)| %>
+        <div><%= c.field_label(field) %>: <%= history_value(c, field, from) %> → <%= history_value(c, field, to) %></div>
+      <% end %>
+    </td>
+    <td><%= op.reason %></td>
+  </tr>
+<% end %>

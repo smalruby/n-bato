@@ -1,0 +1,35 @@
+<h1>計算書類の注記</h1>
+<p class="org"><%= organization.name %><br><%= wareki_date(fiscal_year.ends_on, zen:) %>現在</p>
+
+<h2>１　重要な会計方針</h2>
+<p><%= organization.accounting_standard_text %></p>
+<p>消費税等の会計処理は、税込方式によっています。</p>
+
+<h2>２　事業費の内訳</h2>
+<% breakdown = report.program_expense_breakdown %>
+<% if breakdown.empty? %>
+  <p>当年度は、事業費の支出はありませんでした。</p>
+<% end %>
+<table>
+  <thead><tr><th>事業</th><th style="width:22%">科目</th><th style="width:20%">金額（円）</th></tr></thead>
+  <tbody>
+    <% programs = Department.in_year(@fiscal_year.year).ordered.where(code: 111..119).to_a %>
+    <% programs.each do |dept| %>
+      <% items = breakdown.to_h.fetch(dept, []) %>
+      <% if items.empty? %>
+        <tr><td><%= dept.long_name %></td><td></td><td class="amount">0</td></tr>
+      <% else %>
+        <% items.each_with_index do |(account, amount), i| %>
+          <tr><td><%= dept.long_name if i.zero? %></td><td><%= account.display_name %></td><td class="amount"><%= yen(amount) %></td></tr>
+        <% end %>
+      <% end %>
+    <% end %>
+    <% unassigned = breakdown.to_h.reject { |d, _| programs.include?(d) } %>
+    <% unassigned.each do |dept, items| %>
+      <% items.each_with_index do |(account, amount), i| %>
+        <tr><td><%= i.zero? ? (dept&.long_name || "事業の区分なし") : "" %></td><td><%= account.display_name %></td><td class="amount"><%= yen(amount) %></td></tr>
+      <% end %>
+    <% end %>
+    <tr class="strong"><td>事業費計</td><td></td><td class="amount"><%= yen(statement.program_expense_total) %></td></tr>
+  </tbody>
+</table>

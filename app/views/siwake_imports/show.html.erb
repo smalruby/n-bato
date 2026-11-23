@@ -1,0 +1,15 @@
+<% content_for :title, @import.filename %>
+<h1 class="page-title"><%= @import.filename %></h1>
+<div class="card max-w-3xl">
+  <dl class="grid grid-cols-3 gap-y-2 text-sm">
+    <dt class="text-stone-500">書き出し元</dt><dd class="col-span-2"><%= @import.app_name %> <%= @import.app_version %></dd>
+    <dt class="text-stone-500">形式</dt><dd class="col-span-2"><%= @import.format_name %> <%= @import.format_version %></dd>
+    <dt class="text-stone-500">書き出し日時</dt><dd class="col-span-2"><%= @import.exported_at && l(@import.exported_at) %></dd>
+    <dt class="text-stone-500">件数</dt><dd class="col-span-2"><%= @import.entries_count %></dd>
+    <dt class="text-stone-500">SHA-256</dt><dd class="col-span-2 font-mono text-xs break-all"><%= @import.sha256 %></dd>
+  </dl>
+  <div class="mt-4 flex gap-2">
+    <%= link_to "一覧へ", siwake_imports_path, class: "btn-secondary" %>
+    <%= button_to "取り込みを取り消す", @import, method: :delete, class: "btn-danger", form: { data: { turbo_confirm: "この取り込みで登録した仕訳をすべて削除します。よろしいですか？" } } %>
+  </div>
+</div>

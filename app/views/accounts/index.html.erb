@@ -1,0 +1,57 @@
+<% content_for :title, "科目と部門" %>
+<% content_for :main_class, "is-sheet" %>
+<% content_for :side do %>
+  <div><h2>操作履歴</h2><%= history_panel %></div>
+<% end %>
+<% content_for :sheet do %>
+  <div style="display:flex;flex-direction:column;height:100%">
+    <div class="nb-toolbar">
+      <% if @tab == "accounts" %>
+        <%= link_to "使っている科目だけ", accounts_path(used: 1), class: "nb-btn", "aria-pressed": (params[:used] == "1").to_s %>
+        <%= link_to "すべての科目", accounts_path, class: "nb-btn", "aria-pressed": (params[:used] != "1").to_s %>
+        <span class="nb-history-empty"><%= @accounts.size %> 科目</span>
+      <% else %>
+        <span class="nb-history-empty"><%= @departments.size %> 部門</span>
+      <% end %>
+      <span class="nb-spacer"></span>
+      <% if notice.present? %><span class="nb-save nb-save--saved"><%= notice %></span><% end %>
+    </div>
+    <div class="nb-sheet-wrap" style="flex:1;border-width:0" data-controller="autosave sheet" data-autosave-scope-value="<%= @undo_scope %>" data-autosave-year-value="<%= @year %>"
+         data-action="change->autosave#save input->autosave#mark keydown->autosave#cancel keydown->sheet#move">
+      <% if @tab == "accounts" %>
+        <table class="nb-sheet">
+          <thead><tr><th style="width:56px">コード</th><th>科目</th><th style="width:120px">区分</th><th style="width:160px">小区分</th><th style="width:80px">科目性格</th><th style="width:64px;text-align:right">仕訳</th></tr></thead>
+          <tbody>
+            <% @accounts.group_by(&:category).sort_by { |cat, _| Account::CATEGORIES.keys.index(cat) || 99 }.each do |category, accounts| %>
+              <tr class="is-group"><td colspan="6"><%= Account::CATEGORIES[category] %>(<%= accounts.size %>)</td></tr>
+              <% accounts.each_with_index do |a, i| %>
+                <% url = account_path(a, format: :json) %>
+                <tr id="<%= dom_id(a) %>">
+                  <td class="nb-num is-readonly"><%= a.code %></td>
+                  <td class="is-readonly"><%= a.display_name %></td>
+                  <td class="has-input"><%= select_tag "account[category]", options_for_select(Account::CATEGORIES.invert, a.category), class: "nb-cell-input", data: { url: }, "aria-label": "#{a.display_name}の区分" %></td>
+                  <td class="has-input"><input type="text" class="nb-cell-input" name="account[group_name]" value="<%= a.group_name %>" placeholder="<%= a.activity_group %>" data-url="<%= url %>" aria-label="<%= a.display_name %>の小区分"></td>
+                  <td class="nb-num is-readonly"><%= a.nature_code %></td>
+                  <td class="nb-num"><%= @usage[a.id].positive? ? @usage[a.id] : "" %></td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <table class="nb-sheet">
+          <thead><tr><th style="width:56px">コード</th><th>部門</th><th>正式名称</th></tr></thead>
+          <tbody>
+            <% @departments.each_with_index do |d, i| %>
+              <tr><td class="nb-num is-readonly"><%= d.code %></td><td class="is-readonly"><%= d.display_name %></td><td class="is-readonly"><%= d.full_name %></td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+    <div class="nb-tabs" role="tablist">
+      <%= link_to "科目", accounts_path, class: "nb-tab", role: "tab", "aria-selected": (@tab == "accounts").to_s %>
+      <%= link_to "部門", accounts_path(tab: "departments"), class: "nb-tab", role: "tab", "aria-selected": (@tab == "departments").to_s %>
+    </div>
+  </div>
+<% end %>

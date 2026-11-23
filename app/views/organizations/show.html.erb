@@ -1,0 +1,14 @@
+<% content_for :title, "法人情報" %>
+<div class="flex items-center justify-between mb-4"><h1 class="page-title mb-0">法人情報</h1><%= link_to "編集", edit_organization_path, class: "btn" %></div>
+<div class="card max-w-2xl">
+  <dl class="grid grid-cols-3 gap-y-2 text-sm">
+    <dt class="text-stone-500">名称</dt><dd class="col-span-2"><%= @organization.name %></dd>
+    <dt class="text-stone-500">英文名</dt><dd class="col-span-2"><%= @organization.name_en %></dd>
+    <dt class="text-stone-500">所在地</dt><dd class="col-span-2"><%= @organization.address %></dd>
+    <dt class="text-stone-500">代表者</dt><dd class="col-span-2"><%= @organization.representative %></dd>
+    <dt class="text-stone-500">成立日</dt><dd class="col-span-2"><%= @organization.established_on && l(@organization.established_on) %></dd>
+    <dt class="text-stone-500">第 1 期の年度</dt><dd class="col-span-2"><%= @organization.first_fiscal_year %></dd>
+    <dt class="text-stone-500">所轄庁</dt><dd class="col-span-2"><%= @organization.competent_authority %></dd>
+    <dt class="text-stone-500">会計方針の注記</dt><dd class="col-span-2"><%= @organization.accounting_standard_text %></dd>
+  </dl>
+</div>

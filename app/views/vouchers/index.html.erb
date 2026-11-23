@@ -1,0 +1,27 @@
+<% content_for :title, "証憑・AI 仕訳" %>
+<div class="flex items-center justify-between mb-4">
+  <h1 class="page-title mb-0">証憑・AI 仕訳</h1>
+  <%= link_to "証憑を登録", new_voucher_path, class: "btn" %>
+</div>
+<% unless @ai_ready %>
+  <p class="mb-4 rounded bg-amber-50 border border-amber-200 px-4 py-2 text-amber-900 text-sm">Claude API のキー（ANTHROPIC_API_KEY）が設定されていないので、AI の提案は使えません。証憑の登録と仕訳の手入力はできます。</p>
+<% end %>
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>登録日</th><th>種類</th><th>日付</th><th class="num">金額</th><th>説明</th><th>ファイル</th><th>状態</th></tr></thead>
+    <tbody>
+      <% @vouchers.each do |v| %>
+        <tr>
+          <td class="whitespace-nowrap"><%= link_to l(v.created_at.to_date), v, class: "underline text-emerald-800" %></td>
+          <td><%= v.kind_label %></td>
+          <td class="whitespace-nowrap"><%= v.issued_on && l(v.issued_on) %></td>
+          <td class="num"><%= yen(v.amount) %></td>
+          <td><%= truncate(v.description, length: 40) %></td>
+          <td class="num"><%= v.files.size %></td>
+          <td><%= render "status_badge", voucher: v %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @vouchers.empty? %><p class="text-stone-500 mt-3">まだ証憑はありません。</p><% end %>
+</div>

@@ -1,0 +1,17 @@
+<%= form_with model: person, class: "card max-w-2xl" do |f| %>
+  <% if person.errors.any? %><ul class="mb-4 text-red-800 text-sm"><% person.errors.full_messages.each do |m| %><li><%= m %></li><% end %></ul><% end %>
+  <div class="grid md:grid-cols-2 gap-x-4">
+    <div class="field"><%= f.label :name, "氏名" %><%= f.text_field :name %></div>
+    <div class="field"><%= f.label :name_kana, "よみ" %><%= f.text_field :name_kana %></div>
+  </div>
+  <div class="field"><%= f.label :address, "住所（暗号化して保存）" %><%= f.text_field :address %></div>
+  <div class="grid md:grid-cols-2 gap-x-4">
+    <div class="field"><%= f.label :email, "メール（暗号化）" %><%= f.email_field :email %></div>
+    <div class="field"><%= f.label :phone, "電話（暗号化）" %><%= f.text_field :phone %></div>
+  </div>
+  <div class="field"><%= f.label :notes, "メモ" %><%= f.text_area :notes, rows: 2 %></div>
+  <% if @working_period&.closed? && person.persisted? %>
+    <div class="field"><label for="reason">直す理由(<%= @working_period.label %>は締めた年度です)</label><input type="text" name="reason" id="reason" value="<%= params[:reason] %>"></div>
+  <% end %>
+  <div class="flex gap-2"><%= f.submit "保存", class: "btn" %><%= link_to "戻る", people_path, class: "btn-secondary" %></div>
+<% end %>

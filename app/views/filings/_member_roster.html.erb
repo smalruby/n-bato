@@ -1,0 +1,11 @@
+<h1>社員のうち１０人以上の者の名簿</h1>
+<p class="period"><%= wareki_date(fiscal_year.ends_on, zen: true) %>現在</p>
+<p class="org"><%= organization.name %></p>
+<table class="wide">
+  <thead><tr><th style="width:25%">氏名</th><th>住所又は居所</th></tr></thead>
+  <tbody>
+    <% Membership.regular.in_fiscal_year(fiscal_year.year).includes(:person).order(:id).each do |m| %>
+      <tr><% r = m.person.at(m.fiscal_year) %><td class="nowrap"><%= r&.name || m.person.name %></td><td><%= r&.address || m.person.address %></td></tr>
+    <% end %>
+  </tbody>
+</table>

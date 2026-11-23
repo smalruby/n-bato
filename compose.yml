@@ -1,0 +1,23 @@
+# 手元の Docker で本番と同じ形で動かす(使うのは当面理事長 1 人)。
+#   RAILS_MASTER_KEY=$(cat config/master.key) docker compose up -d --build
+#   http://localhost:3200
+# データ(SQLite・添付ファイル)は volume「n-bato-storage」に残る。
+services:
+  web:
+    build: .
+    image: n-bato
+    ports:
+      - "127.0.0.1:3200:80"
+    environment:
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:?config/master.key の値を RAILS_MASTER_KEY に入れてください}
+      RAILS_SSL: "false"
+      SOLID_QUEUE_IN_PUMA: "true"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID:-}
+      NBATO_URL: ${NBATO_URL:-http://localhost:3200}
+    volumes:
+      - n-bato-storage:/rails/storage
+    restart: unless-stopped
+volumes:
+  n-bato-storage:

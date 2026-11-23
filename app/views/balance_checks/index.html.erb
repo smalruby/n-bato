@@ -1,0 +1,30 @@
+<% content_for :title, "残高照合" %>
+<h1 class="page-title">残高照合</h1>
+<p class="text-sm text-stone-600 mb-4">通帳を記帳したときや、手元の現金を数えたときに、実際の残高を入れて帳簿と照らし合わせます。差があれば、利息・手数料などの仕訳が漏れています。</p>
+
+<%= form_with model: @check, class: "card max-w-3xl mb-6" do |f| %>
+  <div class="grid md:grid-cols-4 gap-x-3">
+    <div class="field"><%= f.label :account_id, "科目" %><%= f.select :account_id, @asset_accounts.map { [ it.display_name, it.id ] } %></div>
+    <div class="field"><%= f.label :checked_on, "日付" %><%= f.date_field :checked_on %></div>
+    <div class="field"><%= f.label :actual_amount, "実際の残高" %><%= f.number_field :actual_amount %></div>
+    <div class="field"><%= f.label :note, "メモ" %><%= f.text_field :note, placeholder: "通帳記帳 など" %></div>
+  </div>
+  <%= f.submit "照合する", class: "btn" %>
+<% end %>
+
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>日付</th><th>科目</th><th class="num">実際の残高</th><th class="num">帳簿の残高</th><th class="num">差</th><th>メモ</th><th></th></tr></thead>
+    <% @checks.each do |c| %>
+      <% diff = c.difference(@book) %>
+      <tr>
+        <td><%= l c.checked_on %></td><td><%= c.account.display_name %></td>
+        <td class="num"><%= yen(c.actual_amount) %></td><td class="num"><%= yen(c.book_amount(@book)) %></td>
+        <td class="num <%= diff.zero? ? 'text-emerald-700' : 'text-red-700 font-bold' %>"><%= diff.zero? ? "一致" : yen(diff) %></td>
+        <td><%= c.note %></td>
+        <td><%= button_to "削除", c, method: :delete, class: "btn-danger" %></td>
+      </tr>
+    <% end %>
+  </table>
+  <% if @checks.empty? %><p class="text-stone-500 mt-3">まだ照合の記録はありません。</p><% end %>
+</div>

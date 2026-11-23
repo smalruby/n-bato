@@ -1,0 +1,7 @@
+<%# 一覧から選んで入れるセル(デザインシステム Picker)。source: accounts / departments %>
+<% current = source == "accounts" ? @accounts.find { it.id == value } : @departments.find { it.id == value } %>
+<span data-controller="picker" data-picker-source-value="<%= source %>" style="display:block">
+  <input type="text" class="nb-cell-input" data-picker-target="text" value="<%= current&.to_s %>" aria-label="<%= label %>" autocomplete="off"
+         data-action="focus->picker#focus input->picker#filter click->picker#open keydown->picker#key blur->picker#blur">
+  <input type="hidden" name="<%= name %>" value="<%= value %>" data-picker-target="value" <%= tag.attributes(data: { url: url }) if url %>>
+</span>

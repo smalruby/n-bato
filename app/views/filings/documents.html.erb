@@ -1,0 +1,21 @@
+<style>
+  .page-break { break-before: page; }
+  .right { text-align: right; } .center { text-align: center; }
+  .block-right { margin-left: 45%; }
+  ol.items { padding-left: 1.6em; }
+  table.wide { width: 100%; font-size: 9pt; }
+  table.wide td, table.wide th { vertical-align: top; }
+  table.wide td.amount { width: 11%; }
+  .nowrap { white-space: nowrap; }
+  .md table { width: auto; margin: .4em 0 .8em; font-size: 9.5pt; }
+</style>
+<% locals = { annual_report: @annual_report, fiscal_year: @fiscal_year, statement: @statement, report: @report, organization: @organization, zen: true } %>
+<% @docs.each_with_index do |doc, i| %>
+  <div class="<%= 'page-break' if i.positive? %>">
+    <% if %w[activity notes balance_sheet inventory].include?(doc) %>
+      <%= render "statements/#{doc}", **locals.except(:annual_report) %>
+    <% else %>
+      <%= render "filings/#{doc}", **locals %>
+    <% end %>
+  </div>
+<% end %>

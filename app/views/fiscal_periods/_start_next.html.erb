@@ -1,0 +1,10 @@
+<%# 次の年度を始める(会計王の次年度更新と同じ)。取り消せない操作なので 2 回押し。 %>
+<% nxt = FiscalPeriod.next_year %>
+<div class="card mb-4" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+  <span>記録のある最後の年度: <b><%= FiscalPeriod.latest&.label %></b></span>
+  <%= form_with url: start_next_fiscal_periods_path, style: "display:inline-flex;gap:4px;align-items:center",
+        data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do |f| %>
+    <%= f.button "#{nxt}年度を始める", class: "nb-btn nb-btn--danger", data: { confirm_twice_target: "button", armed_label: "もう一度押すと #{nxt}年度を始めます" } %>
+  <% end %>
+  <span class="nb-btn-note">前の年度の科目と部門・会員と役員・法人情報を写します。取り消せません。3 月に始めてもかまいません。</span>
+</div>

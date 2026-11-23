@@ -1,0 +1,17 @@
+<%# 上部バーの役割(デザインシステム「役割」)。いま使っている役割と、切り替え。 %>
+<% user = Current.user %>
+<% if user %>
+  <% others = user.roles - [ user.role ] %>
+  <% if others.any? %>
+    <details class="nb-role-switch">
+      <summary class="nb-btn" style="list-style:none"><%= icon(:"role_#{user.role}") %><%= user.role_label %>として使う<%= icon(:expand) %></summary>
+      <ul class="nb-role-menu">
+        <% user.roles.each do |r| %>
+          <li><%= button_to role_path, method: :patch, params: { role: r }, "aria-current": (r == user.role).to_s, form: { style: "display:block" } do %><%= icon(:"role_#{r}") %><span><%= User::ROLES[r] %>として使う</span><span class="nb-role-meta"><%= r == "auditor" ? "見るだけ" : "記録を変えられる" %></span><% end %></li>
+        <% end %>
+      </ul>
+    </details>
+  <% else %>
+    <span class="nb-role-chip"><%= icon(:"role_#{user.role}") %><%= user.role_label %>として使う</span>
+  <% end %>
+<% end %>

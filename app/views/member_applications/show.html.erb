@@ -1,0 +1,49 @@
+<% content_for :title, "入会申込" %>
+<% a = @application %>
+<div style="padding:10px 12px;display:grid;gap:12px;max-width:900px">
+  <div style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline">
+    <h1 class="page-title" style="margin:0">入会申込: <%= a.name %></h1>
+    <%= member_application_tag(a) %>
+    <span class="text-xs" style="color:var(--ink-muted)"><%= a.applied_on.strftime("%Y/%m/%d") %> に申込<%= " ・#{a.decided_on.strftime('%Y/%m/%d')} に決めた" if a.decided_on %></span>
+    <span class="nb-spacer"></span>
+    <%= link_to "入会申込の一覧へ", member_applications_path, class: "nb-btn" %>
+  </div>
+
+  <dl class="nb-fields">
+    <% [ [ "氏名", a.name ], [ "ふりがな", a.name_kana ], [ "年齢", a.age_group ], [ "郵便番号", a.postal_code ], [ "住所", a.address ],
+         [ "メール", a.email ], [ "電話", a.phone ], [ "総会のお知らせと同意", a.notice_method ], [ "総会の資料", a.materials_method ],
+         [ "きっかけ・紹介", a.referral ], [ "協力できること", a.help_offers ], [ "ご意見・ご質問", a.comments ] ].each do |label, value| %>
+      <dt class="nb-field-label"><%= label %></dt><dd class="nb-field-value" style="padding:2px 8px;white-space:pre-wrap"><%= value.presence || "—" %></dd>
+    <% end %>
+  </dl>
+
+  <% if a.received? && !Current.user&.auditor? %>
+    <section class="nb-proposal">
+      <b>入会を認める</b>
+      <%= form_with url: approve_member_application_path(a), class: "flex flex-wrap gap-2 items-center", style: "margin-top:6px" do %>
+        <label>年度 <%= number_field_tag :fiscal_year, a.default_year, class: "nb-input", style: "width:90px" %></label>
+        <label>入会日 <%= date_field_tag :joined_on, Date.current, class: "nb-input", style: "width:150px" %></label>
+        <% if @same.any? %>
+          <label>人の記録 <%= select_tag :person_id, options_for_select([ [ "新しく作る", "" ] ] + @same.map { [ "#{it.name}(登録済み)に資格を足す", it.id ] }, @same.first.id), class: "nb-input", style: "width:auto" %></label>
+        <% end %>
+        <button class="nb-btn nb-btn--primary">入会を認める</button>
+      <% end %>
+      <p class="text-xs" style="color:var(--ink-muted);margin:4px 0 0">人の記録と、その年度の正会員の資格ができます。元に戻せます。<%= "同じ氏名の人が登録されています。同じ人なら、資格を足してください(二重に作らない)。" if @same.any? %></p>
+    </section>
+    <section>
+      <%= form_with url: reject_member_application_path(a), class: "flex flex-wrap gap-2 items-center", data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do %>
+        <input name="reason" class="nb-input" placeholder="認めない理由(必ず書く)" data-no-reason-default style="flex:1;min-width:240px" required>
+        <button class="nb-btn nb-btn--danger">認めない</button>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% if a.approved? %>
+    <p><%= a.fiscal_year %>年度の正会員として認めました(入会日 <%= a.joined_on&.strftime("%Y/%m/%d") %>)。<%= link_to "人の記録を開く →", a.person, class: "underline" if a.person %></p>
+    <div id="mail" class="nb-proposal"><b>入会のお知らせメールの下書き</b>(コピーして、理事長のメールで送ってください。n-bato からは送りません)
+      <textarea class="nb-input" rows="18" style="width:100%;height:auto;font-family:inherit" readonly><%= a.welcome_mail %></textarea></div>
+  <% end %>
+  <% if a.rejected? %>
+    <p>認めないことにしました。理由: <%= a.reason %></p>
+  <% end %>
+</div>

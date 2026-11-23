@@ -1,0 +1,5 @@
+<%# 監査の役割で使っているときの帯(デザインシステム「役割」)。記録を変えられないことを一目で分かるように。 %>
+<% if Current.user&.auditor? %>
+  <div class="nb-role-band" role="note"><%= icon(:role_auditor) %><b>監査として見ています。記録は変えられません。</b>
+    <% if Current.user.can_use?("clerk") %><%= button_to "事務に切り替える", role_path, method: :patch, params: { role: "clerk" }, class: "nb-btn", form: { style: "display:inline" } %><% end %></div>
+<% end %>

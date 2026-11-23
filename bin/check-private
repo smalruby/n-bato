@@ -1,0 +1,85 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# コミットの前に、利用団体に特化した情報(会員の氏名・金額・非公開のリンクなど)や鍵が入っていないかを調べる。
+# 調べる語は .private-patterns(git 管理外、1 行 1 つの正規表現。# で始まる行は説明)に手元で書く。
+# 鍵の形(Anthropic・Slack・AWS の鍵、秘密鍵)は、.private-patterns が無くても調べる。
+#
+#   bin/check-private                 コミットしようとしている変更(git add したもの)を調べる
+#   bin/check-private --all           リポジトリのすべてのファイルを調べる
+#   bin/check-private --install-hook  pre-commit フックに入れる(コミットのたびに自動で調べる)
+
+require "open3"
+
+ROOT = File.expand_path("..", __dir__)
+Dir.chdir(ROOT)
+
+if ARGV.include?("--install-hook")
+  hook = File.join(`git rev-parse --git-path hooks`.strip, "pre-commit")
+  File.write(hook, "#!/bin/sh\nexec bin/check-private\n")
+  File.chmod(0o755, hook)
+  puts "pre-commit フックに入れました: #{hook}"
+  exit 0
+end
+
+SECRET_SHAPES = {
+  "Anthropic の鍵" => /sk-ant-[A-Za-z0-9_-]{8,}/,
+  "Slack の鍵" => /\bxox[abprs]-[A-Za-z0-9-]{8,}|\bxapp-[A-Za-z0-9-]{8,}/,
+  "AWS の鍵" => /\bAKIA[0-9A-Z]{16}\b/,
+  "秘密鍵" => /-----BEGIN [A-Z ]*PRIVATE KEY-----/
+}.freeze
+
+patterns = SECRET_SHAPES.dup
+pattern_file = File.join(ROOT, ".private-patterns")
+if File.exist?(pattern_file)
+  File.readlines(pattern_file, chomp: true).each_with_index do |line, i|
+    next if line.strip.empty? || line.start_with?("#")
+
+    patterns["手元の点検語 #{i + 1} 行目"] = Regexp.new(line)
+  end
+else
+  warn "注意: .private-patterns が無いので、鍵の形だけを調べます(団体の情報は調べていません)。"
+end
+
+# [ファイル, 行番号, 行] の並び
+lines =
+  if ARGV.include?("--all")
+    out, = Open3.capture2("git", "ls-files", "-z")
+    out.split("\0").flat_map do |path|
+      next [] if path == "bin/check-private" || !File.file?(path)
+
+      text = File.binread(path)
+      next [] if text.include?("\0") # バイナリは調べない
+
+      text.force_encoding("UTF-8").scrub.each_line.with_index(1).map { |l, n| [ path, n, l.chomp ] }
+    end
+  else
+    out, = Open3.capture2("git", "diff", "--cached", "-U0", "--no-color", "--diff-filter=ACMR")
+    file = nil
+    lineno = 0
+    out.force_encoding("UTF-8").scrub.each_line.filter_map do |l|
+      case l
+      when %r{\A\+\+\+ b/(.*)} then file = Regexp.last_match(1).chomp
+                                    nil
+      when /\A@@ -\S+ \+(\d+)/ then lineno = Regexp.last_match(1).to_i - 1
+                                    nil
+      when /\A\+/
+        lineno += 1
+        file == "bin/check-private" ? nil : [ file, lineno, l[1..].chomp ]
+      end
+    end
+  end
+
+hits = lines.flat_map do |path, n, text|
+  patterns.filter_map { |label, re| [ path, n, label ] if text.match?(re) }
+end
+
+if hits.empty?
+  puts "check-private: 団体に特化した情報と鍵は見つかりませんでした(#{lines.size} 行)"
+  exit 0
+end
+
+warn "check-private: コミットしてはいけない情報があります。手元(CLAUDE.local.md・notes/・data/)へ移してください。"
+hits.each { |path, n, label| warn "  #{path}:#{n}  #{label}" }
+warn "(どの語に当たったかは .private-patterns の行番号で確かめる。中身はここに出さない)"
+exit 1

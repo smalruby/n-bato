@@ -1,0 +1,58 @@
+<% expenses = annual_report.program_expenses(statement) %>
+<% activities = annual_report.program_activities.includes(:department).sort_by { [ it.department.code ] } %>
+<h1><%= fiscal_year_wareki(fiscal_year.year, zen: true) %>　事業報告書</h1>
+<p class="period"><%= wareki_date(fiscal_year.starts_on, zen: true) %>から<%= wareki_date(fiscal_year.ends_on, zen: true) %>まで</p>
+<p class="org"><%= organization.name %></p>
+
+<h2>１　事業の成果</h2>
+<%= simple_format(annual_report.achievements) %>
+
+<h2>２　事業の実施に関する事項</h2>
+<h3>（１）特定非営利活動に係る事業</h3>
+<table class="wide">
+  <thead><tr><th>事業名</th><th>事業内容</th><th>実施事業の日時、場所、従事者の人数</th><th>受益対象者の範囲及び人数、評価</th><th>事業費の金額（単位：円）</th></tr></thead>
+  <tbody>
+    <% activities.each do |pa| %>
+      <tr>
+        <td><%= pa.department.long_name %></td>
+        <td><%= pa.content %></td>
+        <td><%= pa.schedule.presence || "ー" %></td>
+        <td><%= pa.beneficiaries.presence || "ー" %></td>
+        <td class="amount"><%= yen(expenses.fetch(pa.department_id, 0)) %></td>
+      </tr>
+    <% end %>
+    <tr><td>合計</td><td></td><td></td><td></td><td class="amount"><%= yen(statement.program_expense_total) %></td></tr>
+  </tbody>
+</table>
+<h3>（２）その他の事業</h3>
+<p><%= annual_report.other_business %></p>
+
+<h2>３　会議に関する事項</h2>
+<p>（１）理事会　<%= annual_report.board_meetings %></p>
+<p>（２）総会　<%= annual_report.general_meetings %></p>
+
+<h2>４　各事業の実施報告</h2>
+<% activities.each_with_index do |pa, i| %>
+  <h3>４．<%= zenkaku((i + 1).to_s) %>　<%= pa.department.long_name %></h3>
+  <% if pa.report.present? %>
+    <div class="md"><%= markdown(pa.report) %></div>
+  <% else %>
+    <p>特になし。</p>
+  <% end %>
+<% end %>
+
+<h2>５　会員数</h2>
+<p><%= wareki_date(fiscal_year.ends_on, zen: true) %>時点の会員数を以下に示す。<%= annual_report.members_note %></p>
+<table class="wide">
+  <thead><tr><th>種別</th><th>説明</th><th>年会費</th><th>人（団体）数　（）内は前年度比</th></tr></thead>
+  <tbody>
+    <% totals = Hash.new(0); prev_totals = Hash.new(0) %>
+    <% organization.membership_kinds.each do |k| %>
+      <% n = annual_report.member_count(k["key"]); prev = annual_report.previous_member_count(k["key"]); unit = k["unit"] || "人"; totals[unit] += n; prev_totals[unit] += prev %>
+      <tr><td class="nowrap"><%= k["label"] %></td><td><%= k["description"] %></td><td class="nowrap"><%= k["fee"] %></td>
+        <td class="nowrap"><%= n %><%= unit %> (<%= n - prev %>)</td></tr>
+    <% end %>
+    <% units = totals.keys %>
+    <tr><td>合計</td><td></td><td></td><td class="nowrap"><%= units.map { "#{totals[it]}#{it}" }.join("、") %> (<%= units.map { totals[it] - prev_totals[it] }.join(", ") %>)</td></tr>
+  </tbody>
+</table>

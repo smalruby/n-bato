@@ -1,0 +1,2 @@
+<%= render "statements/header", fiscal_year:, organization:, zen:, title: "活動計算書", period: "#{wareki_date(fiscal_year.starts_on, zen:)}から#{wareki_date(fiscal_year.ends_on, zen:)}まで" %>
+<%= render "statements/lines", lines: report.activity %>

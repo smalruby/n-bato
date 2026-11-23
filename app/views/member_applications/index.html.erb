@@ -1,0 +1,28 @@
+<% content_for :title, "入会申込" %>
+<div style="padding:10px 12px;display:grid;gap:10px;max-width:1100px">
+  <div style="display:flex;gap:8px;align-items:baseline">
+    <h1 class="page-title" style="margin:0">入会申込</h1>
+    <span class="text-xs" style="color:var(--ink-muted)">申込はまだ会員ではありません。「入会を認める」で正会員になります(定款第7条)。</span>
+    <span class="nb-spacer"></span>
+    <%= link_to "会員・役員へ", people_path, class: "nb-btn" %>
+  </div>
+  <% if @applications.empty? %>
+    <p>入会申込はまだありません。フォームに回答が届いたら、AI に「入会申込を確かめて」と頼んでください。</p>
+  <% else %>
+    <table class="data-table">
+      <thead><tr><th>状態</th><th>申込日</th><th>氏名</th><th>ふりがな</th><th>年度</th><th></th></tr></thead>
+      <tbody>
+        <% @applications.each do |a| %>
+          <tr>
+            <td><%= member_application_tag(a) %></td>
+            <td class="nb-num"><%= a.applied_on.strftime("%Y/%m/%d") %></td>
+            <td><%= a.name %></td>
+            <td><%= a.name_kana %></td>
+            <td><%= year_chip(a.fiscal_year || a.default_year) %></td>
+            <td><%= link_to "開く →", a, class: "nb-btn", style: "padding:0 8px" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

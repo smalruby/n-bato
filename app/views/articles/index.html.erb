@@ -1,0 +1,30 @@
+<% content_for :title, "定款と事業" %>
+<% content_for :main_class, "nb-main--wide" %>
+<div class="nb-articles">
+  <% if @version.nil? %>
+    <p class="nb-articles-empty">定款がまだ入っていません。定款の版を読み込むと、ここに要約・全文・変更の記録が出ます。</p>
+  <% else %>
+    <% current = @versions.last %>
+    <div class="nb-articles-head">
+      <%= form_with url: articles_path, method: :get, class: "nb-articles-ver", data: { controller: "filter", turbo_action: "replace" } do %>
+        <%= hidden_field_tag :tab, @tab, id: nil %>
+        <label for="articles-v">定款の版</label>
+        <%= select_tag :v, options_for_select(@versions.reverse.map { [ (it == current ? "現行の定款 — " : "") + it.label, it.number ] }, @version.number), id: "articles-v", class: "nb-input", data: { action: "change->filter#submit" } %>
+      <% end %>
+      <% unless @version == current %><span class="nb-articles-old">前の版を見ています(現行は 版 <%= current.number %>)</span><% end %>
+    </div>
+    <nav class="nb-articles-tabs" aria-label="定款と事業の見出し">
+      <% ArticlesController::TABS.each do |key, label| %>
+        <%= link_to label, articles_path(tab: key, v: (@version.number unless @version == current)), "aria-current": (@tab == key ? "page" : nil) %>
+      <% end %>
+    </nav>
+    <% locals = { version: @version, current: @version == current } %>
+    <% if @tab == "full" %>
+      <%= render "articles/full", **locals %>
+    <% elsif @tab == "history" %>
+      <%= render "articles/history", **locals %>
+    <% else %>
+      <%= render "articles/summary", **locals %>
+    <% end %>
+  <% end %>
+</div>

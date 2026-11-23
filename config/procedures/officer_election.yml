@@ -1,0 +1,56 @@
+# 役員改選(2年ごと、偶数年)。任期は 7/1〜翌々年 6/30(定款 第16条)。
+name: 役員改選
+period: election_year     # 期間 = 改選の年
+due: june_30
+summary: 任期が終わる理事・監事を総会で選び、理事長・副理事長を互選し、松江市への届出と理事長の登記をします。
+steps:
+  - key: candidates
+    title: 候補者を決め、就任の承諾を得る
+    guide:
+      - 理事・監事の候補者を正会員の中から決め、本人から就任の承諾を得ます(就任承諾書)。
+      - 親族が役員に多く入りすぎないか確かめます。
+    law:
+      - ["根拠", "定款 第14条第1項(正会員の中から選ぶ)・第3項(親族の制限)"]
+      - ["任期", "定款 第16条(2年。後任が決まるまでは最初の総会まで伸びる)"]
+    checks: [候補者を決めた, 親族の制限を確かめた]
+    waits_from: officer_candidates
+    links: [people]
+  - key: general_meeting
+    title: 総会で理事・監事を選ぶ
+    guide:
+      - 通常総会を開くか、正会員全員の書面による同意で選びます。
+    law:
+      - ["根拠", "定款 第14条第1項・第29条第3項"]
+      - ["議事録", "定款 第31条"]
+    waits_from: regular_members
+    links: [resolutions, new_resolution]
+  - key: mutual_election
+    title: 理事長・副理事長を互選する
+    guide:
+      - 理事の互選で理事長・副理事長を決めます。理事全員の書面による同意でもかまいません。
+    law:
+      - ["根拠", "定款 第14条第2項・第37条第3項"]
+    waits_from: board
+    links: [resolutions]
+  - key: notify_city
+    title: 松江市に役員の変更等を届け出る
+    guide:
+      - 再任でも届け出ます。役員の変更等届出書に、変更後の役員名簿と、新しく役員になった人の就任承諾書・住所の証明を付けます。
+    law:
+      - ["根拠", "特定非営利活動促進法 第23条第1項"]
+      - ["期限", "遅滞なく"]
+    checks: [届出書を作った]
+    final: true
+    final_label: 届け出た日を記録する
+    links: [officer_terms]
+  - key: registration
+    title: 理事長の登記をする
+    guide:
+      - 理事長(代表権のある理事)が再任・交代したときは、法務局で変更の登記をします。再任でも「重任」の登記がいります。
+    law:
+      - ["根拠", "組合等登記令 第3条第1項(2週間以内)"]
+      - ["代表権", "定款 第15条"]
+    checks: [議事録の写しをそろえた, 申請書を作った]
+    final: true
+    final_label: 登記を申請した日を記録する
+    links: [registrations]

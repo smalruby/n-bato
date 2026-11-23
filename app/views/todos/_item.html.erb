@@ -1,0 +1,28 @@
+<%# やることの 1 行(デザインシステム TodoList)。item は TodoList::Item %>
+<% t = item.todo %>
+<tr id="<%= t ? "todo-#{t.id}" : nil %>" class="<%= 'is-done' if item.done? %>">
+  <td><%= todo_status_tag(item.status) %></td>
+  <td class="nb-num"><%= year_chip(item.fiscal_year) %></td>
+  <td><%= item.title %><% if item.note.present? %><div class="text-xs" style="color:var(--ink-muted)"><%= item.note %></div><% end %>
+      <% if t && t.note.present? %><details class="text-xs" style="color:var(--ink-muted)"><summary>手順・メモ</summary><div style="white-space:pre-wrap"><%= t.note %></div></details><% end %></td>
+  <td style="white-space:nowrap"><%= item.kind_label %></td>
+  <td style="white-space:nowrap"><%= item.assignee %></td>
+  <td class="nb-num" style="white-space:nowrap;<%= 'color:var(--error);font-weight:700' if item.overdue? %>"><%= item.due_on&.strftime("%Y/%m/%d") %></td>
+  <td class="nb-todo-actions">
+    <% if item.path %><%= link_to "開く →", item.path, class: "nb-btn", style: "padding:0 8px" %><% end %>
+    <% if t && !Current.user&.auditor? %>
+      <details style="display:inline-block;position:relative">
+        <summary class="nb-btn" style="list-style:none;padding:0 8px">状態<%= icon(:expand, size: :sm) %></summary>
+        <div style="position:absolute;right:0;z-index:20;background:var(--sheet);border:1px solid var(--grid-line-strong);box-shadow:var(--shadow-pop);padding:8px;display:grid;gap:6px;width:240px">
+          <% unless t.done? %>
+            <%= form_with url: todo_path(t), method: :patch do %><%= hidden_field_tag :status, "doing" %><button class="nb-btn" style="width:100%">作業中にする</button><% end %>
+            <%= form_with url: todo_path(t), method: :patch, class: "flex gap-1" do %><%= hidden_field_tag :status, "wait" %><input name="waiting_on" class="nb-input" placeholder="誰の何を待つ" value="<%= t.waiting_on %>" style="flex:1;min-width:0"><button class="nb-btn">待ち</button><% end %>
+            <%= form_with url: todo_path(t), method: :patch, class: "flex gap-1" do %><%= hidden_field_tag :status, "done" %><input name="done_note" class="nb-input" placeholder="ひとこと(何をしたか)" style="flex:1;min-width:0"><button class="nb-btn nb-btn--primary">済みにする</button><% end %>
+          <% else %>
+            <%= form_with url: todo_path(t), method: :patch do %><%= hidden_field_tag :status, "todo" %><button class="nb-btn" style="width:100%">未着手に戻す</button><% end %>
+          <% end %>
+        </div>
+      </details>
+    <% end %>
+  </td>
+</tr>

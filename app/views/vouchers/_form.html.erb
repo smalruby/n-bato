@@ -1,0 +1,19 @@
+<%= form_with model: voucher, class: "card max-w-2xl" do |f| %>
+  <% if voucher.errors.any? %>
+    <ul class="mb-4 rounded bg-red-50 border border-red-200 px-4 py-2 text-red-900 text-sm">
+      <% voucher.errors.full_messages.each do |m| %><li><%= m %></li><% end %>
+    </ul>
+  <% end %>
+  <div class="grid md:grid-cols-3 gap-x-4">
+    <div class="field"><%= f.label :kind, "種類" %><%= f.select :kind, Voucher::KINDS.invert %></div>
+    <div class="field"><%= f.label :issued_on, "日付" %><%= f.date_field :issued_on %></div>
+    <div class="field"><%= f.label :amount, "金額（分かれば）" %><%= f.number_field :amount %></div>
+  </div>
+  <div class="field"><%= f.label :files, "ファイル（写真・PDF。複数可）" %><%= f.file_field :files, multiple: true, accept: Voucher::ACCEPTED_TYPES.join(",") %></div>
+  <div class="field"><%= f.label :description, "説明（何の支払い・入金か。どの事業か）" %><%= f.text_area :description, rows: 3, placeholder: "例: 道場で使う HDMI ケーブルを現金で買った" %></div>
+  <div class="field"><%= f.label :notes, "補足" %><%= f.text_area :notes, rows: 2 %></div>
+  <% if voucher.new_record? && Bookkeeper::Client.configured? %>
+    <label class="flex items-center gap-2 mb-3 text-sm"><%= check_box_tag :propose, "1", true %> 登録したら AI に仕訳を提案してもらう</label>
+  <% end %>
+  <div class="flex gap-2"><%= f.submit "保存", class: "btn" %><%= link_to "戻る", vouchers_path, class: "btn-secondary" %></div>
+<% end %>

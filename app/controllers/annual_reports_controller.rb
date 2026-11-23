@@ -1,0 +1,58 @@
+class AnnualReportsController < ApplicationController
+  before_action :set_report, only: %i[show edit update]
+
+  def index
+    org = Organization.current
+    last = FiscalYear.current.year - 1
+    first = org.first_fiscal_year || last
+    @reports = AnnualReport.all.index_by(&:fiscal_year)
+    @years = (first..last).to_a.reverse
+  end
+
+  def show
+    @statement = Ledger::Book.new.statement(@annual_report.fiscal_year)
+    @expenses = @annual_report.program_expenses(@statement)
+  end
+
+  def new
+    @annual_report = AnnualReport.draft_for(Integer(params[:year]))
+    redirect_to annual_report_path(@annual_report.fiscal_year) if @annual_report.persisted?
+  end
+
+  def create
+    @annual_report = AnnualReport.new(report_params)
+    if @annual_report.save
+      redirect_to annual_report_path(@annual_report.fiscal_year), notice: "事業報告書を作りました"
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  def edit
+    @annual_report.ensure_program_activities
+  end
+
+  def update
+    if @annual_report.update(report_params)
+      redirect_to annual_report_path(@annual_report.fiscal_year), notice: "保存しました"
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def set_report = @annual_report = AnnualReport.find_by!(fiscal_year: params[:year])
+
+  def report_params
+    permitted = params.require(:annual_report).permit(
+      :fiscal_year, :achievements, :other_business, :board_meetings, :general_meetings, :members_note,
+      :letter_date, :approved_on, :submitted_on, :bs_published_on, :bs_publication_place,
+      member_counts: {}, program_activities_attributes: %i[id department_id content schedule beneficiaries report position]
+    )
+    if permitted[:member_counts]
+      permitted[:member_counts] = permitted[:member_counts].to_h.compact_blank.transform_values(&:to_i).presence
+    end
+    permitted
+  end
+end

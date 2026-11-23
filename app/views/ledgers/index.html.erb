@@ -1,0 +1,32 @@
+<h1><%= @fiscal_year.wareki_label %>　<%= @title %></h1>
+<p class="period"><%= wareki_date(@fiscal_year.starts_on) %>から<%= wareki_date(@fiscal_year.ends_on) %>まで</p>
+<p class="org"><%= @organization.name %><br>（単位：円）</p>
+<style>
+  table.ledger { width: 100%; font-size: 9pt; }
+  table.ledger td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  h2 { page-break-after: avoid; }
+  table.ledger tr { page-break-inside: avoid; }
+</style>
+<% @ledgers.each do |account, ledger| %>
+  <h2><%= account.code %>　<%= account.display_name %>（<%= account.category_label %>）</h2>
+  <table class="ledger">
+    <thead><tr><th>日付</th><th>伝票</th><th>相手科目</th><th>摘要</th><th>借方</th><th>貸方</th><th>残高</th></tr></thead>
+    <tbody>
+      <% if account.balance_sheet? %><tr><td></td><td></td><td></td><td>前期繰越</td><td></td><td></td><td class="n"><%= yen(ledger[:opening]) %></td></tr><% end %>
+      <% ledger[:rows].each do |r| %>
+        <tr>
+          <td style="white-space:nowrap"><%= r[:entry].entry_date.strftime("%m/%d") %></td>
+          <td class="n"><%= r[:entry].slip_number %></td>
+          <td><%= r[:counter].display_name %></td>
+          <td><%= r[:entry].summary %><%= "（#{r[:entry].sub_summary}）" if r[:entry].sub_summary.present? %></td>
+          <td class="n"><%= yen(r[:debit]) unless r[:debit].zero? %></td>
+          <td class="n"><%= yen(r[:credit]) unless r[:credit].zero? %></td>
+          <td class="n"><%= yen(r[:balance]) %></td>
+        </tr>
+      <% end %>
+      <tr class="strong"><td></td><td></td><td></td><td><%= account.balance_sheet? ? "次期繰越" : "合計" %></td>
+        <td class="n"><%= yen(ledger[:rows].sum { it[:debit] }) %></td><td class="n"><%= yen(ledger[:rows].sum { it[:credit] }) %></td><td class="n"><%= yen(ledger[:closing]) %></td></tr>
+    </tbody>
+  </table>
+<% end %>
+<% if @ledgers.empty? %><p>この年度の取引はありません。</p><% end %>

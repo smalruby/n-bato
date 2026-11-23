@@ -1,0 +1,10 @@
+<div class="sheet">
+  <h1>変更の記録</h1>
+  <p class="period"><%= @period&.label %><%= "(締めたあと #{l @period.closed_on} 以降の変更)" if @after_close %></p>
+  <p class="org"><%= Organization.current.name %>　<%= l Date.current %> 出力</p>
+  <table style="width:100%;font-size:9pt">
+    <thead><tr><th>日時</th><th>人</th><th>記録</th><th>操作</th><th>項目: 前 → 後</th><th>理由</th></tr></thead>
+    <tbody><%= render "rows", changes: @changes, print: true %></tbody>
+  </table>
+  <p>件数 <%= @changes.size %> 件。n-bato の操作履歴から出力しました。変更の記録は消せません。</p>
+</div>

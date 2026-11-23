@@ -1,0 +1,15 @@
+<%# やることの件数のまとめ(デザインシステム TodoSummary、見直し第12回)。札を押すとその分だけに絞り、もう一度押すと戻す。 %>
+<% base = local_assigns.fetch(:base, {}); due = local_assigns[:due]; who = local_assigns[:who] %>
+<nav class="nb-todo-sum" aria-label="やることの件数">
+  <% tile = lambda do |key, label, n, mod, active, link_params| %>
+    <%= link_to todos_path(link_params.compact), class: [ "nb-todo-tile", (n.positive? && mod ? "nb-todo-tile--#{mod}" : nil), (n.zero? ? "is-zero" : nil) ].compact.join(" "),
+                "aria-current": (active ? "true" : nil), title: (active ? "もう一度押すと、絞り込みをやめる" : "「#{label}」だけを出す"), data: { turbo_action: "replace" } do %><small><%= label %></small><b><%= n %></b><span>件</span><% end %>
+  <% end %>
+  <% TodoList::DUES.each do |k, label| %>
+    <% tile.call(k, label, summary[k], { "over" => "over", "week" => "soon" }[k], due == k, base.merge(due: (due == k ? nil : k), who:)) %>
+  <% end %>
+  <span class="nb-todo-sum-sep" aria-hidden="true"></span>
+  <% TodoList::WHOS.each do |k, label| %>
+    <% tile.call(k, label, summary[k], nil, who == k, base.merge(due:, who: (who == k ? nil : k))) %>
+  <% end %>
+</nav>
