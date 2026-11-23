@@ -3,7 +3,7 @@ class OrganizationsController < ApplicationController
   include ClosedYearGuard
   before_action { @organization = Organization.first_or_initialize(name: "（法人名未設定）") }
 
-  YEAR_FIELDS = %i[name name_en address representative_title representative_name competent_authority accounting_standard_note].freeze
+  YEAR_FIELDS = %i[name name_en address representative_title representative_name accounting_standard_note].freeze
   FIXED_FIELDS = %i[established_on first_fiscal_year].freeze
 
   def show; end

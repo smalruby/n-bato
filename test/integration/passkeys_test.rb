@@ -6,7 +6,7 @@ require "webauthn/fake_client"
 class PasskeysTest < ActionDispatch::IntegrationTest
   ORIGIN = "http://www.example.com"
 
-  setup { @client = WebAuthn::FakeClient.new(ORIGIN) }
+  setup { @client = WebAuthn::FakeClient.new(ORIGIN); ensure_organization }
 
   def register_passkey(name: "この Mac")
     post registration_options_passkeys_path, as: :json

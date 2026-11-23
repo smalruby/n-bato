@@ -60,3 +60,11 @@
   rules: [pref]
   files: [test/models/officer_term_test.rb]
   reason: 暗号化した住所に、架空の住所(島根県テスト市)の語が平文で残らないことを確かめるテストの語
+- pattern: '○○[^\s"]*'
+  rules: [address, pref, name]
+  files: [config/filing_destinations.example.yml, app/controllers/filing_samples_controller.rb, app/models/filing_destination_search.rb, test/**/*.rb]
+  reason: 例の住所・宛先(○○ で、実在しない)
+- pattern: '0{3}-0{4}-0{4}'
+  rules: [phone]
+  files: [config/filing_destinations.example.yml, app/controllers/filing_samples_controller.rb]
+  reason: 架空の電話番号(000 で始まる、実在しない番号)

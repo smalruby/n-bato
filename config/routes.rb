@@ -97,6 +97,13 @@ Rails.application.routes.draw do
   resources :balance_checks, only: %i[index create destroy]
   resources :opening_balances, only: %i[index create destroy]
   resource :organization, only: %i[show edit update]
+  # 提出先(見直し第17回、docs/adr/0027・0028)
+  resources :filing_destinations, only: %i[index create update destroy] do
+    resource :confirmation, only: :create, module: :filing_destinations
+  end
+  resources :filing_destination_searches, only: :create
+  resource :filing_samples, only: :show
+  resource :setup, only: %i[show update]
   resources :articles, only: %i[index show]
   resources :program_profiles, only: %i[update]
 

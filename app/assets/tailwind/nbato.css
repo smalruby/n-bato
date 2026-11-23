@@ -530,3 +530,33 @@ textarea.nb-input { height: auto; padding: var(--space-2) var(--space-3); border
 .nb-cancelled-tag { display: inline-block; text-decoration: none; font-size: 11px; font-weight: 700; line-height: 16px; padding: 0 var(--space-2); border: 1px solid var(--error); color: var(--error); border-radius: var(--radius-1); }
 .nb-cancel-form { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .nb-cancel-form .nb-input { flex: 1; min-width: 12em; }
+
+/* 提出先(見直し第17回)。設定 › 提出先と、最初の起動のウィザード。 */
+.nb-dest { display: grid; gap: var(--space-5); padding: var(--space-5); font-size: 13px; }
+.nb-dest-lead { margin: 0; }
+.nb-dest-table { width: 100%; border-collapse: collapse; background: var(--sheet); }
+.nb-dest-table th, .nb-dest-table td { border-bottom: 1px solid var(--grid-line); padding: var(--space-2) var(--space-3); text-align: left; vertical-align: top; }
+.nb-dest-table thead th { color: var(--ink-muted); font-weight: 400; background: var(--sheet-alt); }
+.nb-dest-detail td { background: var(--surface); }
+.nb-dest-detail summary { cursor: pointer; color: var(--accent); }
+.nb-dest-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3) var(--space-5); padding: var(--space-3) 0; }
+.nb-dest-fields label { display: grid; gap: var(--space-1); color: var(--ink-muted); font-size: 12px; }
+.nb-dest-fields .nb-input { width: 100%; box-sizing: border-box; border-color: var(--grid-line-strong); }
+.nb-dest-actions, .nb-dest-add, .nb-setup-row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+.nb-dest-add form { display: flex; gap: var(--space-3); align-items: center; }
+.nb-dest-mute, .nb-dest-empty { color: var(--ink-muted); font-size: 12px; }
+.nb-dest-state { display: inline-block; font-size: 12px; font-weight: 700; line-height: 18px; padding: 0 var(--space-3); border: 1px solid; border-radius: var(--radius-1); color: var(--ink-muted); white-space: nowrap; }
+.nb-dest-state.is-ai { color: var(--dirty); background: var(--dirty-fill); }
+.nb-dest-state.is-confirmed { color: var(--saved); background: var(--saved-fill); }
+.nb-dest-samples h2 { font-size: 13px; margin: 0 0 var(--space-2); }
+.nb-dest-samples p { margin: 0 0 var(--space-2); }
+.nb-setup { max-width: 640px; margin: var(--space-5) auto; display: grid; gap: var(--space-5); font-size: 13px; background: var(--sheet); border: 1px solid var(--grid-line); padding: var(--space-5) calc(var(--space-5) * 2); }
+.nb-setup h1 { font-size: 16px; margin: 0; }
+.nb-setup form { display: grid; gap: var(--space-4); }
+.nb-setup label { display: grid; gap: var(--space-1); color: var(--ink-muted); font-size: 12px; }
+.nb-setup .nb-input { width: 100%; box-sizing: border-box; }
+.nb-setup-steps { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
+.nb-setup-steps li { font-size: 12px; padding: 0 var(--space-3); border: 1px solid var(--grid-line); border-radius: var(--radius-1); color: var(--ink-muted); }
+.nb-setup-steps li.is-current { border-color: var(--accent); color: var(--accent); background: var(--select-fill); font-weight: 700; }
+.nb-setup-steps li.is-done { color: var(--saved); }
+.nb-setup-list { margin: 0; padding-left: 1.2em; display: grid; gap: var(--space-2); }

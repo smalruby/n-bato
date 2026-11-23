@@ -34,5 +34,37 @@ module Bookkeeper
     rescue JSON::ParserError => e
       raise Error, "AI の回答を JSON として読めません: #{e.message}"
     end
+
+    # Web 検索(サーバーツール web_search_20260209)を使って調べ、JSON Schema の形で答えを受け取る(提出先の調べもの。docs/adr/0028)。
+    # 外部連携なので、実際の呼び出しは人と一緒に確かめてから使い始める。自動テストでは偽のクライアントを使う。
+    # :nocov:
+    def search_json(system:, prompt:, schema:, max_tokens: 16_000, max_uses: 8)
+      raise NotConfigured, "ANTHROPIC_API_KEY が設定されていません" unless self.class.configured?
+
+      api = Anthropic::Client.new(api_key: self.class.api_key)
+      messages = [ { role: "user", content: prompt } ]
+      message = nil
+      5.times do
+        message = api.messages.create(
+          model: MODEL.to_sym, max_tokens: max_tokens, system_: [ { type: "text", text: system } ], messages: messages,
+          tools: [ { type: "web_search_20260209", name: "web_search", max_uses: max_uses } ],
+          output_config: { format: { type: :json_schema, schema: schema } }
+        )
+        break unless message.stop_reason == :pause_turn
+
+        messages += [ { role: "assistant", content: message.content.map(&:to_h) } ] # 長い検索の途中で止まったら、続きを頼む
+      end
+      case message.stop_reason
+      when :refusal then raise Error, "AI が回答を断りました"
+      when :max_tokens then raise Error, "回答が長すぎて途中で切れました"
+      end
+      text = message.content.select { it.type == :text }.map(&:text).join
+      JSON.parse(text[/\{.*\}/m] || text)
+    rescue Anthropic::Errors::APIError => e
+      raise Error, "Claude API のエラー: #{e.message}"
+    rescue JSON::ParserError => e
+      raise Error, "AI の回答を JSON として読めません: #{e.message}"
+    end
+    # :nocov:
   end
 end

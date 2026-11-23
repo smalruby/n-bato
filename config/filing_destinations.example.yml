@@ -1,0 +1,12 @@
+# 提出先の例(架空)。実際の値は data/filing_destinations.yml(git 管理外)に書き、
+#   bin/rails 'filing_destinations:load[data/filing_destinations.yml]'
+# で読み込む。confirmed を書くと、その日に確かめた(確認済み)ことにする。
+destinations:
+  - kind: authority
+    name: ○○市
+    addressee: ○○市長　○○　○○
+    office: ○○市役所 市民部 ○○課
+    address: ○○県○○市○○町１－２－３
+    phone: 000-0000-0000
+    source: ○○市からの通知(例)
+    confirmed: { at: "2026-01-01" }

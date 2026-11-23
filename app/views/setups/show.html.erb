@@ -1,0 +1,46 @@
+<% content_for :title, "はじめに" %>
+<%# 最初の起動のウィザード(デザインシステム「提出先」、見直し第17回) %>
+<div class="nb-setup">
+  <ol class="nb-setup-steps">
+    <% SetupsController::STEPS.each do |n, label| %>
+      <li class="<%= 'is-current' if n == @step %><%= ' is-done' if n < @step %>"><%= n %> <%= label %></li>
+    <% end %>
+  </ol>
+
+  <% case @step %>
+  <% when 1 %>
+    <h1>法人の名前と所在地</h1>
+    <p>Nばとを使う法人の名前と、主たる事務所の所在地を入れてください。所在地から、書類を出す先(所轄庁など)を調べます。</p>
+    <%= form_with url: setup_path, method: :patch do %>
+      <label>法人の名前<%= text_field_tag :name, @organization.name, class: "nb-input", required: true %></label>
+      <label>主たる事務所の所在地<%= text_field_tag :address, @organization.address, class: "nb-input", required: true %></label>
+      <%= submit_tag "次へ", class: "nb-btn nb-btn--primary" %>
+    <% end %>
+  <% when 2 %>
+    <h1>提出先の案(AI が調べる)</h1>
+    <%= render "filing_destinations/waiting", search: @search %>
+    <% if @ai_ready %>
+      <p>所在地「<%= @organization.address %>」と法人の種類だけを AI(Claude API)に送り、所轄庁・県税事務所・市町村の税の窓口・法務局・税務署を Web で調べてもらいます。見つけたものは「AI の案」として入ります。</p>
+      <div class="nb-setup-row">
+        <%= button_to "AI に調べてもらう", filing_destination_searches_path(from: "setup"), class: "nb-btn nb-btn--primary", disabled: @search&.searching? %>
+        <%= link_to "調べてもらわずに次へ(手で入れる)", setup_path(step: 3) %>
+      </div>
+    <% else %>
+      <p>AI の鍵が未設定なので、AI には調べてもらえません。次の画面で、窓口を手で入れてください。</p>
+      <%= link_to "次へ", setup_path(step: 3), class: "nb-btn nb-btn--primary" %>
+    <% end %>
+    <% if @search&.status == "done" %><p><%= @search.found_count %> 件の案が見つかりました。<%= link_to "次へ(確かめる)", setup_path(step: 3), class: "nb-btn nb-btn--primary" %></p><% end %>
+  <% when 3 %>
+    <h1>人が確かめる</h1>
+    <p>提出先を 1 件ずつ、出どころのページで確かめて「確認済み」にしてください。書類の宛先には、確認済みの所轄庁だけを使います。</p>
+    <ul class="nb-setup-list">
+      <% @destinations.each do |d| %><li><%= d.kind_label %> <%= d.name %> <%= render "filing_destinations/state", d: %></li><% end %>
+      <% if @destinations.empty? %><li>まだありません。</li><% end %>
+    </ul>
+    <div class="nb-setup-row"><%= link_to "提出先の画面で確かめる・足す", filing_destinations_path, class: "nb-btn" %><%= link_to "次へ", setup_path(step: 4), class: "nb-btn nb-btn--primary" %></div>
+  <% else %>
+    <h1>できあがり</h1>
+    <p>提出先は、あとから「設定 › 提出先」で直したり、AI に調べ直してもらったりできます。<%= FilingDestination.confirmed_authority ? "所轄庁は確認済みです。" : "所轄庁がまだ確認済みになっていません。書類の宛先には「(所轄庁の宛先が未設定)」と出ます。" %></p>
+    <%= link_to "ホームへ", root_path, class: "nb-btn nb-btn--primary" %>
+  <% end %>
+</div>

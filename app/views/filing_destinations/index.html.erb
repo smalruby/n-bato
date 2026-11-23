@@ -1,0 +1,64 @@
+<% content_for :title, "提出先" %>
+<%# 設定 › 提出先(デザインシステム「提出先」、見直し第17回)。年度に依存しない。入力するとすぐ保存する。 %>
+<div class="nb-dest">
+  <p class="nb-dest-lead">書類を出す先の窓口です。書類の「（あて先）」と手続きの説明の「{所轄庁}」には、<b>確認済み</b>の所轄庁を使います。AI の案や、直したあとに確かめていないものは使いません。</p>
+  <%= render "filing_destinations/waiting", search: @search %>
+
+  <table class="nb-dest-table">
+    <thead><tr><th>種類</th><th>機関</th><th>宛先(役職と氏名)</th><th>窓口</th><th>状態</th></tr></thead>
+    <tbody>
+      <% if @destinations.empty? %>
+        <tr><td colspan="5" class="nb-dest-empty">まだありません。下の「提出先を足す」か「AI に調べてもらう」から始めてください。</td></tr>
+      <% end %>
+      <% @destinations.each do |d| %>
+        <tr id="dest-<%= d.id %>">
+          <td><%= d.kind_label %></td><td><%= d.name.presence || "—" %></td><td><%= d.addressee.presence || "—" %></td><td><%= d.office.presence || "—" %></td>
+          <td><%= render "filing_destinations/state", d: %></td>
+        </tr>
+        <tr class="nb-dest-detail"><td colspan="5">
+          <details <%= "open" unless d.confirmed? %>>
+            <summary>窓口のくわしい情報・確かめる</summary>
+            <%= form_with url: filing_destination_path(d), method: :patch, data: { controller: "autosave", autosave_scope_value: @undo_scope, action: "change->autosave#save input->autosave#mark keydown->autosave#cancel" } do %>
+              <div class="nb-dest-fields">
+                <label>種類<%= select_tag "filing_destination[kind]", options_for_select(FilingDestination::KINDS.invert, d.kind), class: "nb-input", disabled: Current.user&.auditor? %></label>
+                <% { name: "機関の名前(例: ○○市)", addressee: "書類の宛先(役職と氏名。首長が替わったら書き換える)", office: "窓口(課・係)", address: "住所", phone: "電話", fax: "FAX", email: "メール", hours: "受付の時間", forms_url: "様式・手引きのページ(URL)", source: "出どころ(確かめた文書やページ)", notes: "メモ" }.each do |f, label| %>
+                  <label><%= label %><%= text_field_tag "filing_destination[#{f}]", d.public_send(f), class: "nb-input", readonly: Current.user&.auditor? %></label>
+                <% end %>
+              </div>
+            <% end %>
+            <div class="nb-dest-actions">
+              <% if d.last_confirmation %><span class="nb-dest-mute">最後に確かめた: <%= l(d.last_confirmation.confirmed_at, format: :short) %> <%= d.last_confirmation.confirmed_by&.name %></span><% end %>
+              <% unless Current.user&.auditor? %>
+                <% unless d.confirmed? %><%= button_to "この内容で確認済みにする", filing_destination_confirmation_path(d), class: "nb-btn nb-btn--primary" %><% end %>
+                <%= button_to "消す", filing_destination_path(d), method: :delete, class: "nb-btn nb-btn--danger", data: { controller: "confirm-twice", action: "click->confirm-twice#click" } %>
+              <% end %>
+            </div>
+          </details>
+        </td></tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <% unless Current.user&.auditor? %>
+    <div class="nb-dest-add">
+      <%= form_with url: filing_destinations_path do %>
+        <%= select_tag :kind, options_for_select(FilingDestination::KINDS.invert), class: "nb-input", "aria-label": "足す提出先の種類" %>
+        <%= submit_tag "提出先を足す", class: "nb-btn" %>
+      <% end %>
+      <% if @ai_ready %>
+        <%= button_to "AI に調べてもらう(所在地だけを送る)", filing_destination_searches_path, class: "nb-btn", disabled: @search&.searching? %>
+      <% else %>
+        <span class="nb-dest-mute">AI の鍵が未設定なので、AI には調べてもらえません。</span>
+      <% end %>
+    </div>
+    <p class="nb-dest-mute">AI に調べてもらうと、法人の所在地(<%= Organization.current.address.presence || "未設定" %>)と法人の種類だけを Claude API に送り、Web で窓口を探します。見つけたものは「AI の案」として足します。出どころのページを見て、合っていれば「確認済みにする」を押してください。</p>
+  <% end %>
+
+  <div class="nb-dest-samples">
+    <h2>様式の例</h2>
+    <p>Nばとが作る提出書類(事業報告書等一式)を、架空の法人で 1 つの PDF にしました。お住まいの自治体の様式と違っていたら、知らせてください。自治体の様式を確かめて、Nばとを直します。</p>
+    <p><%= link_to "様式の例をまとめてダウンロード(PDF)", filing_samples_path(format: :pdf), class: "nb-btn" %>
+      <% if @support_url %>連絡先: <%= link_to @support_url, @support_url, target: "_blank", rel: "noopener" %><% else %><span class="nb-dest-mute">連絡先は、公開のときに決めます(いまは Nばとの管理者に直接知らせてください)。</span><% end %></p>
+  </div>
+</div>
+<% content_for :side do %><div><h2>操作履歴</h2><%= history_panel %></div><% end %>

@@ -45,7 +45,11 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
 
     get document_annual_report_path(2024, "letter")
     assert_match "令和８年１１月２０日", response.body
-    assert_match "テスト市長", response.body
+    assert_match "（あて先）(所轄庁の宛先が未設定)", response.body, "確認済みの所轄庁が無ければ、推測で埋めない"
+    d = FilingDestination.create!(kind: "authority", name: "テスト市", addressee: "テスト市長　山田　太郎")
+    FilingDestination::Confirmation.confirm!(d, by: users(:one))
+    get document_annual_report_path(2024, "letter")
+    assert_match "（あて先）テスト市長　山田　太郎", response.body
   end
 
   test "事業報告書の無い年度へ切り替えると一覧へ戻る" do

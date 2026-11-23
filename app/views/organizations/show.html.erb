@@ -8,7 +8,7 @@
     <dt class="text-stone-500">代表者</dt><dd class="col-span-2"><%= @organization.representative %></dd>
     <dt class="text-stone-500">成立日</dt><dd class="col-span-2"><%= @organization.established_on && l(@organization.established_on) %></dd>
     <dt class="text-stone-500">第 1 期の年度</dt><dd class="col-span-2"><%= @organization.first_fiscal_year %></dd>
-    <dt class="text-stone-500">所轄庁</dt><dd class="col-span-2"><%= @organization.competent_authority %></dd>
+    <dt class="text-stone-500">所轄庁</dt><dd class="col-span-2"><% if (a = FilingDestination.confirmed_authority) %><%= a.name %>(宛先 <%= a.addressee %>)<% else %>未設定<% end %> ・ <%= link_to "設定 › 提出先で直す", filing_destinations_path, class: "underline" %></dd>
     <dt class="text-stone-500">会計方針の注記</dt><dd class="col-span-2"><%= @organization.accounting_standard_text %></dd>
   </dl>
 </div>

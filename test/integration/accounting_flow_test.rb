@@ -26,6 +26,7 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
 
   test "年度と計算書類を表示する" do
     import_sample
+    ensure_organization
     sign_in
     get root_path
     assert_response :success

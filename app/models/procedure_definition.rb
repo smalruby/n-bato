@@ -4,9 +4,16 @@ class ProcedureDefinition
     def deadline? = !!deadline
     def final? = !!final
     def optional? = !!optional
+
+    # 「{所轄庁}」は、確認済みの提出先の名前にする(docs/adr/0027)
+    %i[title guide checks waits links final_label].each do |m|
+      define_method(m) { FilingDestination.fill(to_h[m]) }
+    end
   end
 
-  attr_reader :kind, :name, :period, :due, :summary, :steps
+  attr_reader :kind, :name, :period, :due, :steps
+
+  def summary = FilingDestination.fill(@summary)
 
   def self.all = @all ||= Dir[Rails.root.join("config/procedures/*.yml")].sort.to_h { |f| [ File.basename(f, ".yml"), load_file(f) ] }
   def self.find(kind) = all.fetch(kind.to_s)

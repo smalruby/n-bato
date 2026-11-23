@@ -30,6 +30,8 @@
 | [0024](0024-development-and-operation.md) | 開発と運用の大きな方針 | 採用 |
 | [0025](0025-backend-coverage.md) | バックエンドの自動テストのカバレッジを 100% にする | 採用 |
 | [0026](0026-journal-entry-cancellation.md) | 記帳した仕訳の取消 | 採用 |
+| [0027](0027-filing-destinations.md) | 提出先を法人ごとに設定し、確認済みのものだけを書類に使う | 採用 |
+| [0028](0028-ai-web-search-for-destinations.md) | 提出先の窓口を AI に Web で調べてもらう | 採用 |
 
 関係するもの: データモデルの台帳 `docs/data-model.md`、デザインシステム `docs/design-system/`。
 

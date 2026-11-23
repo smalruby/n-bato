@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_23_110000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "code", null: false
     t.string "name", null: false
@@ -149,6 +149,45 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_100000) do
     t.string "full_name"
     t.integer "fiscal_year", null: false
     t.index ["fiscal_year", "code"], name: "index_departments_on_fiscal_year_and_code", unique: true
+  end
+
+  create_table "filing_destination_confirmations", force: :cascade do |t|
+    t.integer "filing_destination_id", null: false
+    t.integer "confirmed_by_id"
+    t.string "digest", null: false
+    t.datetime "confirmed_at", null: false
+    t.index ["confirmed_by_id"], name: "index_filing_destination_confirmations_on_confirmed_by_id"
+    t.index ["filing_destination_id"], name: "idx_on_filing_destination_id_3f11b3a090"
+  end
+
+  create_table "filing_destination_searches", force: :cascade do |t|
+    t.string "address", default: "", null: false
+    t.string "status", default: "searching", null: false
+    t.text "error_message", default: "", null: false
+    t.integer "found_count", default: 0, null: false
+    t.integer "requested_by_id"
+    t.datetime "requested_at", null: false
+    t.index ["requested_by_id"], name: "index_filing_destination_searches_on_requested_by_id"
+  end
+
+  create_table "filing_destinations", force: :cascade do |t|
+    t.string "kind", null: false
+    t.string "name", default: "", null: false
+    t.string "addressee", default: "", null: false
+    t.string "office", default: "", null: false
+    t.string "address", default: "", null: false
+    t.string "phone", default: "", null: false
+    t.string "fax", default: "", null: false
+    t.string "email", default: "", null: false
+    t.string "hours", default: "", null: false
+    t.string "forms_url", default: "", null: false
+    t.text "source", default: "", null: false
+    t.text "notes", default: "", null: false
+    t.string "origin", default: "human", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kind"], name: "index_filing_destinations_on_kind"
   end
 
   create_table "fiscal_periods", force: :cascade do |t|
@@ -609,6 +648,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_100000) do
   add_foreign_key "balance_checks", "accounts"
   add_foreign_key "consents", "people"
   add_foreign_key "consents", "resolutions"
+  add_foreign_key "filing_destination_confirmations", "filing_destinations"
+  add_foreign_key "filing_destination_confirmations", "users", column: "confirmed_by_id"
+  add_foreign_key "filing_destination_searches", "users", column: "requested_by_id"
   add_foreign_key "fiscal_periods", "users", column: "closed_by_id"
   add_foreign_key "incoming_request_messages", "incoming_requests"
   add_foreign_key "journal_entries", "accounts", column: "credit_account_id"

@@ -1,0 +1,10 @@
+<%# 提出先を AI が調べている間の待つ表示(デザインシステム「待つ表示」) %>
+<% if search&.searching? %>
+  <p class="nb-flash nb-waiting" role="status" data-controller="auto-reload" data-auto-reload-seconds-value="15" data-auto-reload-max-tries-value="20">
+    <span data-auto-reload-target="running">AI が提出先を調べています。<b><span data-auto-reload-target="count">15</span> 秒後</b>に読み込み直します(このままにしておけば、調べ終わるまでくり返します)。
+      <button type="button" class="nb-btn" data-action="auto-reload#now">いま読み込み直す</button></span>
+    <span data-auto-reload-target="stopped" hidden>5 分たっても終わっていません。時間がかかっているか、AI でエラーが起きた可能性があります。少しあとで、この画面を読み込み直してください。</span>
+  </p>
+<% elsif search&.status == "failed" %>
+  <p class="nb-flash nb-flash--alert" role="alert">AI に調べてもらえませんでした(<%= search.error_message %>)。窓口を手で入れるか、少しあとでもう一度頼んでください。</p>
+<% end %>

@@ -1,6 +1,7 @@
 <% fy = fiscal_year_wareki(fiscal_year.year, zen: true) %>
 <p class="right"><%= annual_report.letter_date ? wareki_date(annual_report.letter_date, zen: true) : "令和　　年　　月　　日" %></p>
-<p>（あて先）<%= organization.competent_authority %>長</p>
+<%# 宛先は確認済みの提出先(所轄庁)から(docs/adr/0027)。様式の例では addressee を渡す。 %>
+<p>（あて先）<%= local_assigns[:addressee] || FilingDestination.letter_addressee %></p>
 <div class="block-right">
   主たる事務所の所在地　<%= organization.address %><br>
   <%= organization.name %><br>

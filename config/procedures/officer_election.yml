@@ -2,7 +2,7 @@
 name: 役員改選
 period: election_year     # 期間 = 改選の年
 due: june_30
-summary: 任期が終わる理事・監事を総会で選び、理事長・副理事長を互選し、松江市への届出と理事長の登記をします。
+summary: 任期が終わる理事・監事を総会で選び、理事長・副理事長を互選し、{所轄庁}への届出と理事長の登記をします。
 steps:
   - key: candidates
     title: 候補者を決め、就任の承諾を得る
@@ -33,7 +33,7 @@ steps:
     waits_from: board
     links: [resolutions]
   - key: notify_city
-    title: 松江市に役員の変更等を届け出る
+    title: "{所轄庁}に役員の変更等を届け出る"
     guide:
       - 再任でも届け出ます。役員の変更等届出書に、変更後の役員名簿と、新しく役員になった人の就任承諾書・住所の証明を付けます。
     law:

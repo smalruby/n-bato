@@ -47,6 +47,7 @@
           <div class="nb-nav-group">設定</div>
           <%= nav_link "科目と部門", accounts_path, icon: :accounts %>
           <%= nav_link "法人情報", organization_path, icon: :organization %>
+          <%= nav_link "提出先", filing_destinations_path, icon: :destination, also: [ "/filing_samples" ] %>
           <%= nav_link "変更の記録", changes_path, icon: :history %>
         </nav>
         <main class="nb-main <%= content_for(:main_class) %>" id="main">

@@ -43,6 +43,9 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | OfficerTerm | 役員の任期 | 交差 | 1 人の 1 つの役の 1 期 | 人・役・始まりが同じ | 理事・監事・理事長・副理事長 | 始まり・終わり・退任(就任・退任はイベントへ) | 待 |
 | OpeningBalance | 期首残高 | R | 1 年度の 1 科目の繰越額 | 年度と科目が同じ | 仕訳より前の年度の繰越 | — | 待 |
 | Organization | 法人 | R | 利用団体 1 つ | — | 法人 | 設立日(中身の日付) | 待 |
+| FilingDestination | 提出先 | R | 書類を出す 1 つの窓口 | 種類と機関が同じ | 所轄庁・法人住民税(県・市)・登記・税務署・その他(docs/adr/0027) | — | 済 |
+| FilingDestination::Confirmation | 提出先の確認 | E | 1 回の確認 | — | 人が中身を確かめた(確かめた中身の要約 digest を持つ。直すと確認済みでなくなる) | confirmed_at | 済 |
+| FilingDestinationSearch | 提出先の調べもの | LE | AI に頼んだ 1 回の調べもの | — | 所在地から窓口を Web で調べる(docs/adr/0028)。いまの状態は status | requested_at | 済 |
 | OrganizationYear | 法人の年度ごとの記録 | R | 1 年度の法人の情報(世代) | 年度が同じ | 名称・所在地などの年度ごとの値 | — | 待 |
 | Passkey | パスキー | R | 1 つの端末の鍵 | 認証器の ID | ログインの手段 | last_used_at(使ったことの記録。ログインのたびに増えるので履歴は残さない) | 待 |
 | Person | 人 | R | 1 人 | — | 会員・役員・関係者 | — | 待 |
@@ -77,6 +80,10 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | 科目・部門 | Account・Department | 年度ごと |
 | やること | Todo・IncomingRequest | |
 | 入会申込 | MemberApplication | |
+| 設定 › 提出先 | FilingDestination | 年度に依存しない。書類の宛先・手続きの説明の {所轄庁} は確認済みの所轄庁から |
+| この内容で確認済みにする | FilingDestination::Confirmation.confirm! | 中身を直すと確認済みでなくなる |
+| AI に調べてもらう | FilingDestinationSearch.request! | 送るのは所在地と法人の種類だけ。見つけたものは「AI の案」 |
+| はじめに(最初の起動のウィザード) | Organization・FilingDestination | 法人が無いときホームから移る |
 | 定款と事業 | ArticleVersion・ProgramProfile | |
 | ログインのしかた | Passkey | |
 

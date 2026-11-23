@@ -1,7 +1,7 @@
 <% content_for :title, "法人情報の編集" %>
 <h1 class="page-title">法人情報の編集</h1>
 <%= form_with model: @organization, url: organization_path, method: :patch, class: "card max-w-2xl" do |f| %>
-  <% { name: "名称", name_en: "英文名", address: "所在地", representative_title: "代表者の役職", representative_name: "代表者の氏名", competent_authority: "所轄庁" }.each do |attr, label| %>
+  <% { name: "名称", name_en: "英文名", address: "所在地", representative_title: "代表者の役職", representative_name: "代表者の氏名" }.each do |attr, label| %>
     <div class="field"><%= f.label attr, label %><%= f.text_field attr %></div>
   <% end %>
   <div class="field"><%= f.label :established_on, "成立日" %><%= f.date_field :established_on %></div>

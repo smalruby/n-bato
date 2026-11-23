@@ -1,5 +1,7 @@
 class DashboardController < ApplicationController
   def show
+    return redirect_to(setup_path) if Organization.none? # 最初の起動はウィザードへ(見直し第17回)
+
     @organization = Organization.current
     todo_list = TodoList.new(helpers:)
     @near = todo_list.near

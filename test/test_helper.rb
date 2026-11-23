@@ -32,6 +32,9 @@ module SignInHelper
     assert_response :redirect
   end
 
+  # 法人が無いとホームは最初の起動のウィザードへ移る(見直し第17回)。ホームを開くテストで使う
+  def ensure_organization = Organization.first || Organization.create!(name: "テスト法人", first_fiscal_year: 2023)
+
   def import_sample
     Kaikeiou::SiwakeImporter.new(file_fixture("siwake_sample.txt").binread, filename: "siwake_sample.txt").import
   end
