@@ -22,6 +22,28 @@ jobs:
       - name: Scan for common Rails security vulnerabilities using static analysis
         run: bin/brakeman --no-pager
 
+  # 公開してはいけない情報(鍵・個人情報らしい形)が、いまのファイルにも履歴にも無いことを確かめる。
+  # 許すのは config/check_private_allow.yml に理由と出どころを書いたものだけ(CLAUDE.md「公開リポジトリとしての注意」)。
+  scan_private:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code (all history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+
+      - name: Scan files for secrets and personal information
+        run: bin/check-private --all
+
+      - name: Scan every commit in the history
+        run: bin/check-private --history
+
   scan_js:
     runs-on: ubuntu-latest
 
