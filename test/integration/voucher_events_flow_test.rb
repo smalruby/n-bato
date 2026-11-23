@@ -85,7 +85,7 @@ class VoucherEventsFlowTest < ActionDispatch::IntegrationTest
     assert_equal bank.id.to_s, form.at_css("select[name='journal_proposal[debit_account_id]'] option[selected]")["value"]
     assert_equal interest.id.to_s, form.at_css("select[name='journal_proposal[credit_account_id]'] option[selected]")["value"]
 
-    post journal_proposal_approval_path(p), params: { journal_proposal: { debit_account_id: bank.id, credit_account_id: interest.id } }
+    post journal_proposal_approval_path(p), params: { journal_proposal: { debit_account_id: bank.id, credit_account_id: interest.id, debit_department_id: "", sub_summary: "" } }
     entry = p.reload.journal_entry
     assert_equal [ 106, 550 ], [ entry.debit_account.code, entry.credit_account.code ]
     assert_match "借方 普通預金 / 貸方 受取利息", flash[:notice]
