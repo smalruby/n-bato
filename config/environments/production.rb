@@ -59,7 +59,13 @@ Rails.application.configure do
   # config.action_mailer.raise_delivery_errors = false
 
   # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "example.com" }
+  # メールの中のリンクの宛先は NBATO_URL(例: https://n-bato.smalruby.app、手元は http://localhost:3200)から決める。
+  nbato_url = URI(ENV.fetch("NBATO_URL", "http://localhost:3200"))
+  config.action_mailer.default_url_options = { host: nbato_url.host, protocol: nbato_url.scheme,
+                                               port: ([ 80, 443 ].include?(nbato_url.port) ? nil : nbato_url.port) }.compact
+  # NBATO_MAIL_DELIVERY=local_mailbox なら外に送らず storage/mails に残す(手元の Docker 用。bin/rails mail:latest で見る)。
+  # 本番の送り方(SMTP など)は、ドメインを用意するときに人と確かめてから決める。
+  config.action_mailer.delivery_method = :local_mailbox if ENV["NBATO_MAIL_DELIVERY"] == "local_mailbox"
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via rails credentials:edit.
   # config.action_mailer.smtp_settings = {
