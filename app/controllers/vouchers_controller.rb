@@ -48,7 +48,7 @@ class VouchersController < ApplicationController
   def propose
     @voucher.update!(status: "proposing")
     ProposeJournalEntriesJob.perform_later(@voucher)
-    redirect_to @voucher, notice: "AI に仕訳の提案を頼みました。少し待ってから再読み込みしてください"
+    redirect_to @voucher, notice: "AI に仕訳の提案を頼みました。できるまで、この画面を自動で読み込み直します"
   end
 
   def reject

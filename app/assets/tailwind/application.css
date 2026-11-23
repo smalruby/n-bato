@@ -25,6 +25,9 @@
 .nb-page { padding: var(--space-4) var(--space-5); }
 .nb-flash { margin: 0 0 var(--space-4); padding: var(--space-2) var(--space-4); border-left: 3px solid var(--saved); background: var(--saved-fill); font-size: 12px; }
 .nb-flash--alert { border-color: var(--error); background: var(--error-fill); color: var(--error); }
+/* 待つ表示(デザインシステム「待つ表示」)。裏で作業中であることを、待ちの色で出す。 */
+.nb-waiting { border-color: var(--dirty); background: var(--dirty-fill); color: var(--ink); }
+.nb-waiting .nb-btn { margin-left: var(--space-4); }
 .nb-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--grid-line); background: var(--sheet); }
 .nb-toolbar .nb-spacer { flex: 1; }
 .nb-tabs a.nb-tab { text-decoration: none; }

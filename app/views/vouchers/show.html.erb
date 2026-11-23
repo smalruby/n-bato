@@ -9,6 +9,14 @@
   </div>
 </div>
 
+<% if @voucher.status == "proposing" %>
+  <%# 待つ表示(デザインシステム「待つ表示」): 15 秒ごとに読み込み直し、提案ができるまでくり返す。5 分で止める。 %>
+  <p class="nb-flash nb-waiting" role="status" data-controller="auto-reload" data-auto-reload-seconds-value="15" data-auto-reload-max-tries-value="20">
+    <span data-auto-reload-target="running">AI が仕訳の提案を作っています。<b><span data-auto-reload-target="count">15</span> 秒後</b>に読み込み直します(このままにしておけば、提案ができるまでくり返します)。
+      <button type="button" class="nb-btn" data-action="auto-reload#now">いま読み込み直す</button></span>
+    <span data-auto-reload-target="stopped" hidden>5 分たっても提案ができていません。時間がかかっているか、AI でエラーが起きた可能性があります。少しあとで、この画面を読み込み直してください。</span>
+  </p>
+<% end %>
 <div class="grid md:grid-cols-2 gap-4 mb-6">
   <div class="card">
     <dl class="grid grid-cols-3 gap-y-2 text-sm">
