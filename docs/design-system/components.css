@@ -400,3 +400,4 @@ textarea.nb-input { height: auto; padding: var(--space-2) var(--space-3); border
 .nb-passkey-verify form { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 .nb-passkey-add { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 .nb-passkey-add .nb-input { width: 16em; }
+.nb-passkey-add .nb-input, .nb-passkey-verify .nb-input { border-color: var(--grid-line-strong); }
