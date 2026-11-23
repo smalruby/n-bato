@@ -28,6 +28,7 @@
 | [0022](0022-navigation-and-todo-counts.md) | 左のメニューと、やることの件数 — 見直し票 第12回 | 採用 |
 | [0023](0023-articles-and-programs.md) | 定款と事業のページ — 見直し票 第13回 | 採用 |
 | [0024](0024-development-and-operation.md) | 開発と運用の大きな方針 | 採用 |
+| [0025](0025-backend-coverage.md) | バックエンドの自動テストのカバレッジを 100% にする | 採用 |
 
 関係するもの: データモデルの台帳 `docs/data-model.md`、デザインシステム `docs/design-system/`。
 

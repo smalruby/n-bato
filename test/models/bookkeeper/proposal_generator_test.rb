@@ -104,4 +104,11 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
     assert_equal [ "claude-code" ], proposals.map(&:ai_model)
     assert_equal "proposed", @voucher.reload.status
   end
+
+  test "PDF の証憑は document として AI に渡す" do
+    @voucher.files.attach(io: StringIO.new("%PDF-1.4\n"), filename: "invoice.pdf", content_type: "application/pdf")
+    types = Bookkeeper::ProposalGenerator.new(@voucher).content_blocks.map { it[:type] }
+    assert_includes types, "document"
+    assert_includes types, "image"
+  end
 end

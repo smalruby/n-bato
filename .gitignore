@@ -48,3 +48,6 @@
 
 # 手元だけの点検語(bin/check-private)
 /.private-patterns
+
+# テストのカバレッジの結果
+/coverage/
