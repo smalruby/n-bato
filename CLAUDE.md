@@ -7,6 +7,8 @@ NPO 法人の事務を何でも引き受ける「スーパー事務員」アプ�
 1. `README.md` — 目的と進め方
 2. `notes/journal/` の最新ファイル — 前回までの作業記録と次にやること(git 管理外。無ければ作る)
 3. `CLAUDE.local.md` — 手元専用の指示(実データの場所など。git 管理外。無ければ無視)
+4. `docs/adr/README.md` — 設計の決定の記録(ADR、日本語の MADR)。設計で迷ったら先に読む
+5. `docs/data-model.md` — データモデルの台帳(リソースとイベント、用語辞書)
 
 ## 開発コマンド
 
@@ -47,6 +49,12 @@ Claude Code が、アプリの代わりに仕訳を提案することもでき�
 - 元に戻せない操作のボタンは `confirm-twice`(2 回押し、ダイアログを出さない)。
 - 年に一度の手続きは `config/procedures/*.yml` に手順・説明・根拠の条文を書く(画面は ProceduresController)。条文は利用団体の定款(場所は `CLAUDE.local.md`)で確かめてから書く。推測で条文番号を書かない。
 - ダークモードは画面の移行が済むまで `data-theme="dark"` のときだけ。
+
+## 設計の決まり(ADR)
+
+- データモデルはイミュータブルデータモデルが土台(ADR-0002〜0008)。イベントは日時 1 つ・追加だけ。作るのは名前空間の中の名詞のクラスの入口(例 `JournalProposal::Approval.approve!`)だけ。コントローラーは 7 つの基本のアクションで、出来事は create。
+- モデルを足したら `docs/data-model.md` に足す。いまの状態の照合は `bin/rails model:verify`。
+- 設計の大事な決定は `docs/adr/` に日本語の MADR で足す(`TEMPLATE.md`)。
 
 ## 構成の要点
 
