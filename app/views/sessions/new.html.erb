@@ -1,12 +1,18 @@
 <% content_for :title, "ログイン" %>
-<div class="mx-auto max-w-md card mt-16">
-  <h1 class="page-title"><ruby>N<rt>エヌ</rt></ruby>ばと にログイン</h1>
+<%# ログインの画面(デザインシステム SignIn、見直し第14回)。パスキーを主に、その下にメールアドレスとパスワード。 %>
+<div class="nb-signin" data-controller="passkey" data-passkey-mode-value="get" data-passkey-conditional-value="true"
+     data-passkey-options-url-value="<%= options_passkey_session_path %>" data-passkey-url-value="<%= passkey_session_path %>">
+  <h1><ruby>N<rt>エヌ</rt></ruby>ばと にログイン</h1>
+  <button type="button" class="nb-signin-passkey" data-passkey-target="button" data-action="passkey#start"><%= icon(:passkey) %>パスキーでログイン</button>
+  <p class="nb-signin-note" data-passkey-target="unsupported" hidden>このブラウザはパスキーに対応していません。メールアドレスとパスワードでログインしてください。</p>
+  <p class="nb-signin-error" data-passkey-target="error" role="alert" hidden></p>
+  <div class="nb-signin-or">または メールアドレスとパスワード</div>
   <%= form_with url: session_url do |form| %>
-    <div class="field"><%= form.label :email_address, "メールアドレス" %><%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", value: params[:email_address] %></div>
-    <div class="field"><%= form.label :password, "パスワード" %><%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72 %></div>
-    <div class="flex items-center gap-4">
-      <%= form.submit "ログイン", class: "btn" %>
-      <%= link_to "パスワードを忘れたとき", new_password_path, class: "text-sm underline text-stone-600" %>
+    <label>メールアドレス<%= form.email_field :email_address, required: true, autocomplete: "username webauthn", value: params[:email_address], class: "nb-input" %></label>
+    <label>パスワード<%= form.password_field :password, required: true, autocomplete: "current-password", maxlength: 72, class: "nb-input" %></label>
+    <div class="nb-signin-row">
+      <%= form.submit "ログイン", class: "nb-btn" %>
+      <%= link_to "パスワードを忘れたとき", new_password_path %>
     </div>
   <% end %>
 </div>

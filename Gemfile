@@ -73,3 +73,6 @@ gem "anthropic", "~> 2.11"
 
 gem "redcarpet", "~> 3.6"
 gem "csv"
+
+# パスキー(WebAuthn、見直し第14回)
+gem "webauthn", "~> 3.5"

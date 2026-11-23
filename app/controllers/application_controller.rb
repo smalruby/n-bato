@@ -28,8 +28,8 @@ class ApplicationController < ActionController::Base
   class_attribute :year_split_pending_flag, default: false
   def self.year_split_pending = self.year_split_pending_flag = true
 
-  # 監査の役割は閲覧だけ(デザインシステム「役割」)。説明の畳み・AI に聞く・役割の切り替え・ログアウトは許す。
-  READ_ONLY_ALLOWED = %w[sessions ui_prefs working_years assistant roles pickers].freeze
+  # 監査の役割は閲覧だけ(デザインシステム「役割」)。説明の畳み・AI に聞く・役割の切り替え・ログアウト・自分のパスキーは許す。
+  READ_ONLY_ALLOWED = %w[sessions passkey_sessions passkeys ui_prefs working_years assistant roles pickers].freeze
   def read_only_for_auditor
     return if request.get? || request.head? || !Current.user&.auditor? || controller_name.in?(READ_ONLY_ALLOWED)
 

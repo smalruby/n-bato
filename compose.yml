@@ -16,6 +16,9 @@ services:
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
       SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID:-}
       NBATO_URL: ${NBATO_URL:-http://localhost:3200}
+      # パスキーを結びつけるサイト(見直し第14回: ドメインごとに分ける)。本番・ステージングはそのドメインにする
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:3200}
     volumes:
       - n-bato-storage:/rails/storage
     restart: unless-stopped

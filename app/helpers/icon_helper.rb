@@ -8,7 +8,7 @@ module IconHelper
     document: "file-text", export: "download", voucher: "receipt-japanese-yen", yen: "japanese-yen",
     ledger: "book-open", people: "users", home: "house", info: "info", settings: "settings",
     role_clerk: "pencil", role_auditor: "eye",
-    todo: "list-todo", accounting: "calculator", resolution: "gavel", registration: "landmark", accounts: "tags", organization: "building-2",
+    todo: "list-todo", accounting: "calculator", resolution: "gavel", registration: "landmark", accounts: "tags", organization: "building-2", passkey: "key-round",
     articles: "scroll-text"
   }.freeze
   SIZES = { md: 16, sm: 14 }.freeze

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_061622) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_23_071857) do
   create_table "accounts", force: :cascade do |t|
     t.integer "code", null: false
     t.string "name", null: false
@@ -362,6 +362,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_061622) do
     t.json "settings"
   end
 
+  create_table "passkeys", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "external_id", null: false
+    t.text "public_key", null: false
+    t.integer "sign_count", default: 0, null: false
+    t.string "name", default: "", null: false
+    t.datetime "last_used_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["external_id"], name: "index_passkeys_on_external_id", unique: true
+    t.index ["user_id"], name: "index_passkeys_on_user_id"
+  end
+
   create_table "people", force: :cascade do |t|
     t.string "name", null: false
     t.string "name_kana", default: "", null: false
@@ -480,6 +493,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_061622) do
     t.string "user_agent"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "verified_at"
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
@@ -540,7 +554,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_061622) do
     t.string "role", default: "clerk", null: false
     t.json "ui_prefs", default: {}, null: false
     t.string "allowed_roles", default: "clerk", null: false
+    t.string "webauthn_id"
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
+    t.index ["webauthn_id"], name: "index_users_on_webauthn_id", unique: true
   end
 
   create_table "vouchers", force: :cascade do |t|
@@ -585,6 +601,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_061622) do
   add_foreign_key "officer_terms", "people"
   add_foreign_key "opening_balances", "accounts"
   add_foreign_key "organization_years", "organizations"
+  add_foreign_key "passkeys", "users"
   add_foreign_key "person_years", "people"
   add_foreign_key "procedure_steps", "procedure_runs"
   add_foreign_key "program_activities", "annual_reports"

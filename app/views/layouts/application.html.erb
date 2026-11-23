@@ -27,7 +27,7 @@
             <%= render "shared/save_status" %>
             <%= render "shared/undo_bar" %>
           <% end %>
-          <span class="nb-user"><%= Current.user&.name.presence || Current.user&.email_address %>
+          <span class="nb-user"><%= link_to Current.user&.name.presence || Current.user&.email_address, passkeys_path, title: "ログインのしかた(パスキー)" %>
             <%= button_to "ログアウト", session_path, method: :delete, form: { style: "display:inline" } %></span>
         </header>
         <nav class="nb-nav" aria-label="メニュー">

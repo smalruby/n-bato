@@ -1,0 +1,60 @@
+<% content_for :title, "ログインのしかた" %>
+<%# ログインのしかた(デザインシステム PasskeyList、見直し第14回) %>
+<div class="nb-passkeys" style="padding:12px 16px">
+  <% unless @verified %>
+    <div class="nb-passkey-verify" data-controller="passkey" data-passkey-mode-value="get"
+         data-passkey-options-url-value="<%= verify_options_passkeys_path %>" data-passkey-url-value="<%= verify_passkeys_path %>">
+      <b>パスキーを足す・消す前に、もう一度本人を確かめます(ログインから 10 分を過ぎたため)</b>
+      <%= form_with url: verify_password_passkeys_path do %>
+        <%= password_field_tag :password, nil, class: "nb-input", style: "width:14em", autocomplete: "current-password", placeholder: "パスワード", "aria-label": "パスワード" %>
+        <%= submit_tag "確かめる", class: "nb-btn" %>
+        <% if @passkeys.any? %>
+          <span>または</span>
+          <button type="button" class="nb-btn" data-passkey-target="button" data-action="passkey#start"><%= icon(:passkey, size: :sm) %>パスキーで確かめる</button>
+        <% end %>
+      <% end %>
+      <p class="nb-signin-error" data-passkey-target="error" role="alert" hidden></p>
+    </div>
+  <% end %>
+
+  <section>
+    <h2>パスキー <small>この端末の指紋・顔・PIN でログインする。1 人で複数持てる(パソコンとスマホなど)</small></h2>
+    <% if @passkeys.any? %>
+      <div data-controller="autosave" data-autosave-scope-value="<%= @undo_scope %>" data-action="change->autosave#save input->autosave#mark keydown->autosave#cancel">
+        <table class="nb-passkey-table">
+          <thead><tr><th scope="col">名前</th><th scope="col">作った日</th><th scope="col">最後に使った日</th><th scope="col"><span class="sr-only">消す</span></th></tr></thead>
+          <tbody>
+            <% @passkeys.each do |pk| %>
+              <tr id="passkey-<%= pk.id %>">
+                <td class="nb-passkey-name"><%= text_field_tag "passkey[name]", pk.name, id: "passkey-name-#{pk.id}", class: "nb-input", maxlength: 60, placeholder: "名前のないパスキー",
+                      "aria-label": "パスキーの名前", data: { url: passkey_path(pk, format: :json) } %></td>
+                <td class="nb-num"><%= pk.created_at.strftime("%Y/%m/%d") %></td>
+                <td class="<%= pk.last_used_at ? "nb-num" : "" %>"><%= pk.last_used_at&.strftime("%Y/%m/%d") || "まだ使っていない" %></td>
+                <td class="nb-passkey-actions">
+                  <%= form_with url: passkey_path(pk), method: :delete, data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do %>
+                    <button type="submit" class="nb-btn nb-btn--danger" data-confirm-twice-target="button" data-armed-label="もう一度押すと消します" <%= "disabled" unless @verified %>>消す</button>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <p class="nb-signin-note">まだパスキーはありません。下の「この端末のパスキーを足す」で作れます。</p>
+    <% end %>
+
+    <div class="nb-passkey-add" data-controller="passkey" data-passkey-mode-value="create"
+         data-passkey-options-url-value="<%= registration_options_passkeys_path %>" data-passkey-url-value="<%= passkeys_path %>">
+      <%= text_field_tag :passkey_new_name, nil, class: "nb-input", maxlength: 60, placeholder: "名前(例: この Mac)", "aria-label": "新しいパスキーの名前", data: { passkey_target: "name" } %>
+      <button type="button" class="nb-btn nb-btn--primary" data-passkey-target="button" data-action="passkey#start" <%= "disabled" unless @verified %>><%= icon(:passkey, size: :sm) %>この端末のパスキーを足す</button>
+      <p class="nb-signin-note" data-passkey-target="unsupported" hidden>このブラウザはパスキーに対応していません。</p>
+      <p class="nb-signin-error" data-passkey-target="error" role="alert" hidden></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>パスワード <small>当面は使える(本番のドメインを用意したあとで、パスキーだけにする予定)</small></h2>
+    <p class="nb-signin-note">パスワードを変えるときは、ログアウトして「パスワードを忘れたとき」から変えてください。</p>
+  </section>
+</div>

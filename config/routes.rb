@@ -24,6 +24,18 @@ Rails.application.routes.draw do
     end
   end
   resource :session
+  # パスキー(見直し第14回)
+  resource :passkey_session, only: :create do
+    post :options
+  end
+  resources :passkeys, only: %i[index create update destroy] do
+    collection do
+      post :registration_options
+      post :verify_password
+      post :verify_options
+      post :verify
+    end
+  end
   resources :passwords, param: :token
 
   root "dashboard#show"

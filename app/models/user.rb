@@ -15,6 +15,13 @@ class User < ApplicationRecord
 
   has_secure_password
   has_many :sessions, dependent: :destroy
+  has_many :passkeys, dependent: :destroy
+
+  # パスキーで使う、この人を表す値(端末に入る。メールアドレスなどは入れない乱数)
+  def ensure_webauthn_id!
+    update!(webauthn_id: WebAuthn.generate_user_id) if webauthn_id.blank?
+    webauthn_id
+  end
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
