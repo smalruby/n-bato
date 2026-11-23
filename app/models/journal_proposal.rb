@@ -18,6 +18,7 @@ class JournalProposal < ApplicationRecord
   has_one :rejection, class_name: "JournalProposal::Rejection", dependent: nil
   has_one :withdrawal, class_name: "JournalProposal::Withdrawal", dependent: nil
   has_one :journal_entry, through: :approval
+  belongs_to :reproposed_from, class_name: "JournalProposal", optional: true
 
   validates :entry_date, presence: true
   validates :amount, numericality: { only_integer: true, greater_than: 0 }
@@ -32,6 +33,12 @@ class JournalProposal < ApplicationRecord
   # 提案を作る(作る入口)。AI の答えから作る Bookkeeper::ProposalGenerator が使う。
   def self.propose!(voucher:, model:, at: Time.current, **attrs)
     create!(voucher:, ai_model: model, proposed_at: at, **attrs)
+  end
+
+  # 提案のし直し(作る入口の 1 つ)。承認でできた仕訳を取り消したとき、元の提案と同じ内容で確認待ちの提案を作る(AI は呼ばない)。docs/adr/0026
+  def self.repropose!(original, at: Time.current)
+    attrs = original.attributes.slice(*(ENTRY_FIELDS.map(&:to_s) + %w[rationale confidence])).symbolize_keys
+    propose!(voucher: original.voucher, model: original.ai_model, at:, reproposed_from: original, **attrs)
   end
 
   def status

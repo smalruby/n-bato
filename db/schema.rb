@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_23_100000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "code", null: false
     t.string "name", null: false
@@ -236,6 +236,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.index ["siwake_import_id"], name: "index_journal_entries_on_siwake_import_id"
   end
 
+  create_table "journal_entry_cancellations", force: :cascade do |t|
+    t.integer "journal_entry_id", null: false
+    t.integer "canceller_id"
+    t.text "reason", null: false
+    t.datetime "cancelled_at", null: false
+    t.index ["canceller_id"], name: "index_journal_entry_cancellations_on_canceller_id"
+    t.index ["journal_entry_id"], name: "index_journal_entry_cancellations_on_journal_entry_id", unique: true
+  end
+
   create_table "journal_proposal_approvals", force: :cascade do |t|
     t.integer "journal_proposal_id", null: false
     t.integer "approver_id"
@@ -274,10 +283,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
     t.string "confidence", default: "medium", null: false
     t.string "ai_model"
     t.datetime "proposed_at", null: false
+    t.integer "reproposed_from_id"
     t.index ["credit_account_id"], name: "index_journal_proposals_on_credit_account_id"
     t.index ["credit_department_id"], name: "index_journal_proposals_on_credit_department_id"
     t.index ["debit_account_id"], name: "index_journal_proposals_on_debit_account_id"
     t.index ["debit_department_id"], name: "index_journal_proposals_on_debit_department_id"
+    t.index ["reproposed_from_id"], name: "index_journal_proposals_on_reproposed_from_id"
     t.index ["voucher_id"], name: "index_journal_proposals_on_voucher_id"
   end
 
@@ -606,6 +617,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
   add_foreign_key "journal_entries", "departments", column: "debit_department_id"
   add_foreign_key "journal_entries", "siwake_imports"
   add_foreign_key "journal_entries", "users", column: "approved_by_id"
+  add_foreign_key "journal_entry_cancellations", "journal_entries"
+  add_foreign_key "journal_entry_cancellations", "users", column: "canceller_id"
   add_foreign_key "journal_proposal_approvals", "journal_entries"
   add_foreign_key "journal_proposal_approvals", "journal_proposals"
   add_foreign_key "journal_proposal_approvals", "users", column: "approver_id"
@@ -616,6 +629,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_23_090000) do
   add_foreign_key "journal_proposals", "accounts", column: "debit_account_id"
   add_foreign_key "journal_proposals", "departments", column: "credit_department_id"
   add_foreign_key "journal_proposals", "departments", column: "debit_department_id"
+  add_foreign_key "journal_proposals", "journal_proposals", column: "reproposed_from_id"
   add_foreign_key "journal_proposals", "vouchers"
   add_foreign_key "member_applications", "people"
   add_foreign_key "memberships", "people"

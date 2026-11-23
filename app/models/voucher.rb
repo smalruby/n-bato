@@ -23,12 +23,12 @@ class Voucher < ApplicationRecord
   # AI の作業中・エラー・記帳しない は、提案のイベントからは決まらない状態なので、そのまま残す。
   MANUAL_STATUSES = %w[proposing error rejected].freeze
 
-  # 提案のイベント(承認・却下・取り下げ)から決まる、いまの状態
+  # 提案のイベント(承認・却下・取り下げ)と仕訳の取消から決まる、いまの状態(取り消した仕訳の承認は「記帳済み」に数えない)
   def derived_status
     return status if status.in?(MANUAL_STATUSES)
 
     if journal_proposals.pending.exists? then "proposed"
-    elsif journal_proposals.approved.exists? then "booked"
+    elsif journal_proposals.approved.joins(:journal_entry).merge(JournalEntry.active).exists? then "booked"
     else "pending"
     end
   end

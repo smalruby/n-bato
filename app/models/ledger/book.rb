@@ -2,7 +2,7 @@ module Ledger
   # 帳簿全体。年度初めの残高(OpeningBalance)と仕訳から、各年度の計算書類の数字を作る。
   # ある年度に OpeningBalance が無ければ、前年度末の残高を繰り越す。
   class Book
-    def initialize(entries: JournalEntry.all, opening_balances: OpeningBalance.all)
+    def initialize(entries: JournalEntry.active, opening_balances: OpeningBalance.all)
       @entries = entries.includes(:debit_account, :credit_account, :debit_department, :credit_department).to_a
       @openings = opening_balances.includes(:account).group_by(&:fiscal_year)
       @statements = {}

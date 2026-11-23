@@ -33,7 +33,8 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | IncomingRequest | 依頼 | LE | 外から届いた 1 つの依頼 | — | メール・郵便などの依頼 | 受け取った日・期限・解決した日 | 待 |
 | IncomingRequestMessage | 依頼の対話の発言 | E | 1 回の発言 | — | 人・AI の発言 | 送った日時・決めた日時(分ける) | 待 |
 | JournalEntry | 仕訳 | E | 1 件の取引(借方・貸方とも 1 科目) | 伝票番号と行番号 | 会計王の仕訳・承認でできた仕訳 | entry_date(取引日)。approved_at は承認のイベントへ移す | 待 |
-| JournalProposal | AI の仕訳の提案 | E | 証憑から AI が出した 1 件の仕訳の案 | — | AI の提案(Claude API・Claude Code) | proposed_at(中身の日付: entry_date) | 済 |
+| JournalEntry::Cancellation | 仕訳の取消 | E | 1 件の仕訳の取消 | 仕訳が同じ(1 仕訳に 1 つ) | 記帳した仕訳の誤りを取り消す(理由は必須。docs/adr/0026) | cancelled_at | 済 |
+| JournalProposal | AI の仕訳の提案 | E | 証憑から AI が出した 1 件の仕訳の案 | — | AI の提案(Claude API・Claude Code)・取消のあとの提案のし直し(reproposed_from) | proposed_at(中身の日付: entry_date) | 済 |
 | JournalProposal::Approval | 提案の承認(記帳) | E | 1 つの提案の承認 | 提案が同じ(1 提案に 1 つ) | 人が承認して仕訳にする | approved_at | 済 |
 | JournalProposal::Rejection | 提案の却下 | E | 1 つの提案の却下 | 提案が同じ(1 提案に 1 つ) | 人が却下する | rejected_at | 済 |
 | JournalProposal::Withdrawal | 提案の取り下げ | E | 1 つの提案の取り下げ | 提案が同じ(1 提案に 1 つ) | AI に提案をやり直させたとき | withdrawn_at | 済 |
@@ -70,6 +71,8 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | (AI に提案をやり直させる) | JournalProposal::Withdrawal.withdraw! | 前の確認待ちの提案を取り下げる |
 | 記帳しない | Voucher(status = rejected) | 長いイベントのいまの状態 |
 | 仕訳 | JournalEntry | |
+| 取り消す(この仕訳を取り消す) | JournalEntry::Cancellation.cancel! | 元に戻せない操作。証憑から記帳した仕訳なら JournalProposal.repropose! で確認待ちの提案をもう一度作る |
+| 取り消した仕訳も出す | JournalEntry.cancelled | ふだんの表・帳簿は JournalEntry.active |
 | 年度 | FiscalPeriod | 開始年で表す(2024 年度 = 2024-04-01〜2025-03-31) |
 | 科目・部門 | Account・Department | 年度ごと |
 | やること | Todo・IncomingRequest | |
@@ -86,6 +89,8 @@ erDiagram
   JournalProposal ||--o| "JournalProposal::Rejection" : "却下する"
   JournalProposal ||--o| "JournalProposal::Withdrawal" : "取り下げる"
   "JournalProposal::Approval" ||--|| JournalEntry : "仕訳を作る"
+  JournalEntry ||--o| "JournalEntry::Cancellation" : "取り消す"
+  JournalProposal ||--o| JournalProposal : "取消のあとに提案し直す"
   User ||--o{ "JournalProposal::Approval" : "承認した人"
   User ||--o{ "JournalProposal::Rejection" : "却下した人"
   Account ||--o{ JournalEntry : "借方・貸方"

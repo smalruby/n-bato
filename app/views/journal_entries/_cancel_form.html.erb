@@ -1,0 +1,7 @@
+<%# 仕訳を取り消す(デザインシステム「仕訳の取消」、docs/adr/0026)。理由は必須、2 回押し。元に戻せない操作。 %>
+<%= form_with url: journal_entry_cancellation_path(entry), class: "nb-cancel-form",
+              data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do %>
+  <input type="hidden" name="back_to" value="<%= back_to %>">
+  <input name="reason" class="nb-input" placeholder="取り消す理由(必ず書く)" aria-label="取り消す理由" data-no-reason-default required>
+  <button class="nb-btn nb-btn--danger" data-confirm-twice-target="button" data-armed-label="もう一度押すと取り消します(元に戻せません)">取り消す</button>
+<% end %>

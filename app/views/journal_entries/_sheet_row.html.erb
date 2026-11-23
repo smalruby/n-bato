@@ -1,6 +1,9 @@
 <% url = journal_entry_path(e, format: :json) %>
-<tr id="<%= dom_id(e) %>" data-amount="<%= e.amount %>"
-    <%= tag.attributes(data: { readonly_reason: "会計王から取り込んだ仕訳です。会計王で直して、取り込み直してください。" }) unless e.editable? %>>
+<% readonly_reason = if e.imported? then "会計王から取り込んだ仕訳です。会計王で直して、取り込み直してください。"
+                    elsif e.cancelled? then "取り消した仕訳です(帳簿には数えません)。"
+                    else "AI の提案を承認して記帳した仕訳です。直すときは「取り消す」を使ってください(証憑の画面に、正しい提案がもう一度出ます)。" end %>
+<tr id="<%= dom_id(e) %>" data-amount="<%= e.cancelled? ? 0 : e.amount %>" class="<%= 'is-cancelled' if e.cancelled? %>"
+    <%= tag.attributes(data: { readonly_reason: }) unless e.editable? %>>
   <% if e.editable? %>
     <td class="has-input"><input type="date" class="nb-cell-input nb-num" name="journal_entry[entry_date]" value="<%= e.entry_date&.iso8601 %>" data-url="<%= url %>" data-reorder aria-label="日付"></td>
     <td class="nb-num is-readonly"><%= e.slip_number %></td>
@@ -14,13 +17,21 @@
     <td><%= e.journal_proposal ? link_to("AI 提案", e.journal_proposal.voucher) : "入力" %><% if @working_period&.provisional? %> <span class="nb-tag nb-tag--soon" title="<%= @working_period.previous.fiscal_year.label %>を締める前の仕訳">仮</span><% end %></td>
     <td><% if @working_period&.closed? %><%= render "shared/delete_with_reason", url: journal_entry_path(e), closed: true %><% else %><%= button_to journal_entry_path(e), method: :delete, class: "nb-btn", style: "padding:0 6px", form: { style: "display:inline" }, title: "削除(元に戻せます)" do %><%= icon(:delete, size: :sm) %>削除<% end %><% end %></td>
   <% else %>
-    <td class="nb-num is-readonly"><%= e.entry_date.strftime("%Y/%m/%d") %></td>
-    <td class="nb-num is-readonly"><%= e.slip_number %></td>
-    <td class="is-readonly"><%= e.debit_account.display_name %></td><td class="is-readonly"><%= e.debit_department %></td>
-    <td class="is-readonly"><%= e.credit_account.display_name %></td><td class="is-readonly"><%= e.credit_department %></td>
-    <td class="nb-num is-readonly"><%= yen(e.amount) %></td>
-    <td class="is-readonly"><%= e.summary %></td><td class="is-readonly"><%= e.sub_summary %></td>
-    <td class="is-readonly" title="<%= e.siwake_import&.filename %>">会計王</td>
-    <td class="is-readonly"><%= link_to "詳細", e %></td>
+    <% struck = e.cancelled? ? " nb-struck" : "" %>
+    <td class="nb-num is-readonly<%= struck %>"><%= e.entry_date.strftime("%Y/%m/%d") %></td>
+    <td class="nb-num is-readonly<%= struck %>"><%= e.slip_number %></td>
+    <td class="is-readonly<%= struck %>"><%= e.debit_account.display_name %></td><td class="is-readonly<%= struck %>"><%= e.debit_department %></td>
+    <td class="is-readonly<%= struck %>"><%= e.credit_account.display_name %></td><td class="is-readonly<%= struck %>"><%= e.credit_department %></td>
+    <td class="nb-num is-readonly<%= struck %>"><%= yen(e.amount) %></td>
+    <td class="is-readonly"><span class="<%= struck.strip %>"><%= e.summary %></span>
+      <% if (c = e.cancellation) %><span class="nb-cancelled-tag">取消</span><span class="nb-cancelled-note">取消 <%= c.cancelled_at.strftime("%Y/%m/%d") %> <%= c.canceller&.name.presence || "—" %>: <%= c.reason %></span><% end %></td>
+    <td class="is-readonly<%= struck %>"><%= e.sub_summary %></td>
+    <% if e.imported? %>
+      <td class="is-readonly" title="<%= e.siwake_import&.filename %>">会計王</td>
+      <td class="is-readonly"><%= link_to "詳細", e %></td>
+    <% else %>
+      <td class="is-readonly"><%= e.journal_proposal ? link_to("AI 提案", e.journal_proposal.voucher) : "入力" %></td>
+      <td class="is-readonly"><%= render "journal_entries/cancel_form", entry: e, back_to: "sheet" if e.cancellable? %></td>
+    <% end %>
   <% end %>
 </tr>

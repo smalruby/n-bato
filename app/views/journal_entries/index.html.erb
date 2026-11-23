@@ -32,6 +32,7 @@
       <label>科目 <span style="width:12em;display:inline-block;position:relative"><%= render "picker", source: "accounts", name: "account_id", value: @filter[:account_id], url: nil, label: "科目で絞り込む" %></span></label>
       <label>部門 <span style="width:9em;display:inline-block;position:relative"><%= render "picker", source: "departments", name: "department_id", value: @filter[:department_id], url: nil, label: "部門で絞り込む" %></span></label>
       <label>摘要 <input type="search" name="q" value="<%= @filter[:q] %>" aria-label="摘要で絞り込む"></label>
+      <input type="hidden" name="cancelled" value="0"><label><input type="checkbox" name="cancelled" value="1" <%= "checked" if @filter[:cancelled] %>> 取り消した仕訳も出す</label>
     <% end %>
     <div class="nb-sheet-wrap" style="flex:1;border-width:0" data-controller="autosave sheet" data-autosave-scope-value="<%= @undo_scope %>" data-autosave-year-value="<%= @year %>"
          data-action="change->autosave#save input->autosave#mark keydown->autosave#cancel keydown->sheet#move click->sheet#select">

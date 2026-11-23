@@ -37,7 +37,7 @@ namespace :kaikeiou do
 
   desc "仕訳を SIWAKE 形式で書き出す(年度指定可)"
   task :export, [ :year, :out ] => :environment do |_, args|
-    entries = JournalEntry.chronological
+    entries = JournalEntry.active.chronological # 取り消した仕訳は書き出さない(docs/adr/0026)
     entries = entries.in_fiscal_year(args[:year].to_i) if args[:year].present?
     file = Kaikeiou::SiwakeFile.new(rows: entries.map(&:to_siwake_row))
     out = args[:out].presence || "tmp/siwake_#{args[:year] || 'all'}.txt"

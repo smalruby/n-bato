@@ -9,7 +9,7 @@ class AccountsController < ApplicationController
     @year = Current.working_year
     @tab = params[:tab] == "departments" ? "departments" : "accounts"
     @usage = Hash.new(0)
-    entries = JournalEntry.in_fiscal_year(@year)
+    entries = JournalEntry.active.in_fiscal_year(@year)
     entries.group(:debit_account_id).count.each { |id, n| @usage[id] += n }
     entries.group(:credit_account_id).count.each { |id, n| @usage[id] += n }
     @accounts = Account.in_year(@year).ordered.to_a

@@ -12,6 +12,8 @@ class JournalEntry < ApplicationRecord
   # AI の提案を承認してできた仕訳なら、その承認(イベント)。承認でできた仕訳は消さない(訂正は訂正の仕訳。docs/adr/0007)
   has_one :proposal_approval, class_name: "JournalProposal::Approval", dependent: :restrict_with_error
   has_one :journal_proposal, through: :proposal_approval
+  # 取消(イベント。docs/adr/0026)。取り消した仕訳は帳簿から外す
+  has_one :cancellation, class_name: "JournalEntry::Cancellation", dependent: :restrict_with_error
 
   validates :entry_date, presence: true
   validates :debit_amount, :credit_amount, numericality: { only_integer: true }
@@ -23,6 +25,9 @@ class JournalEntry < ApplicationRecord
   validate :debit_and_credit_differ
 
   scope :in_fiscal_year, ->(year) { where(fiscal_year: year) }
+  # 帳簿に数える仕訳(取り消した仕訳を除く)
+  scope :active, -> { where.not(id: Cancellation.select(:journal_entry_id)) }
+  scope :cancelled, -> { where(id: Cancellation.select(:journal_entry_id)) }
   scope :chronological, -> { order(:entry_date, :slip_number, :line_number, :id) }
 
   def amount = debit_amount
@@ -34,7 +39,11 @@ class JournalEntry < ApplicationRecord
 
   # 会計王から取り込んだ仕訳は会計王が正なので、このアプリでは変更しない。
   def imported? = siwake_import_id.present?
-  def editable? = !imported?
+  # 表で書き換え・削除できるか。会計王から取り込んだ仕訳、承認でできた仕訳(記帳したもの)、取り消した仕訳は直さない(docs/adr/0007・0026)
+  def editable? = !imported? && proposal_approval.nil? && !cancelled?
+  def cancelled? = cancellation.present?
+  # 取り消せるか(会計王から取り込んだ仕訳は会計王で直す)
+  def cancellable? = !imported? && !cancelled?
 
   before_create :assign_slip_number, unless: :slip_number?
   def fiscal_year_object = FiscalYear.new(fiscal_year)

@@ -45,7 +45,10 @@ Rails.application.routes.draw do
     resources :ledgers, only: %i[index show], param: :account_code
     get "siwake", to: "journal_entries#export", as: :siwake_export
   end
-  resources :journal_entries
+  resources :journal_entries do
+    # 取消(イベントを作る。docs/adr/0026)
+    resource :cancellation, only: :create, module: :journal_entries
+  end
   # やること(デザインシステム「やること」)
   resources :todos, only: %i[index update] do
     get :open, on: :member

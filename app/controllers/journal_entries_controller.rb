@@ -5,13 +5,15 @@ class JournalEntriesController < ApplicationController
   before_action :require_editable, only: %i[edit update destroy]
 
   def index
-    @counts = JournalEntry.group(:fiscal_year).count
+    @counts = JournalEntry.active.group(:fiscal_year).count
     @year = Current.working_year
     @accounts = Account.in_year(@year).ordered.where.not(category: "special")
     @departments = Department.in_year(@year).ordered
     @filter = journal_filter
     entries = JournalEntry.in_fiscal_year(@year).chronological
-                          .includes(:debit_account, :credit_account, :debit_department, :credit_department, :siwake_import, :journal_proposal)
+                          .includes(:debit_account, :credit_account, :debit_department, :credit_department, :siwake_import, :journal_proposal, cancellation: :canceller)
+    # 取り消した仕訳は、絞り込みの「取り消した仕訳も出す」のときだけ出す(docs/adr/0026)
+    entries = entries.active unless @filter[:cancelled]
     if (id = @filter[:account_id])
       entries = entries.where("debit_account_id = :id OR credit_account_id = :id", id:)
       @balance_account = Account.in_year(@year).find_by(id:)
@@ -21,7 +23,7 @@ class JournalEntriesController < ApplicationController
     entries = entries.where("summary LIKE :q OR sub_summary LIKE :q", q: "%#{JournalEntry.sanitize_sql_like(@filter[:q])}%") if @filter[:q]
     @entries = entries
     @new_row_date = new_row_date
-    @filter_label = [ @balance_account&.display_name, Department.in_year(@year).find_by(id: @filter[:department_id])&.display_name, (@filter[:q] && "「#{@filter[:q]}」") ].compact.join("・")
+    @filter_label = [ @balance_account&.display_name, Department.in_year(@year).find_by(id: @filter[:department_id])&.display_name, (@filter[:q] && "「#{@filter[:q]}」"), (@filter[:cancelled] && "取り消した仕訳も出す") ].compact.join("・")
   end
 
   def show; end
@@ -77,7 +79,7 @@ class JournalEntriesController < ApplicationController
   def destroy
     # AI の提案を承認してできた仕訳は消さない(訂正は訂正の仕訳。docs/adr/0007)
     if @entry.proposal_approval
-      return redirect_to(journal_entries_path(year: @entry.fiscal_year), alert: "AI の提案を承認してできた仕訳は消せません。直すときは、取り消す仕訳と正しい仕訳を足してください")
+      return redirect_to(journal_entries_path(year: @entry.fiscal_year), alert: "AI の提案を承認してできた仕訳は消せません。直すときは「取り消す」を使ってください(証憑の画面に、正しい提案がもう一度出ます)")
     end
     if FiscalPeriod.for(@entry.fiscal_year)&.closed?
       reason = params[:reason].to_s.strip
@@ -94,7 +96,7 @@ class JournalEntriesController < ApplicationController
   # 年度の仕訳を会計王の SIWAKE 形式で書き出す
   def export
     year = Integer(params[:fiscal_year_year])
-    scope = JournalEntry.in_fiscal_year(year).chronological.includes(:debit_account, :credit_account, :debit_department, :credit_department)
+    scope = JournalEntry.active.in_fiscal_year(year).chronological.includes(:debit_account, :credit_account, :debit_department, :credit_department)
     scope = scope.where(siwake_import_id: nil) if params[:only] == "new"
     file = Kaikeiou::SiwakeFile.new(rows: scope.map(&:to_siwake_row))
     send_data file.to_bytes, filename: "siwake_#{year}#{'_new' if params[:only] == 'new'}.txt", type: "text/plain; charset=Shift_JIS"
@@ -125,7 +127,10 @@ class JournalEntriesController < ApplicationController
   def require_editable
     return if @entry.editable?
 
-    message = "会計王から取り込んだ仕訳は変更できません（会計王で直して取り込み直してください）"
+    message = if @entry.imported? then "会計王から取り込んだ仕訳は変更できません（会計王で直して取り込み直してください）"
+    elsif @entry.cancelled? then "取り消した仕訳は変更できません"
+    else "AI の提案を承認して記帳した仕訳は書き換えられず、消せません。直すときは「取り消す」を使ってください"
+    end
     respond_to do |format|
       format.json { render json: { ok: false, message: }, status: :forbidden }
       format.html { redirect_to @entry, alert: message }
@@ -170,9 +175,9 @@ class JournalEntriesController < ApplicationController
   # 絞り込み(デザインシステム FilterBar)。画面を離れても保つ。
   def journal_filter
     session.delete(:journal_filter) if params[:clear]
-    if params.key?(:account_id) || params.key?(:department_id) || params.key?(:q)
+    if params.key?(:account_id) || params.key?(:department_id) || params.key?(:q) || params.key?(:cancelled)
       session[:journal_filter] = { "account_id" => params[:account_id].presence&.to_i, "department_id" => params[:department_id].presence&.to_i,
-                                   "q" => params[:q].to_s.strip.presence }.compact
+                                   "q" => params[:q].to_s.strip.presence, "cancelled" => (params[:cancelled] == "1" || nil) }.compact
     end
     filter = (session[:journal_filter] || {}).symbolize_keys
     # 絞り込みの科目・部門は年度ごとのデータセットなので、操作している年度の同じコードに付け替える

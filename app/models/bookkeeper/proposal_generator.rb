@@ -109,7 +109,7 @@ module Bookkeeper
     private
 
     def examples
-      JournalEntry.includes(:debit_account, :credit_account, :debit_department, :credit_department)
+      JournalEntry.active.includes(:debit_account, :credit_account, :debit_department, :credit_department)
                   .order(entry_date: :desc).limit(40).map do |e|
         "#{e.entry_date} 借方 #{e.debit_account.code} #{e.debit_account.display_name}#{"(#{e.debit_department.code})" if e.debit_department} / " \
           "貸方 #{e.credit_account.code} #{e.credit_account.display_name}#{"(#{e.credit_department.code})" if e.credit_department} " \
