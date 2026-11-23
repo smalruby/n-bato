@@ -70,4 +70,32 @@ class VoucherEventsFlowTest < ActionDispatch::IntegrationTest
     end
     assert_match "消せません", flash[:alert]
   end
+
+  test "証憑と違う年度の提案: 科目の選択肢は提案の年度のもので、提案の科目が選ばれている(先頭の現金にならない)" do
+    year = FiscalYear.for(Date.new(2025, 2, 20)).year
+    bank = Account.in_year(year).find_by!(code: 106)
+    interest = Account.in_year(year).find_by!(code: 550)
+    p = JournalProposal.propose!(voucher: @voucher, model: "test", entry_date: Date.new(2025, 2, 20), amount: 3,
+                                 debit_account: bank, credit_account: interest, summary: "利息", rationale: "テスト", confidence: "high")
+    @voucher.advance_status!
+    assert_not_equal year, FiscalYear.for(@voucher.issued_on).year, "証憑とは違う年度の提案で確かめる"
+
+    get voucher_path(@voucher)
+    form = css_select("form[action='#{journal_proposal_approval_path(p)}']").first
+    assert_equal bank.id.to_s, form.at_css("select[name='journal_proposal[debit_account_id]'] option[selected]")["value"]
+    assert_equal interest.id.to_s, form.at_css("select[name='journal_proposal[credit_account_id]'] option[selected]")["value"]
+
+    post journal_proposal_approval_path(p), params: { journal_proposal: { debit_account_id: bank.id, credit_account_id: interest.id } }
+    entry = p.reload.journal_entry
+    assert_equal [ 106, 550 ], [ entry.debit_account.code, entry.credit_account.code ]
+    assert_match "借方 普通預金 / 貸方 受取利息", flash[:notice]
+  end
+
+  test "借方と貸方が同じ科目なら記帳しない" do
+    p = propose
+    cash = Account.find_by!(code: 100)
+    post journal_proposal_approval_path(p), params: { journal_proposal: { debit_account_id: cash.id, credit_account_id: cash.id } }
+    assert_match "借方と貸方が同じ科目", flash[:alert]
+    assert p.reload.proposed?
+  end
 end

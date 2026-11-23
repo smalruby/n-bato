@@ -20,6 +20,7 @@ class JournalEntry < ApplicationRecord
   before_validation { self.fiscal_year = FiscalYear.for(entry_date).year if entry_date }
   before_validation :use_accounts_of_year
   validate :accounts_in_year
+  validate :debit_and_credit_differ
 
   scope :in_fiscal_year, ->(year) { where(fiscal_year: year) }
   scope :chronological, -> { order(:entry_date, :slip_number, :line_number, :id) }
@@ -88,6 +89,13 @@ class JournalEntry < ApplicationRecord
 
       public_send(:"#{assoc}=", record.in_year(fiscal_year) || record)
     end
+  end
+
+  # 借方と貸方が同じ科目の仕訳は意味をなさない(画面の選び間違いを記帳しないため)
+  def debit_and_credit_differ
+    return unless debit_account && credit_account && debit_account.code == credit_account.code && debit_department&.code == credit_department&.code
+
+    errors.add(:base, "借方と貸方が同じ科目です(#{debit_account.code} #{debit_account.display_name})。科目を選び直してください")
   end
 
   def accounts_in_year

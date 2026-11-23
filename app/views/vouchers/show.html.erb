@@ -51,10 +51,11 @@
 <% if @proposals.empty? %>
   <p class="text-stone-500 text-sm mb-4">まだ提案はありません。<%= link_to "自分で仕訳を入力する", new_journal_entry_path, class: "underline" %></p>
 <% end %>
-<% dataset_year = @voucher.issued_on ? FiscalYear.for(@voucher.issued_on).year : Current.working_year %>
-<% accounts = Account.in_year(dataset_year).ordered.map { |a| [ a.to_s, a.id ] } %>
-<% departments = Department.in_year(dataset_year).ordered.map { |d| [ d.long_name, d.id ] } %>
+<%# 科目・部門の選択肢は、提案の日付の年度のものにする(年度ごとに科目の行が違うため。証憑の日付の年度では、別の年度の提案の科目が選択肢に無く、先頭の「現金」が選ばれてしまう)。 %>
 <% @proposals.each do |p| %>
+  <% p_year = p.entry_date ? FiscalYear.for(p.entry_date).year : Current.working_year %>
+  <% accounts = Account.in_year(p_year).ordered.map { |a| [ a.to_s, a.id ] } %>
+  <% departments = Department.in_year(p_year).ordered.map { |d| [ d.long_name, d.id ] } %>
   <div class="card mb-3 <%= 'opacity-60' unless p.proposed? %>">
     <div class="flex justify-between text-sm mb-2">
       <span><span class="badge bg-stone-100"><%= p.status_label %></span> 確からしさ: <%= p.confidence_label %></span>
@@ -67,9 +68,9 @@
           <div class="field"><%= f.label :entry_date, "日付" %><%= f.date_field :entry_date %></div>
           <div class="field"><%= f.label :amount, "金額" %><%= f.number_field :amount %></div>
           <div class="field md:col-span-2"><%= f.label :summary, "摘要" %><%= f.text_field :summary %></div>
-          <div class="field"><%= f.label :debit_account_id, "借方" %><%= f.select :debit_account_id, accounts %></div>
+          <div class="field"><%= f.label :debit_account_id, "借方" %><%= f.select :debit_account_id, accounts, { include_blank: "(選んでください)" }, required: true %></div>
           <div class="field"><%= f.label :debit_department_id, "借方部門" %><%= f.select :debit_department_id, departments, include_blank: "（なし）" %></div>
-          <div class="field"><%= f.label :credit_account_id, "貸方" %><%= f.select :credit_account_id, accounts %></div>
+          <div class="field"><%= f.label :credit_account_id, "貸方" %><%= f.select :credit_account_id, accounts, { include_blank: "(選んでください)" }, required: true %></div>
           <div class="field"><%= f.label :credit_department_id, "貸方部門" %><%= f.select :credit_department_id, departments, include_blank: "（なし）" %></div>
           <div class="field md:col-span-4"><%= f.label :sub_summary, "補助摘要" %><%= f.text_field :sub_summary %></div>
         </div>
