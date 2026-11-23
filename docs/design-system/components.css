@@ -416,8 +416,14 @@ textarea.nb-input { height: auto; padding: var(--space-2) var(--space-3); border
 .nb-dest-table { width: 100%; border-collapse: collapse; background: var(--sheet); }
 .nb-dest-table th, .nb-dest-table td { border-bottom: 1px solid var(--grid-line); padding: var(--space-2) var(--space-3); text-align: left; vertical-align: top; }
 .nb-dest-table thead th { color: var(--ink-muted); font-weight: 400; background: var(--sheet-alt); }
-.nb-dest-detail td { background: var(--surface); }
-.nb-dest-detail summary { cursor: pointer; color: var(--accent); }
+/* 表の行を直す(見直し第18回): 開いた行と入力欄を accent の枠でつなぐ */
+.nb-dest-toggle { text-align: right; white-space: nowrap; }
+.nb-dest-toggle .nb-btn { white-space: nowrap; }
+.nb-dest-row.is-open td { background: var(--select-fill); border-top: 2px solid var(--accent); border-bottom: 0; }
+.nb-dest-row.is-open td:first-child { border-left: 2px solid var(--accent); }
+.nb-dest-row.is-open td:last-child { border-right: 2px solid var(--accent); }
+.nb-dest-detail.is-open td { background: var(--select-fill); border: 2px solid var(--accent); border-top: 0; }
+.nb-dest-editing { font-weight: 700; padding-top: var(--space-2); }
 .nb-dest-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3) var(--space-5); padding: var(--space-3) 0; }
 .nb-dest-fields label { display: grid; gap: var(--space-1); color: var(--ink-muted); font-size: 12px; }
 .nb-dest-fields .nb-input { width: 100%; box-sizing: border-box; border-color: var(--grid-line-strong); }

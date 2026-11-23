@@ -4,20 +4,24 @@
   <p class="nb-dest-lead">書類を出す先の窓口です。書類の「（あて先）」と手続きの説明の「{所轄庁}」には、<b>確認済み</b>の所轄庁を使います。AI の案や、直したあとに確かめていないものは使いません。</p>
   <%= render "filing_destinations/waiting", search: @search %>
 
-  <table class="nb-dest-table">
-    <thead><tr><th>種類</th><th>機関</th><th>宛先(役職と氏名)</th><th>窓口</th><th>状態</th></tr></thead>
+  <table class="nb-dest-table" data-controller="row-detail">
+    <thead><tr><th>種類</th><th>機関</th><th>宛先(役職と氏名)</th><th>窓口</th><th>状態</th><th></th></tr></thead>
     <tbody>
       <% if @destinations.empty? %>
-        <tr><td colspan="5" class="nb-dest-empty">まだありません。下の「提出先を足す」か「AI に調べてもらう」から始めてください。</td></tr>
+        <tr><td colspan="6" class="nb-dest-empty">まだありません。下の「提出先を足す」か「AI に調べてもらう」から始めてください。</td></tr>
       <% end %>
       <% @destinations.each do |d| %>
-        <tr id="dest-<%= d.id %>">
+        <tr id="dest-<%= d.id %>" class="nb-dest-row">
           <td><%= d.kind_label %></td><td><%= d.name.presence || "—" %></td><td><%= d.addressee.presence || "—" %></td><td><%= d.office.presence || "—" %></td>
           <td><%= render "filing_destinations/state", d: %></td>
+          <td class="nb-dest-toggle">
+            <button type="button" class="nb-btn" aria-expanded="false" aria-controls="dest-detail-<%= d.id %>"
+                    data-row-detail-target="button" data-action="row-detail#toggle"
+                    data-closed-label="<%= Current.user&.auditor? ? "くわしく見る ▼" : "直す・確かめる ▼" %>" data-open-label="閉じる ▲"><%= Current.user&.auditor? ? "くわしく見る ▼" : "直す・確かめる ▼" %></button>
+          </td>
         </tr>
-        <tr class="nb-dest-detail"><td colspan="5">
-          <details <%= "open" unless d.confirmed? %>>
-            <summary>窓口のくわしい情報・確かめる</summary>
+        <tr class="nb-dest-detail" id="dest-detail-<%= d.id %>" hidden><td colspan="6">
+          <div class="nb-dest-editing"><%= d.kind_label %>・<%= d.name.presence || "(機関の名前がまだ無い)" %> を<%= Current.user&.auditor? ? "見ています" : "直しています" %></div>
             <%= form_with url: filing_destination_path(d), method: :patch, data: { controller: "autosave", autosave_scope_value: @undo_scope, action: "change->autosave#save input->autosave#mark keydown->autosave#cancel" } do %>
               <div class="nb-dest-fields">
                 <label>種類<%= select_tag "filing_destination[kind]", options_for_select(FilingDestination::KINDS.invert, d.kind), class: "nb-input", disabled: Current.user&.auditor? %></label>
@@ -33,7 +37,6 @@
                 <%= button_to "消す", filing_destination_path(d), method: :delete, class: "nb-btn nb-btn--danger", data: { controller: "confirm-twice", action: "click->confirm-twice#click" } %>
               <% end %>
             </div>
-          </details>
         </td></tr>
       <% end %>
     </tbody>

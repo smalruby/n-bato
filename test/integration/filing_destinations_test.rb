@@ -17,6 +17,9 @@ class FilingDestinationsTest < ActionDispatch::IntegrationTest
 
     get filing_destinations_path
     assert_select "tr#dest-#{d.id}", text: /まだ確かめていない/
+    # 見直し第18回: 行の中のボタンで、その行のすぐ下の入力欄を開く。どの行を直しているかを書く
+    assert_select "tr#dest-#{d.id} button[aria-controls=?]", "dest-detail-#{d.id}", text: /直す・確かめる/
+    assert_select "tr#dest-#{d.id} + tr#dest-detail-#{d.id}[hidden] .nb-dest-editing", text: "所轄庁(NPO 法人の担当)・テスト市 を直しています"
     assert_select "a[href=?]", filing_samples_path(format: :pdf)
 
     post filing_destination_confirmation_path(d)
