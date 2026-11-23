@@ -60,4 +60,14 @@ class VoucherEventsFlowTest < ActionDispatch::IntegrationTest
       delete voucher_path(other)
     end
   end
+
+  test "承認でできた仕訳は、仕訳の表から消せない" do
+    p = propose
+    post journal_proposal_approval_path(p)
+    entry = p.reload.journal_entry
+    assert_no_difference -> { JournalEntry.count } do
+      delete journal_entry_path(entry)
+    end
+    assert_match "消せません", flash[:alert]
+  end
 end
