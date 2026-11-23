@@ -1,3 +1,4 @@
 <% content_for :title, "仕訳の編集" %>
+<% crumbs [ "仕訳", journal_entries_path ], [ "伝票 #{@entry.slip_number}", journal_entry_path(@entry) ], "編集" %>
 <h1 class="page-title">仕訳の編集</h1>
 <%= render "form", entry: @entry %>

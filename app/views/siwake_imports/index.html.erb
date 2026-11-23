@@ -1,4 +1,5 @@
 <% content_for :title, "取り込み" %>
+<% crumbs [ "会計(年度)", fiscal_years_path ], "仕訳の取り込み" %>
 <div class="flex items-center justify-between mb-4">
   <h1 class="page-title mb-0">会計王からの取り込み</h1>
   <%= link_to "ファイルを取り込む", new_siwake_import_path, class: "btn" %>

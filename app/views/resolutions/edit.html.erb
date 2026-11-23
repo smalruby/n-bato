@@ -1,3 +1,4 @@
 <% content_for :title, "決議の編集" %>
+<% crumbs [ "決議", resolutions_path ], [ @resolution.title, resolution_path(@resolution) ], "編集" %>
 <h1 class="page-title">決議の編集</h1>
 <%= render "form", resolution: @resolution %>

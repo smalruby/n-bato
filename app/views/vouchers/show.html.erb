@@ -1,4 +1,5 @@
 <% content_for :title, "証憑 ##{@voucher.id}" %>
+<% crumbs [ "証憑・AI 仕訳", vouchers_path ], "証憑 ##{@voucher.id}" %>
 <div class="flex items-center justify-between mb-4">
   <h1 class="page-title mb-0">証憑 #<%= @voucher.id %> <%= render "status_badge", voucher: @voucher %></h1>
   <div class="flex gap-2">
@@ -38,9 +39,9 @@
   <div class="card">
     <% @voucher.files.each do |file| %>
       <% if file.image? %>
-        <%= link_to image_tag(url_for(file), class: "max-h-80 mx-auto mb-2"), url_for(file), target: "_blank" %>
+        <%= link_to image_tag(url_for(file), class: "max-h-80 mx-auto mb-2"), url_for(file), target: "_blank", rel: "noopener", title: "別のタブで開く" %>
       <% else %>
-        <p><%= link_to file.filename, url_for(file), target: "_blank", class: "underline" %></p>
+        <p><%= new_tab_link_to file.filename.to_s, url_for(file), class: "underline" %></p>
       <% end %>
     <% end %>
     <% if @voucher.files.empty? %><p class="text-stone-500 text-sm">ファイルなし</p><% end %>

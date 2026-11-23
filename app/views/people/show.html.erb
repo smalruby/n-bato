@@ -1,4 +1,5 @@
 <% content_for :title, @person.name %>
+<% crumbs [ "会員・役員", people_path ], @person.name %>
 <div class="flex items-center justify-between mb-4">
   <h1 class="page-title mb-0"><%= @person.name %></h1>
   <%= link_to "編集", edit_person_path(@person), class: "btn-secondary" %>

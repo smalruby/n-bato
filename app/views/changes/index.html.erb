@@ -13,7 +13,7 @@
         <% end %>
       <% end %>
       <span class="nb-spacer"></span>
-      <%= link_to changes_path(after_close: (@after_close ? 1 : nil), print: 1), class: "nb-btn", target: "_blank" do %><%= icon(:document) %>印刷用(監事に渡す PDF)<% end %>
+      <%= link_to changes_path(after_close: (@after_close ? 1 : nil), print: 1), class: "nb-btn", target: "_blank", rel: "noopener", title: "別のタブで開く" do %><%= icon(:document) %>印刷用(監事に渡す PDF)<%= NavigationHelper::NEW_TAB_MARK %><% end %>
     </div>
     <div class="nb-sheet-wrap" style="flex:1;border-width:0">
       <table class="nb-sheet">

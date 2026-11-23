@@ -30,10 +30,12 @@
           <%= link_to "← 事業報告書等に戻る", annual_report_path(@annual_report.fiscal_year) %>
         <% elsif @filing %>
           <%= link_to "← 登記の申請に戻る", registration_filing_path(@filing) %>
+        <% elsif @resolution %>
+          <%= link_to "← 決議に戻る", resolution_path(@resolution) %>
         <% elsif @fiscal_year %>
           <%= link_to "← 年度に戻る", fiscal_year_path(@fiscal_year.year) %>
         <% end %>
-        <%= link_to "PDF", url_for(format: :pdf) %>
+        <%= new_tab_link_to "PDF", url_for(format: :pdf) %>
       </div>
     <% end %>
     <div class="sheet"><%= yield %></div>

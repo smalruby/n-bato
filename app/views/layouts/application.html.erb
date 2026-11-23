@@ -54,11 +54,13 @@
           <%= render "shared/role_band" %>
           <%= render "shared/year_band" %>
           <% if content_for?(:sheet) %>
+            <% if content_for?(:crumbs) %><div class="nb-crumb-bar"><%= yield :crumbs %></div><% end %>
             <%= yield :sheet %>
           <% else %>
             <div class="nb-page">
               <% if notice.present? %><p class="nb-flash" role="status"><%= notice %></p><% end %>
               <% if alert.present? %><p class="nb-flash nb-flash--alert" role="alert"><%= alert %></p><% end %>
+              <%= yield :crumbs %>
               <%= yield %>
             </div>
           <% end %>

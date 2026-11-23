@@ -79,8 +79,8 @@
   <div class="nb-dest-samples">
     <h2>様式の例</h2>
     <p>Nばとが作る提出書類(事業報告書等一式)を、架空の法人で 1 つの PDF にしました。お住まいの自治体の様式と違っていたら、知らせてください。自治体の様式を確かめて、Nばとを直します。</p>
-    <p><%= link_to "様式の例をまとめてダウンロード(PDF)", filing_samples_path(format: :pdf), class: "nb-btn" %>
-      <% if @support_url %>連絡先: <%= link_to @support_url, @support_url, target: "_blank", rel: "noopener" %><% else %><span class="nb-dest-mute">連絡先は、公開のときに決めます(いまは Nばとの管理者に直接知らせてください)。</span><% end %></p>
+    <p><%= new_tab_link_to "様式の例をまとめた PDF", filing_samples_path(format: :pdf), class: "nb-btn" %>
+      <% if @support_url %>連絡先: <%= new_tab_link_to @support_url, @support_url %><% else %><span class="nb-dest-mute">連絡先は、公開のときに決めます(いまは Nばとの管理者に直接知らせてください)。</span><% end %></p>
   </div>
 </div>
 <% content_for :side do %><div><h2>操作履歴</h2><%= history_panel %></div><% end %>

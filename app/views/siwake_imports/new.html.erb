@@ -1,4 +1,5 @@
 <% content_for :title, "取り込み" %>
+<% crumbs [ "会計(年度)", fiscal_years_path ], [ "仕訳の取り込み", siwake_imports_path ], "取り込む" %>
 <h1 class="page-title">会計王の仕訳を取り込む</h1>
 <%= form_with url: siwake_imports_path, multipart: true, class: "card max-w-2xl" do |f| %>
   <p class="text-sm text-stone-600 mb-3">会計王の「仕訳データの書き出し」で作ったファイル（SIWAKE 形式、.txt）を選びます。複数選べます。同じファイルは二重に取り込みません。</p>

@@ -1,4 +1,5 @@
 <% content_for :title, "仕訳 #{@entry.slip_number}" %>
+<% crumbs [ "仕訳", journal_entries_path ], "伝票 #{@entry.slip_number}" %>
 <h1 class="page-title">仕訳（<%= @entry.fiscal_year %>年度 伝票 <%= @entry.slip_number %>）</h1>
 <div class="card max-w-2xl">
   <dl class="grid grid-cols-3 gap-y-2 text-sm">

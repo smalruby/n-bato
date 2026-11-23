@@ -6,6 +6,7 @@ class ApplicationController < ActionController::Base
   before_action :set_audit_scope
   before_action :set_working_year
   before_action :read_only_for_auditor
+  after_action :remember_list_url
   around_action :record_operation, unless: -> { request.get? || request.head? }
 
   # 元に戻す・やり直すを出す画面は、コントローラで undoable_screen を宣言する。
@@ -67,5 +68,14 @@ class ApplicationController < ActionController::Base
   # 1 回のリクエストの変更を 1 つの操作にまとめる(操作履歴)。
   def record_operation(&)
     Audit.operation(user: Current.user, scope: Current.audit_scope) { ApplicationRecord.transaction(&) }
+  end
+
+  # 一覧で最後に開いた絞り込み・並べ替えを覚えておき、詳しい画面のパンくずから同じ状態で戻れるようにする(見直し第21回)
+  def remember_list_url
+    return unless request.get? && action_name == "index" && request.format.html? && response.successful?
+
+    urls = (session[:list_urls] ||= {})
+    request.query_string.present? ? urls[request.path] = request.fullpath : urls.delete(request.path)
+    session[:list_urls] = urls.to_a.last(20).to_h
   end
 end

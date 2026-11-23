@@ -1,4 +1,5 @@
 <% content_for :title, "科目の区分" %>
+<% crumbs [ "科目と部門", accounts_path ], "#{@account} の区分" %>
 <h1 class="page-title"><%= @account %> の区分</h1>
 <%= form_with model: @account, class: "card max-w-md" do |f| %>
   <div class="field"><%= f.label :category, "区分" %><%= f.select :category, Account::CATEGORIES.invert %></div>

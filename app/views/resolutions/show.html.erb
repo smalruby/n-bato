@@ -1,4 +1,5 @@
 <% content_for :title, @resolution.title %>
+<% crumbs [ "決議", resolutions_path ], @resolution.title %>
 <div class="flex items-center justify-between mb-4">
   <h1 class="page-title mb-0"><%= @resolution.title %></h1>
   <%= link_to "編集", edit_resolution_path(@resolution), class: "btn-secondary" %>
@@ -15,7 +16,7 @@
   <div class="flex flex-wrap gap-2">
     <% ResolutionsController::DOCUMENTS.each do |doc, label| %>
       <%= link_to label, document_resolution_path(@resolution, doc), class: "btn-secondary" %>
-      <%= link_to "#{label}（PDF）", document_resolution_path(@resolution, doc, format: :pdf), class: "btn-secondary" %>
+      <%= new_tab_link_to "#{label}（PDF）", document_resolution_path(@resolution, doc, format: :pdf), class: "btn-secondary" %>
     <% end %>
   </div>
 </div>

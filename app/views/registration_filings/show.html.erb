@@ -1,4 +1,5 @@
 <% content_for :title, "登記の申請 ##{@filing.id}" %>
+<% crumbs [ "登記", registrations_path ], "登記の申請 ##{@filing.id}" %>
 <%# 登記の申請 1 件(デザインシステム「登記の申請」、見直し第20回、docs/adr/0031) %>
 <% f = @filing; st = @statement; auditor = Current.user&.auditor? %>
 <div class="nb-reg">
@@ -53,14 +54,14 @@
     <h3>添付書類(紙で郵送する)</h3>
     <p class="nb-reg-mute">申請書だけを申請用総合ソフトで送り(理事長のマイナンバーカードで電子署名)、添付書類は印刷して届出印を押し、申請番号を書いて法務局に郵送します。</p>
     <ul class="nb-reg-docs">
-      <li><%= link_to "書面により提出する添付書面の内訳(申請番号を書く欄つき)PDF", document_registration_filing_path(f, doc: "cover", format: :pdf), target: "_blank", rel: "noopener" %></li>
-      <% if f.general_meeting_resolution %><li><%= link_to "社員総会議事録(#{f.general_meeting_resolution.title})PDF", document_resolution_path(f.general_meeting_resolution, doc: "minutes", format: :pdf), target: "_blank", rel: "noopener" %></li><% end %>
+      <li><%= new_tab_link_to "書面により提出する添付書面の内訳(申請番号を書く欄つき)PDF", document_registration_filing_path(f, doc: "cover", format: :pdf) %></li>
+      <% if f.general_meeting_resolution %><li><%= new_tab_link_to "社員総会議事録(#{f.general_meeting_resolution.title})PDF", document_resolution_path(f.general_meeting_resolution, doc: "minutes", format: :pdf) %></li><% end %>
       <% if f.board_resolution %>
-        <li><%= link_to "理事会議事録(#{f.board_resolution.title})PDF", document_resolution_path(f.board_resolution, doc: "minutes", format: :pdf), target: "_blank", rel: "noopener" %></li>
+        <li><%= new_tab_link_to "理事会議事録(#{f.board_resolution.title})PDF", document_resolution_path(f.board_resolution, doc: "minutes", format: :pdf) %></li>
       <% else %>
-        <li><%= link_to "理事の互選書(届出印の欄つき)PDF", document_registration_filing_path(f, doc: "mutual_election", format: :pdf), target: "_blank", rel: "noopener" %></li>
+        <li><%= new_tab_link_to "理事の互選書(届出印の欄つき)PDF", document_registration_filing_path(f, doc: "mutual_election", format: :pdf) %></li>
       <% end %>
-      <li><%= link_to "定款 PDF", document_registration_filing_path(f, doc: "articles", format: :pdf), target: "_blank", rel: "noopener" %></li>
+      <li><%= new_tab_link_to "定款 PDF", document_registration_filing_path(f, doc: "articles", format: :pdf) %></li>
     </ul>
     <% unless auditor %>
       <%= form_with model: f, class: "nb-reg-row" do |form| %>

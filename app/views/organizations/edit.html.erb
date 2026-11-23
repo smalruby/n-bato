@@ -1,4 +1,5 @@
 <% content_for :title, "法人情報の編集" %>
+<% crumbs [ "法人情報", organization_path ], "編集" %>
 <h1 class="page-title">法人情報の編集</h1>
 <%= form_with model: @organization, url: organization_path, method: :patch, class: "card max-w-2xl" do |f| %>
   <% { name: "名称", name_en: "英文名", address: "所在地", representative_title: "代表者の役職", representative_name: "代表者の氏名" }.each do |attr, label| %>

@@ -1,4 +1,5 @@
 <% content_for :title, @fiscal_year.label %>
+<% crumbs [ "会計(年度)", fiscal_years_path ], @fiscal_year.label %>
 <h1 class="page-title"><%= @fiscal_year.label %>（<%= @fiscal_year.wareki_label %><% if (n = @organization.period_number(@fiscal_year)) %>・第<%= n %>期<% end %>）</h1>
 <p class="text-stone-600 mb-4"><%= l @fiscal_year.starts_on %> 〜 <%= l @fiscal_year.ends_on %></p>
 <%= render "fiscal_periods/state", period: FiscalPeriod.for(@fiscal_year.year) %>
@@ -20,7 +21,7 @@
     <% Ledger::Report::KINDS.each do |kind, label| %>
       <li class="flex gap-1">
         <%= link_to label, fiscal_year_statement_path(@fiscal_year.year, kind), class: "btn-secondary" %>
-        <%= link_to "PDF", fiscal_year_statement_path(@fiscal_year.year, kind, format: :pdf), class: "btn-secondary" %>
+        <%= new_tab_link_to "PDF", fiscal_year_statement_path(@fiscal_year.year, kind, format: :pdf), class: "btn-secondary" %>
       </li>
     <% end %>
   </ul>

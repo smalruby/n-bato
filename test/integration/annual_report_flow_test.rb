@@ -25,6 +25,10 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
     post annual_reports_path, params: { annual_report: { fiscal_year: 2024, achievements: "教室を開いた", member_counts: { regular: "13" },
                                                          letter_date: "2026-11-20", program_activities_attributes: activities } }
     assert_redirected_to annual_report_path(2024)
+    follow_redirect!
+    # 見直し第21回: PDF は別のタブ(↗)、題の上にパンくず
+    assert_select "a[href=?][target=_blank][rel=noopener]", pack_annual_report_path(2024, format: :pdf), text: /↗/
+    assert_select "nav.nb-crumb a[href=?]", annual_reports_path
     report = AnnualReport.find_by!(fiscal_year: 2024)
     assert_equal 13, report.member_count("regular")
     assert_equal 0, report.member_count("student")

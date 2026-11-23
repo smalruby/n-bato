@@ -1,4 +1,5 @@
 <% content_for :title, "#{@annual_report.fiscal_year}年度 事業報告" %>
+<% crumbs [ "事業報告・提出", annual_reports_path ], "#{@annual_report.fiscal_year}年度" %>
 <div class="flex items-center justify-between mb-4">
   <h1 class="page-title mb-0"><%= @annual_report.fiscal_year %>年度（<%= fiscal_year_wareki(@annual_report.fiscal_year) %>）事業報告書等 <span class="badge bg-stone-100 align-middle"><%= @annual_report.status_label %></span></h1>
   <%= link_to "編集", edit_annual_report_path(@annual_report.fiscal_year), class: "btn" %>
@@ -11,11 +12,11 @@
       <li class="flex items-center gap-2">
         <span class="w-56"><%= label %></span>
         <%= link_to "表示", document_annual_report_path(@annual_report.fiscal_year, doc), class: "btn-secondary" %>
-        <%= link_to "PDF", document_annual_report_path(@annual_report.fiscal_year, doc, format: :pdf), class: "btn-secondary" %>
+        <%= new_tab_link_to "PDF", document_annual_report_path(@annual_report.fiscal_year, doc, format: :pdf), class: "btn-secondary" %>
       </li>
     <% end %>
   </ul>
-  <p class="mt-4"><%= link_to "全部をまとめた PDF（印刷用）", pack_annual_report_path(@annual_report.fiscal_year, format: :pdf), class: "btn" %></p>
+  <p class="mt-4"><%= new_tab_link_to "全部をまとめた PDF（印刷用）", pack_annual_report_path(@annual_report.fiscal_year, format: :pdf), class: "btn" %></p>
   <% if Membership.regular.in_fiscal_year(@annual_report.fiscal_year).count < 10 %>
     <p class="mt-3 text-sm text-amber-800">社員名簿に載せる正会員が 10 人未満です（<%= Membership.regular.in_fiscal_year(@annual_report.fiscal_year).count %> 人）。会員の記録を確認してください。</p>
   <% end %>

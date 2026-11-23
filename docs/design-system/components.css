@@ -506,3 +506,10 @@ textarea.nb-input { height: auto; padding: var(--space-2) var(--space-3); border
 .nb-setup-steps li.is-current { border-color: var(--accent); color: var(--accent); background: var(--select-fill); font-weight: 700; }
 .nb-setup-steps li.is-done { color: var(--saved); }
 .nb-setup-list { margin: 0; padding-left: 1.2em; display: grid; gap: var(--space-2); }
+
+/* パンくず(Breadcrumb。見直し第21回): 詳しい画面の題の上に「一覧 › この画面」。ブラウザの戻るを使わずに上の階層へ戻る */
+.nb-crumb { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); margin: 0 0 var(--space-3); font-size: 12.5px; line-height: 1.6; color: var(--ink-muted); min-width: 0; }
+.nb-crumb a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.nb-crumb [aria-current="page"] { color: var(--ink); overflow-wrap: anywhere; }
+.nb-crumb-sep { color: var(--ink-muted); }
+.nb-crumb-bar { padding: var(--space-2) var(--space-4) 0; }
