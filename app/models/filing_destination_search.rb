@@ -16,16 +16,17 @@ class FilingDestinationSearch < ApplicationRecord
         type: "array",
         items: {
           type: "object", additionalProperties: false,
-          required: %w[kind name addressee office address phone fax email hours forms_url source],
+          required: %w[kind name addressee office address phone fax email hours forms_url source notes],
           properties: {
             kind: { type: "string", enum: FilingDestination::KINDS.keys },
             name: { type: "string", description: "機関の名前(例: ○○市、○○県○○県税事務所、○○地方法務局、○○税務署)" },
             addressee: { type: "string", description: "書類の宛先(役職と氏名。例: ○○市長　氏　名)。分からなければ空" },
-            office: { type: "string", description: "担当の窓口(課・係)" },
+            office: { type: "string", description: "担当の窓口の部・課・係の名前だけ(例: 市民部 市民生活相談課)。説明は notes に書く" },
             address: { type: "string" }, phone: { type: "string" }, fax: { type: "string" }, email: { type: "string" },
             hours: { type: "string", description: "受付の時間" },
             forms_url: { type: "string", description: "様式・手引きのページの URL" },
-            source: { type: "string", description: "この情報を確かめたページの URL(必須)" }
+            source: { type: "string", description: "この情報を確かめたページの URL(必須)" },
+            notes: { type: "string", description: "補足(受け持つ区域・郵送先・所轄の決まり方など)。無ければ空" }
           }
         }
       }
@@ -48,10 +49,11 @@ class FilingDestinationSearch < ApplicationRecord
   def run!(client: Bookkeeper::Client.new)
     result = client.search_json(system: system_prompt, prompt: prompt, schema: SCHEMA)
     found = Array(result["destinations"]).select { it["source"].present? && it["name"].present? }
+                                          .reject { confirmed_kinds.include?(it["kind"]) }
     transaction do
       found.each do |d|
-        FilingDestination.create!(d.slice(*FilingDestination::CONTENT_FIELDS).merge(origin: "ai",
-          notes: "AI が #{requested_at.to_date} に調べた案(人が確かめる)"))
+        notes = [ "AI が #{requested_at.to_date} に調べた案(人が確かめる)", d["notes"].presence ].compact.join("。")
+        FilingDestination.create!(d.slice(*FilingDestination::CONTENT_FIELDS).merge(origin: "ai", notes: notes))
       end
       update!(status: "done", found_count: found.size)
     end
@@ -59,12 +61,24 @@ class FilingDestinationSearch < ApplicationRecord
     update!(status: "failed", error_message: e.message)
   end
 
+  # 確認済みの提出先がある種類。人が確かめた内容と重ならないよう、調べず、案も足さない。
+  def confirmed_kinds
+    @confirmed_kinds ||= FilingDestination.all.select(&:confirmed?).map(&:kind).uniq - [ "other" ]
+  end
+
   def system_prompt = <<~TEXT
     日本の NPO 法人の事務を手伝う役として、法人の所在地から、書類を出す先の役所の窓口を Web 検索で調べる。
     - 調べる先: 所轄庁(NPO 法人の認証・事業報告書等の提出先。法人の主たる事務所がある市町村、または都道府県)、法人住民税(県)の窓口(県税事務所)、法人住民税(市町村)の窓口、登記(法務局)、税務署。
     - 公式のページ(自治体・法務局・国税庁など)で確かめたものだけを書き、source にそのページの URL を書く。確かめられないものは書かない。
     - 推測で埋めない。分からない項目は空の文字にする。首長の氏名(宛先)は、公式のページで確かめられたときだけ書く。
+    - office には部・課・係の名前だけを書く。説明(受け持つ区域・郵送先・所轄の決まり方など)は notes に短く書く。
+    - 「調べなくてよい種類」に挙げた種類は、調べず、書かない。
   TEXT
 
-  def prompt = "法人の種類: #{ORG_KIND}\n主たる事務所の所在地: #{address}\nこの法人が書類を出す先の窓口を調べてください。"
+  def prompt
+    skip = confirmed_kinds.map { FilingDestination::KINDS[it] }
+    [ "法人の種類: #{ORG_KIND}", "主たる事務所の所在地: #{address}",
+      ("調べなくてよい種類(人が確かめ済み): #{skip.join('、')}" if skip.any?),
+      "この法人が書類を出す先の窓口を調べてください。" ].compact.join("\n")
+  end
 end
