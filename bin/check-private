@@ -1,18 +1,29 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# コミットの前に、利用団体に特化した情報(会員の氏名・金額・非公開のリンクなど)や鍵が入っていないかを調べる。
-# 調べる語は .private-patterns(git 管理外、1 行 1 つの正規表現。# で始まる行は説明)に手元で書く。
-# 鍵の形(Anthropic・Slack・AWS の鍵、秘密鍵)は、.private-patterns が無くても調べる。
+# 公開してはいけない情報が入っていないかを調べる(手元の pre-commit フックと CI で動く)。
+#
+# 調べるもの
+#   1. 鍵の形(Anthropic・Slack・AWS・GitHub の鍵、秘密鍵)
+#   2. 個人情報らしい形を広く(安全側に倒す): 電話番号、郵便番号、メールアドレス、都道府県名、
+#      「市区町村 + 番地」の住所、全角スペースで区切った氏名
+#   3. 手元の点検語 .private-patterns(git 管理外。会員・役員の氏名、実際の金額、非公開のリンクなど)
+# 2 のうち、架空の例と公的機関の公開情報は config/check_private_allow.yml に理由と出どころを書いて許す。
 #
 #   bin/check-private                 コミットしようとしている変更(git add したもの)を調べる
 #   bin/check-private --all           リポジトリのすべてのファイルを調べる
-#   bin/check-private --install-hook  pre-commit フックに入れる(コミットのたびに自動で調べる)
+#   bin/check-private --history       履歴のすべてのコミットで足された行を調べる(CI)
+#   bin/check-private --install-hook  pre-commit フックに入れる
 
 require "open3"
+require "yaml"
 
 ROOT = File.expand_path("..", __dir__)
 Dir.chdir(ROOT)
+SELF = "bin/check-private"
+ALLOW_FILE = "config/check_private_allow.yml"
+SKIP = [ SELF, ALLOW_FILE ].freeze
+SKIP_PREFIX = %w[vendor/ public/].freeze # 外から取り込んだもの・Rails が作った静的なページ
 
 if ARGV.include?("--install-hook")
   hook = File.join(`git rev-parse --git-path hooks`.strip, "pre-commit")
@@ -22,64 +33,99 @@ if ARGV.include?("--install-hook")
   exit 0
 end
 
-SECRET_SHAPES = {
-  "Anthropic の鍵" => /sk-ant-[A-Za-z0-9_-]{8,}/,
-  "Slack の鍵" => /\bxox[abprs]-[A-Za-z0-9-]{8,}|\bxapp-[A-Za-z0-9-]{8,}/,
-  "AWS の鍵" => /\bAKIA[0-9A-Z]{16}\b/,
-  "秘密鍵" => /-----BEGIN [A-Z ]*PRIVATE KEY-----/
+PREFECTURES = %w[北海道 青森 岩手 宮城 秋田 山形 福島 茨城 栃木 群馬 埼玉 千葉 東京 神奈川 新潟 富山 石川 福井 山梨 長野
+                 岐阜 静岡 愛知 三重 滋賀 京都 大阪 兵庫 奈良 和歌山 鳥取 島根 岡山 広島 山口 徳島 香川 愛媛 高知 福岡
+                 佐賀 長崎 熊本 大分 宮崎 鹿児島 沖縄].freeze
+SAFE_EMAIL = /@(?:example\.(?:com|jp|org|net)|[\w-]+\.(?:example|test|invalid|localhost))\z|\Agit@github\.com\z|\Anoreply@anthropic\.com\z|@users\.noreply\.github\.com\z/i
+
+RULES = {
+  "secret" => [ "鍵の形", /sk-ant-[A-Za-z0-9_-]{8,}|\bxox[abprs]-[A-Za-z0-9-]{8,}|\bxapp-[A-Za-z0-9-]{8,}|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/ ],
+  "phone" => [ "電話番号", /(?<![\d.])0\d{1,4}[-‐－ー]\d{1,4}[-‐－ー]\d{3,4}(?!\d)|(?<![\w.-])0[5789]0\d{8}(?!\d)|(?<![\w.-])0\d{9}(?!\d)/ ],
+  "zip" => [ "郵便番号", /〒\s*\d{3}[-‐－]?\d{4}|(?<![\d.:-])\d{3}[-‐－]\d{4}(?![\d-])/ ],
+  "email" => [ "メールアドレス", /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/ ],
+  "pref" => [ "都道府県名", /(?:#{PREFECTURES.join("|")})(?:都|道|府|県)/ ],
+  "address" => [ "住所(市区町村と番地)", /[一-龥ぁ-んァ-ン○]{1,6}[市区町村郡](?:[一-龥ぁ-んァ-ン○]{1,8})?[0-9０-９]+(?:丁目|番地|番|-|－)/ ],
+  "name" => [ "氏名(全角スペースで区切った名前)", /(?<![一-龥])[一-龥]{1,4}　[一-龥]{1,4}(?![一-龥])/ ]
 }.freeze
 
-patterns = SECRET_SHAPES.dup
-pattern_file = File.join(ROOT, ".private-patterns")
-if File.exist?(pattern_file)
-  File.readlines(pattern_file, chomp: true).each_with_index do |line, i|
-    next if line.strip.empty? || line.start_with?("#")
+def glob_match?(glob, path) = File.fnmatch?(glob, path, File::FNM_PATHNAME | File::FNM_EXTGLOB) || File.fnmatch?(glob, path)
 
-    patterns["手元の点検語 #{i + 1} 行目"] = Regexp.new(line)
-  end
-else
-  warn "注意: .private-patterns が無いので、鍵の形だけを調べます(団体の情報は調べていません)。"
+ALLOW = (File.exist?(ALLOW_FILE) ? YAML.safe_load_file(ALLOW_FILE) : []).map do |a|
+  abort "#{ALLOW_FILE}: files を書いてください(#{a.inspect})" if Array(a["files"]).empty?
+  abort "#{ALLOW_FILE}: reason を書いてください(#{a.inspect})" if a["reason"].to_s.strip.empty?
+  re = a["text"] ? Regexp.new(Regexp.escape(a["text"])) : Regexp.new(a.fetch("pattern"))
+  { re:, rules: a["rules"] ? Array(a["rules"]) : RULES.keys - [ "secret" ], files: Array(a["files"]) }
 end
 
-# [ファイル, 行番号, 行] の並び
+local = {}
+if File.exist?(".private-patterns")
+  File.readlines(".private-patterns", chomp: true).each_with_index do |line, i|
+    local["手元の点検語 #{i + 1} 行目"] = Regexp.new(line) unless line.strip.empty? || line.start_with?("#")
+  end
+elsif !ENV["CI"]
+  warn "注意: .private-patterns が無いので、手元の点検語(会員の氏名・金額など)は調べていません。"
+end
+
+def findings(path, text, local)
+  out = []
+  RULES.each do |key, (label, re)|
+    line = text.dup
+    ALLOW.each { |a| line = line.gsub(a[:re], " ") if a[:rules].include?(key) && a[:files].any? { glob_match?(it, path) } } unless key == "secret"
+    line.scan(re) do
+      m = Regexp.last_match(0)
+      next if key == "email" && m.match?(SAFE_EMAIL)
+
+      out << label
+    end
+  end
+  local.each { |label, re| out << label if text.match?(re) }
+  out.uniq
+end
+
+def skip?(path) = path.nil? || SKIP.include?(path) || SKIP_PREFIX.any? { path.start_with?(it) }
+
+# [ファイル, 行番号 or コミット, 行] の並び
 lines =
   if ARGV.include?("--all")
     out, = Open3.capture2("git", "ls-files", "-z")
     out.split("\0").flat_map do |path|
-      next [] if path == "bin/check-private" || !File.file?(path)
+      next [] if skip?(path) || !File.file?(path)
 
       text = File.binread(path)
-      next [] if text.include?("\0") # バイナリは調べない
+      next [] if text.include?("\0")
 
       text.force_encoding("UTF-8").scrub.each_line.with_index(1).map { |l, n| [ path, n, l.chomp ] }
     end
   else
-    out, = Open3.capture2("git", "diff", "--cached", "-U0", "--no-color", "--diff-filter=ACMR")
+    cmd = ARGV.include?("--history") ? %w[git log -p -U0 --no-color --format=commit\ %h --diff-filter=ACMR] : %w[git diff --cached -U0 --no-color --diff-filter=ACMR]
+    out, = Open3.capture2(*cmd)
     file = nil
+    commit = nil
     lineno = 0
     out.force_encoding("UTF-8").scrub.each_line.filter_map do |l|
       case l
-      when %r{\A\+\+\+ b/(.*)} then file = Regexp.last_match(1).chomp
-                                    nil
+      when /\Acommit (\h+)/ then commit = Regexp.last_match(1)
+                                nil
+      when %r{\A\+\+\+ (?:b/(.*)|/dev/null)} then file = Regexp.last_match(1)&.chomp
+                                                  nil
       when /\A@@ -\S+ \+(\d+)/ then lineno = Regexp.last_match(1).to_i - 1
                                     nil
       when /\A\+/
         lineno += 1
-        file == "bin/check-private" ? nil : [ file, lineno, l[1..].chomp ]
+        skip?(file) ? nil : [ file, commit ? "#{lineno} (#{commit})" : lineno, l[1..].chomp ]
       end
     end
   end
 
-hits = lines.flat_map do |path, n, text|
-  patterns.filter_map { |label, re| [ path, n, label ] if text.match?(re) }
-end
+hits = lines.flat_map { |path, n, text| findings(path, text, local).map { [ path, n, it ] } }
 
 if hits.empty?
-  puts "check-private: 団体に特化した情報と鍵は見つかりませんでした(#{lines.size} 行)"
+  puts "check-private: 公開してはいけない情報は見つかりませんでした(#{lines.size} 行)"
   exit 0
 end
 
-warn "check-private: コミットしてはいけない情報があります。手元(CLAUDE.local.md・notes/・data/)へ移してください。"
+warn "check-private: 公開してはいけない情報かもしれないものがあります。"
+warn "  団体・会員の情報なら、手元(CLAUDE.local.md・notes/・data/)へ移してください。"
+warn "  架空の例か公的機関の公開情報なら、#{ALLOW_FILE} に理由と出どころを書いて許してください。"
 hits.each { |path, n, label| warn "  #{path}:#{n}  #{label}" }
-warn "(どの語に当たったかは .private-patterns の行番号で確かめる。中身はここに出さない)"
 exit 1

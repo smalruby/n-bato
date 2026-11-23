@@ -1,0 +1,62 @@
+# bin/check-private の「許可の一覧」。ここに載せたものだけを、個人情報らしい形(電話・郵便番号・住所・氏名など)の検査から外す。
+# 載せてよいのは、架空の例と、公的機関が公開している情報だけ。会員・役員・関係者の情報は、どんな理由でも載せない。
+#
+# 書き方(1 件ずつ):
+#   - text: そのまま一致する文字列        (text か pattern のどちらか)
+#     pattern: 正規表現
+#     rules: [phone, zip, email, pref, address, name]  (外す検査。省くとすべて)
+#     files: [glob]                       (このファイルの中だけ許す。必ず書く)
+#     reason: 許してよい理由
+#     source: 出どころ(公開情報のとき)
+
+# --- 公的機関の公開情報 ---
+- text: 島根県松江市末次町86番地
+  files: [test/integration/todos_test.rb]
+  reason: 松江市役所の所在地(公的機関)。伏せ方のテストに使う
+  source: 松江市が市民・法人あての文書に載せている問い合わせ先
+- text: 0852-55-5169
+  files: [test/integration/todos_test.rb]
+  reason: 松江市役所 市民部 市民生活相談課の電話番号(公的機関)
+  source: 松江市が市民・法人あての文書に載せている問い合わせ先
+- text: 690-8540
+  files: [test/integration/todos_test.rb]
+  reason: 松江市役所の郵便番号(公的機関)
+  source: 松江市が市民・法人あての文書に載せている問い合わせ先
+
+# --- 架空の例 ---
+- pattern: '0{3}-[01]{4}-[0-9]{4}|〒?0{3}-0{4}'
+  rules: [phone, zip]
+  files: ['test/**/*.rb']
+  reason: 架空の電話番号・郵便番号(000 で始まる、実在しない番号)
+- text: 島根県テスト市
+  files: ['test/**/*.rb']
+  reason: 架空の住所(テスト市は実在しない)
+- pattern: 'テスト市[^\s"]*'
+  rules: [address]
+  files: ['test/**/*.rb']
+  reason: 架空の住所(テスト市は実在しない)
+- text: 島根県松江市○○町１－２－３
+  files: [config/organization.example.yml]
+  reason: 例の住所(○○町で、番地も実在しない)
+- pattern: '(会員|山田)　(花子|太郎|次郎)'
+  rules: [name]
+  files: ['test/**/*.rb', app/models/resolution_item.rb, app/views/resolutions/_form.html.erb, config/organization.example.yml]
+  reason: 架空の氏名(入力の例・テスト)
+
+# --- 人の名前ではないもの ---
+- pattern: '第[0-9０-９一二三四五六七八九十]+章　\S+|少年団　定款'
+  rules: [name]
+  files: ['config/articles.example/*.md', app/models/articles/document.rb]
+  reason: 定款の章の見出し(全角スペースで区切る書き方。人名ではない)
+- pattern: '(北海道|東京都|京都府|大阪府|[^\s|()]{2,3}県)'
+  rules: [pref]
+  files: [app/models/masker.rb]
+  reason: 住所を伏せるための都道府県名の一覧(住所ではない)
+- pattern: '年度　\S+'
+  rules: [name]
+  files: [docs/design-system/tokens.json]
+  reason: 画面の見出しの例(「2024年度　仕訳」)。人名ではない
+- text: 島根県
+  rules: [pref]
+  files: [test/models/officer_term_test.rb]
+  reason: 暗号化した住所に、架空の住所(島根県テスト市)の語が平文で残らないことを確かめるテストの語
