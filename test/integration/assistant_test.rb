@@ -74,6 +74,24 @@ class AssistantTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "画像でも PDF でもないファイルでは、仕訳の案を出さずに理由を答える" do
+    with_fake_claude(answer("仕訳します", kind: "journal_from_receipt")) do
+      post assistant_path, params: { q: "仕訳して", image: fixture_file_upload("siwake_sample.txt", "text/plain") }
+      assert_nil response.parsed_body["action"]
+      assert_equal "仕訳します\n画像（JPEG・PNG など）か PDF を添えてください", response.parsed_body["answer"]
+    end
+  end
+
+  test "実行で証憑を保存できなければ、理由を 422 で返し、証憑を残さない" do
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("memo"), filename: "memo.txt", content_type: "text/plain")
+    token = Assistant::Action.verifier.generate({ "kind" => "journal_from_receipt", "blob" => blob.signed_id, "year" => 2025 })
+    assert_no_difference -> { Voucher.count } do
+      post assistant_perform_path, params: { token: }
+    end
+    assert_response :unprocessable_entity
+    assert_match "画像（JPEG・PNG など）か PDF にしてください", response.parsed_body["message"]
+  end
+
   test "書き換えた操作の案は実行しない" do
     post assistant_perform_path, params: { token: "書き換えた" }
     assert_response :unprocessable_entity
