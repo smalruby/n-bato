@@ -17,6 +17,8 @@ class Consent < ApplicationRecord
   scope :active, -> { where.not(id: Consent::Cancellation.select(:consent_id)) }
 
   def self.model_name_label = "同意"
+  # 元に戻す・やり直すのあとに、決議を確かめる(取り消していない同意の重なり・反映した議案のある決議が成立しているか)
+  def self.audit_state_owner(change) = Resolution.find_by(id: change.value("resolution_id"))
 
   def via_label = VIAS[via]
   def cancelled? = cancellation.present?

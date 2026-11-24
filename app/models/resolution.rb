@@ -51,6 +51,16 @@ class Resolution < ApplicationRecord
 
   def established? = established_on.present?
 
+  # 元に戻す・やり直すのあとに確かめる(Audit.check_states!。持ち主は同意・同意の取消の audit_state_owner)。
+  # 元に戻すは検証を通さずに書くので、取り消していない同意が同じ人に 2 つになったり、反映した議案があるのに
+  # 同意が減って成立しなくなったりしないかを、ここで確かめる(docs/adr/0038)。
+  def state_mismatches
+    list = []
+    list << "取り消していない同意(同じ人に 2 つ)" if consents.group(:person_id).having("COUNT(*) > 1").exists?
+    list << "成立(反映した議案があるのに成立していない)" if ResolutionItem::Application.joins(:resolution_item).exists?(resolution_items: { resolution_id: id }) && !established?
+    list
+  end
+
   def article_reference
     refs = (Organization.current.settings || {})["written_resolution_articles"] || {}
     refs[body].presence || "定款"

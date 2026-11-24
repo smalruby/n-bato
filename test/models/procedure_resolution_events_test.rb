@@ -223,6 +223,45 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     assert_match "取り消していない同意が 2 つ", ModelVerification.mismatches.join
   end
 
+  test "同意の取消を元に戻すと、取り消していない同意が 2 つになるなら Conflict で止める(別の人が記録し直したあと)" do
+    resolution, (a, _) = board_resolution("理事A")
+    other = users(:two)
+    first = op("consents") { Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2)) }
+    op("consents") { Consent::Cancellation.cancel!(first.reload, by: @user) }
+    Audit.operation(user: other, scope: "consents") { Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 4)) }
+
+    error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "consents") }
+    assert_match "決議(##{resolution.id})", error.message
+    assert_equal 1, Consent.active.where(resolution:, person: a).count
+    assert first.reload.cancelled?
+    assert_empty ModelVerification.mismatches
+  end
+
+  test "反映した議案のある決議の同意を元に戻すと、成立しなくなるので Conflict で止める" do
+    resolution, (a, _) = board_resolution("理事A")
+    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: { "appointments" => [] })
+    op("consents") { Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2)) }
+    op("resolutions") { ResolutionItem::Application.apply!(item, by: @user) }
+
+    error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "consents") }
+    assert_match "成立していない", error.message
+    assert resolution.reload.established?
+    assert item.reload.applied?
+  end
+
+  test "決議の照合: 取り消していない同意の重なりと、反映した議案があるのに成立していないこと" do
+    resolution, (a, _) = board_resolution("理事A")
+    assert_empty resolution.state_mismatches
+    Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2))
+    Consent.insert!({ resolution_id: resolution.id, person_id: a.id, consented_on: Date.new(2026, 5, 3), via: "paper", note: "" })
+    assert_equal [ "取り消していない同意(同じ人に 2 つ)" ], resolution.state_mismatches
+
+    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: { "appointments" => [] })
+    Consent.delete_all
+    ResolutionItem::Application.insert!({ resolution_item_id: item.id, applied_on: Date.new(2026, 5, 3) })
+    assert_equal [ "成立(反映した議案があるのに成立していない)" ], resolution.reload.state_mismatches
+  end
+
   test "議案の反映: 1 つの操作で元に戻せない。二度押しは「もう反映してあります」" do
     resolution, (a, _) = board_resolution("理事A")
     item = resolution.items.create!(kind: "officer_mutual_election", title: "互選", payload: { "appointments" => [ { "person_id" => a.id, "role" => "chair" } ] })

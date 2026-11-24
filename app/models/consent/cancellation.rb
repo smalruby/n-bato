@@ -8,6 +8,8 @@ class Consent::Cancellation < ApplicationRecord
   belongs_to :cancelled_by, class_name: "User", optional: true
 
   def self.model_name_label = "同意の取消"
+  # 元に戻す・やり直すのあとに、決議を確かめる(取消を元に戻すと、取り消していない同意が同じ人に 2 つになることがある)
+  def self.audit_state_owner(change) = Consent.find_by(id: change.value("consent_id"))&.resolution
 
   def audit_fiscal_year = consent&.consented_on&.then { FiscalYear.for(it).year }
 
