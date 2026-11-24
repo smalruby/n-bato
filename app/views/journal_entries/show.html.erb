@@ -19,7 +19,7 @@
       <%= disabled_action "削除", blocked %>
     <% else %>
       <%= link_to "編集", edit_journal_entry_path(@entry), class: "btn" %>
-      <%= button_to "削除", @entry, method: :delete, class: "btn-danger", form: { data: { turbo_confirm: "削除しますか？" } } %>
+      <%= button_to "削除", @entry, method: :delete, class: "nb-btn nb-btn--danger", form: { data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } }, data: { confirm_twice_target: "button", armed_label: "もう一度押すと、この仕訳を削除します" } %>
     <% end %>
   </div>
 </div>

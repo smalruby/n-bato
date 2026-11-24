@@ -12,6 +12,8 @@ class VoucherFlowTest < ActionDispatch::IntegrationTest
     voucher = Voucher.last
     assert_redirected_to voucher_path(voucher)
     assert voucher.files.attached?
+    get voucher_path(voucher)
+    assert_confirm_twice voucher_path(voucher), "もう一度押すと、この証憑を削除します"
 
     proposal = JournalProposal.propose!(
       voucher:, model: "test", entry_date: Date.new(2025, 6, 1), debit_account: Account.find_by!(code: 658), debit_department: Department.find_by!(code: 113),

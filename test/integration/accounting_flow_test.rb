@@ -56,6 +56,8 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
     assert_equal 1500, entry.credit_amount
     assert_equal 7, entry.slip_number
     assert entry.editable?
+    get journal_entry_path(entry)
+    assert_confirm_twice journal_entry_path(entry), "もう一度押すと、この仕訳を削除します"
 
     get fiscal_year_siwake_export_path(2024, only: "new")
     file = Kaikeiou::SiwakeFile.parse(response.body)
@@ -78,6 +80,8 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
   test "取り込みの取り消し" do
     si = import_sample.siwake_import
     sign_in
+    get siwake_import_path(si)
+    assert_confirm_twice siwake_import_path(si), "もう一度押すと、この取り込みで登録した仕訳をすべて削除します"
     assert_difference -> { JournalEntry.count }, -6 do
       delete siwake_import_path(si)
     end
