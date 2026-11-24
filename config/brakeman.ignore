@@ -1,0 +1,13 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Dangerous Eval",
+      "fingerprint": "4b6d2c44687e3d3acb5c03d47a4594b241308f374989388e16d32722c221d98d",
+      "check_name": "Evaluation",
+      "file": "app/models/ops_script.rb",
+      "code": "TOPLEVEL_BINDING.eval(@source, @name)",
+      "note": "運用のセッションのスクリプトを本番の rails runner で流すためのもの(bin/prod-runner → bin/rails ops:run)。サーバーに SSH で入れる人だけが呼べ、画面やリクエストからは届かない。"
+    }
+  ],
+  "brakeman_version": "8.1.1"
+}
