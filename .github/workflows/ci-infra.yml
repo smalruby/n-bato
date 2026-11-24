@@ -1,0 +1,108 @@
+name: CI - Infra
+
+# infra/(CDK の NBatoStack)を変えたら、テストと、本番との差分(cdk diff)を出す(開発QAボード 第6回 r6-cdk、docs/adr/0036)。
+# 差分は読むだけの役割(n-bato-github-cdk-diff、OIDC)で取る。反映は deploy-infra.yml(人の承認のあと)。
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/ci-infra.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/ci-infra.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }} @ ${{ github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  test:
+    name: CDK のテストと synth
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: infra/.node-version
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npx cdk synth --quiet
+
+  diff:
+    name: 本番との差分(cdk diff、読むだけ)
+    # フォークからの PR には OIDC のトークンが出ないので走らせない
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - id: role
+        name: 役割があるか(初めの cdk deploy の前は飛ばす)
+        working-directory: .
+        env:
+          ROLE_ARN: ${{ secrets.AWS_CDK_DIFF_ROLE_ARN }}
+        run: |
+          if [ -z "${ROLE_ARN}" ]; then
+            echo "::warning::リポジトリの Secrets に AWS_CDK_DIFF_ROLE_ARN がないので、差分は出しません(docs/deploy.md の「初めに一度だけ」)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.role.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.role.outputs.ready == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: infra/.node-version
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+      - if: steps.role.outputs.ready == 'true'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_CDK_DIFF_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      - if: steps.role.outputs.ready == 'true'
+        run: npm ci
+      - if: steps.role.outputs.ready == 'true'
+        name: cdk diff
+        env:
+          OIDC_PROVIDER_ARN: ${{ secrets.AWS_GITHUB_OIDC_PROVIDER_ARN }}
+        run: |
+          set -euo pipefail
+          context=()
+          [ -z "${OIDC_PROVIDER_ARN}" ] || context=(-c "githubOidcProviderArn=${OIDC_PROVIDER_ARN}")
+          # テンプレートどうしで比べる(change set は作らない = 書き込まない)
+          npx cdk diff NBatoStack "${context[@]}" --method template --no-color 2>&1 | tee "${RUNNER_TEMP}/cdk-diff.txt"
+          {
+            echo "### 本番(NBatoStack)との差分"
+            echo
+            echo '```'
+            grep -vE '^\s*$' "${RUNNER_TEMP}/cdk-diff.txt" | tail -n 200
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
