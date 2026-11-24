@@ -4,8 +4,8 @@ require "test_helper"
 class Bookkeeper::ClientTest < ActiveSupport::TestCase
   def complete(result)
     with_fake_claude(result) do |api|
-      json = Bookkeeper::Client.new.complete_json(system: "指示", content: [ { type: "text", text: "問い" } ], schema: { type: "object" })
-      [ json, api ]
+      json = Bookkeeper::Client.new.complete_json(system: "指示", content: [{type: "text", text: "問い"}], schema: {type: "object"})
+      [json, api]
     end
   end
 
@@ -13,10 +13,10 @@ class Bookkeeper::ClientTest < ActiveSupport::TestCase
 
   test "JSON Schema の形の答えを読む" do
     json, api = complete(reply(%({"answer":"はい"})))
-    assert_equal({ "answer" => "はい" }, json)
+    assert_equal({"answer" => "はい"}, json)
     req = api.requests.sole
     assert_equal :"claude-opus-5-5", req[:model]
-    assert_equal [ { type: "text", text: "指示" } ], req[:system_]
+    assert_equal [{type: "text", text: "指示"}], req[:system_]
     assert_equal :json_schema, req.dig(:output_config, :format, :type)
   end
 
@@ -39,19 +39,19 @@ class Bookkeeper::ClientTest < ActiveSupport::TestCase
 
   def search(*results)
     with_fake_claude(*results) do |api|
-      json = Bookkeeper::Client.new.search_json(system: "指示", prompt: "調べて", schema: { type: "object" }, max_uses: 3)
-      [ json, api ]
+      json = Bookkeeper::Client.new.search_json(system: "指示", prompt: "調べて", schema: {type: "object"}, max_uses: 3)
+      [json, api]
     end
   end
 
   test "Web 検索つきで調べ、前後に文があっても JSON の部分を読む。途中で止まったら続きを頼む" do
     json, api = search(reply("調べ中", stop_reason: :pause_turn), reply(%(見つけました: {"name":"テスト市"} 以上)))
-    assert_equal({ "name" => "テスト市" }, json)
+    assert_equal({"name" => "テスト市"}, json)
     first, second = api.requests
-    assert_equal [ { type: "web_search_20260209", name: "web_search", max_uses: 3 } ], first[:tools]
-    assert_equal [ { role: "user", content: "調べて" } ], first[:messages]
-    assert_equal [ "user", "assistant" ], second[:messages].map { it[:role].to_s }
-    assert_equal({ type: :text, text: "調べ中" }, second[:messages].last[:content].first)
+    assert_equal [{type: "web_search_20260209", name: "web_search", max_uses: 3}], first[:tools]
+    assert_equal [{role: "user", content: "調べて"}], first[:messages]
+    assert_equal ["user", "assistant"], second[:messages].map { it[:role].to_s }
+    assert_equal({type: :text, text: "調べ中"}, second[:messages].last[:content].first)
   end
 
   test "Web 検索でも、断られた・途中で切れた・JSON でない・API のエラーは Error にする" do

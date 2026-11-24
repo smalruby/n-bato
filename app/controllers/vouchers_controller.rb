@@ -3,7 +3,7 @@ class VouchersController < ApplicationController
 
   def index
     # 操作している年度の証憑(日付の無いものはどの年度にも出す)
-    @vouchers = Voucher.recent.includes(:journal_proposals).with_attached_files.where(issued_on: [ nil, FiscalYear.new(Current.working_year).range ])
+    @vouchers = Voucher.recent.includes(:journal_proposals).with_attached_files.where(issued_on: [nil, FiscalYear.new(Current.working_year).range])
     @ai_ready = Bookkeeper::Client.configured?
   end
 
@@ -22,17 +22,18 @@ class VouchersController < ApplicationController
       ProposeJournalEntriesJob.perform_later(@voucher) if Bookkeeper::Client.configured? && params[:propose] == "1"
       redirect_to @voucher, notice: "証憑を登録しました"
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
-  def edit; end
+  def edit
+  end
 
   def update
     if @voucher.update(voucher_params)
       redirect_to @voucher, notice: "証憑を更新しました"
     else
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

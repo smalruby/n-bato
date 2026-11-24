@@ -3,17 +3,19 @@
 # 出来事がまだ無い人だけ、記録の始まりの値を画面で直せる(打ち間違いの訂正。操作履歴に残る)。
 class PeopleController < ApplicationController
   include ClosedYearGuard
+
   before_action :set_person, only: %i[show edit update destroy apply_to_years]
 
   def index
     @year = Current.working_year
     range = FiscalYear.new(@year).range
     @people = Person.ordered.includes(:memberships, :officer_terms, :person_years)
-    @help_states = [ :borrowed ] if @people.any? { it.borrowed_year(@year) }
+    @help_states = [:borrowed] if @people.any? { it.borrowed_year(@year) }
     @officers = OfficerTerm.includes(person: :person_years).select { it.starts_on <= range.end && (it.left_on || it.ends_on) >= range.begin }
   end
 
-  def show; end
+  def show
+  end
 
   def new
     @person = Person.new
@@ -24,11 +26,12 @@ class PeopleController < ApplicationController
     if @person.save
       redirect_to @person, notice: "登録しました(#{Current.working_year}年度の記録)"
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
-  def edit; end
+  def edit
+  end
 
   # 操作している年度の記録を直す。締めた年度は理由を書く。ほかの年度にも同じ値があれば、直すかを聞く。
   def update
@@ -38,7 +41,7 @@ class PeopleController < ApplicationController
     unless closed_year_reason_ok?(year, "会員・役員の記録")
       @person.assign_attributes(start_params) unless @person.changes_recorded?
       flash.now[:alert] = @reason_needed
-      return render :edit, status: :unprocessable_entity
+      return render :edit, status: :unprocessable_content
     end
     record.assign_attributes(year_params)
     @person.assign_attributes(start_params) unless @person.changes_recorded?
@@ -47,7 +50,7 @@ class PeopleController < ApplicationController
       redirect_to @person, notice: "#{FiscalPeriod.for(year)&.label}の記録を保存しました"
     else
       @person.errors.merge!(record.errors)
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 
@@ -56,12 +59,12 @@ class PeopleController < ApplicationController
     source = @person.record_for(params[:from].to_i) or return redirect_to(@person)
     fields = Array(params[:fields]) & Person.year_attrs
     years = Array(params[:years]).map(&:to_i).reject { FiscalPeriod.for(it)&.closed? }
-    Audit.label!("#{@person.name}の#{fields.map { Person.human_attribute_name(it) }.join('・')}を #{years.map { "#{it}年度" }.join('・')}にも効かせた")
+    Audit.label!("#{@person.name}の#{fields.map { Person.human_attribute_name(it) }.join("・")}を #{years.map { "#{it}年度" }.join("・")}にも効かせた")
     years.each do |y|
       rec = @person.year_record!(y)
       rec.update!(source.slice(*fields))
     end
-    redirect_to @person, notice: "#{years.map { "#{it}年度" }.join('・')}の記録も直しました"
+    redirect_to @person, notice: "#{years.map { "#{it}年度" }.join("・")}の記録も直しました"
   end
 
   def destroy
@@ -84,7 +87,7 @@ class PeopleController < ApplicationController
     return nil if fields.empty?
 
     years = @person.year_records_list.reject { it.fiscal_year == record.fiscal_year || FiscalPeriod.for(it.fiscal_year)&.closed? }
-                   .select { |r| fields.any? { r.public_send(it) == before[it] } }.map(&:fiscal_year)
-    years.any? ? { "from" => record.fiscal_year, "fields" => fields, "years" => years } : nil
+      .select { |r| fields.any? { r.public_send(it) == before[it] } }.map(&:fiscal_year)
+    years.any? ? {"from" => record.fiscal_year, "fields" => fields, "years" => years} : nil
   end
 end

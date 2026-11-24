@@ -1,7 +1,7 @@
 namespace :organization do
   desc "法人の情報を YAML から読み込む(実データは data/ に置く) 例: bin/rails 'organization:load[data/organization.yml]'"
-  task :load, [ :path ] => :environment do |_, args|
-    conf = YAML.load_file(args[:path] || "data/organization.yml", permitted_classes: [ Date ])
+  task :load, [:path] => :environment do |_, args|
+    conf = YAML.load_file(args[:path] || "data/organization.yml", permitted_classes: [Date])
     org = Organization.first || Organization.new
     org.update!(conf.fetch("organization"))
     # 部門は年度ごとのデータセット。締めていない年度すべてに入れる。
@@ -10,7 +10,7 @@ namespace :organization do
     conf.fetch("departments", {}).each do |code, full_name|
       years.each do |year|
         dept = Department.find_or_initialize_by(fiscal_year: year, code: code)
-        dept.name ||= code.to_i == Department::ADMIN_CODE ? "管理部門" : "#{full_name[0, 1]}事業"
+        dept.name ||= (code.to_i == Department::ADMIN_CODE) ? "管理部門" : "#{full_name[0, 1]}事業"
         dept.update!(full_name: full_name)
       end
     end

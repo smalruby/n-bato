@@ -28,7 +28,7 @@ class AnnualReportsController < ApplicationController
     if @annual_report.save_with_dates(dates)
       redirect_to annual_report_path(@annual_report.fiscal_year), notice: "事業報告書を作りました"
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -46,7 +46,7 @@ class AnnualReportsController < ApplicationController
       redirect_to annual_report_path(@annual_report.fiscal_year), notice: "保存しました"
     else
       flash.now[:alert] = @annual_report.errors.full_messages.join(" ").presence
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 

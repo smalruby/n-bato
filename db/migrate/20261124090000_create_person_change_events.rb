@@ -28,7 +28,7 @@ class CreatePersonChangeEvents < ActiveRecord::Migration[8.1]
       t.text :address
       t.date :moved_on, null: false
       t.string :date_precision, null: false, default: "day"
-      t.references :recorded_by, foreign_key: { to_table: :users }
+      t.references :recorded_by, foreign_key: {to_table: :users}
       t.text :note, null: false, default: ""
     end
     create_table :person_name_changes do |t|
@@ -39,12 +39,12 @@ class CreatePersonChangeEvents < ActiveRecord::Migration[8.1]
       t.boolean :show_former_name, null: false, default: false
       t.date :changed_on, null: false
       t.string :date_precision, null: false, default: "day"
-      t.references :recorded_by, foreign_key: { to_table: :users }
+      t.references :recorded_by, foreign_key: {to_table: :users}
       t.text :note, null: false, default: ""
     end
     create_table :person_change_cancellations do |t|
-      t.references :change, polymorphic: true, null: false, index: { unique: true }
-      t.references :canceller, foreign_key: { to_table: :users }
+      t.references :change, polymorphic: true, null: false, index: {unique: true}
+      t.references :canceller, foreign_key: {to_table: :users}
       t.text :reason, null: false
       t.datetime :cancelled_at, null: false
     end
@@ -61,11 +61,11 @@ class CreatePersonChangeEvents < ActiveRecord::Migration[8.1]
         starts = Date.new(cur.fiscal_year, 4, 1)
         if cur.address.to_s != prev.address.to_s
           AddressRow.create!(person_id: person.id, address: cur.address, moved_on: starts, date_precision: "fiscal_year",
-                             note: "年度ごとの記録から移した(#{cur.fiscal_year}年度の記録で変わっていた)")
+            note: "年度ごとの記録から移した(#{cur.fiscal_year}年度の記録で変わっていた)")
         end
         if cur.name.to_s != prev.name.to_s || cur.name_kana.to_s != prev.name_kana.to_s
           NameRow.create!(person_id: person.id, name: cur.name, name_kana: cur.name_kana, former_name: prev.name.to_s, changed_on: starts,
-                          date_precision: "fiscal_year", note: "年度ごとの記録から移した(#{cur.fiscal_year}年度の記録で変わっていた)")
+            date_precision: "fiscal_year", note: "年度ごとの記録から移した(#{cur.fiscal_year}年度の記録で変わっていた)")
         end
       end
     end

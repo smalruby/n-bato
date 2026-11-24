@@ -1,8 +1,8 @@
 # 手順を済みにする・対象外にする・済みを取り消す(状態の変化を作る。docs/adr/0008・0038)。
 # status: done(済みにする。completed_on)・skipped(対象外にする。reason)・open(済みを取り消す)。
 class ProcedureSteps::StatusChangesController < ApplicationController
-  NOTICES = { "done" => "済みにしました", "skipped" => "対象外にしました", "open" => "済みを取り消しました" }.freeze
-  ALREADY = { "done" => "もう済みにしてあります", "skipped" => "もう対象外にしてあります", "open" => "まだ済みにしていません" }.freeze
+  NOTICES = {"done" => "済みにしました", "skipped" => "対象外にしました", "open" => "済みを取り消しました"}.freeze
+  ALREADY = {"done" => "もう済みにしてあります", "skipped" => "もう対象外にしてあります", "open" => "まだ済みにしていません"}.freeze
 
   before_action :set_step
 
@@ -17,7 +17,7 @@ class ProcedureSteps::StatusChangesController < ApplicationController
     # 同じ状態のとき(二度押しなど)は何も変えていないので、「元に戻せます」とは言わない
     return back(notice: "#{@step.definition.title}は#{ALREADY.fetch(status)}") unless changed
 
-    back(step: status == "open" ? @step.key : @run.next_step&.key || @step.key, notice: notice_for(status))
+    back(step: (status == "open") ? @step.key : @run.next_step&.key || @step.key, notice: notice_for(status))
   rescue ArgumentError => e
     back(alert: e.message)
   end

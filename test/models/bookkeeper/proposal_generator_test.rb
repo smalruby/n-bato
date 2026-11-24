@@ -13,7 +13,7 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
     def model = "fake-model"
 
     def complete_json(system:, content:, schema:)
-      @calls << { system:, content:, schema: }
+      @calls << {system:, content:, schema:}
       raise @error if @error
 
       @response
@@ -27,18 +27,18 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
   end
 
   def response(entries, questions = [])
-    { "entries" => entries, "questions" => questions }
+    {"entries" => entries, "questions" => questions}
   end
 
   def entry(**overrides)
-    { "entry_date" => "2025-06-01", "debit_account_code" => 658, "debit_department_code" => 113,
-      "credit_account_code" => 100, "credit_department_code" => 0, "amount" => 1980,
-      "summary" => "消耗品を買った", "sub_summary" => "HDMI ケーブル", "rationale" => "道場で使う備品のため③事業の消耗品費",
-      "confidence" => "high" }.merge(overrides.stringify_keys)
+    {"entry_date" => "2025-06-01", "debit_account_code" => 658, "debit_department_code" => 113,
+     "credit_account_code" => 100, "credit_department_code" => 0, "amount" => 1980,
+     "summary" => "消耗品を買った", "sub_summary" => "HDMI ケーブル", "rationale" => "道場で使う備品のため③事業の消耗品費",
+     "confidence" => "high"}.merge(overrides.stringify_keys)
   end
 
   test "AI の答えから提案を作る" do
-    client = FakeClient.new(response([ entry ], [ "レシートの店名が読めません" ]))
+    client = FakeClient.new(response([entry], ["レシートの店名が読めません"]))
     proposals = Bookkeeper::ProposalGenerator.new(@voucher, client: client).call
     assert_equal 1, proposals.size
     p = proposals.first
@@ -64,7 +64,7 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
   end
 
   test "一覧に無いコードはエラーにして記帳しない" do
-    client = FakeClient.new(response([ entry(debit_account_code: 999) ]))
+    client = FakeClient.new(response([entry(debit_account_code: 999)]))
     assert_empty Bookkeeper::ProposalGenerator.new(@voucher, client: client).call
     assert_equal "error", @voucher.reload.status
     assert_match "一覧に無いコード", @voucher.ai_error
@@ -78,8 +78,8 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
 
   test "承認すると仕訳になり、承認者と日時が残る" do
     user = users(:one)
-    proposal = Bookkeeper::ProposalGenerator.new(@voucher, client: FakeClient.new(response([ entry ]))).call.first
-    journal = JournalProposal::Approval.approve!(proposal, by: user, entry: { amount: 2000 }).journal_entry
+    proposal = Bookkeeper::ProposalGenerator.new(@voucher, client: FakeClient.new(response([entry]))).call.first
+    journal = JournalProposal::Approval.approve!(proposal, by: user, entry: {amount: 2000}).journal_entry
     assert_equal 2000, journal.debit_amount
     assert_equal proposal.reload.amount, proposal.amount # 提案は AI が出したまま(書き換えない)
     assert_equal user, journal.approved_by
@@ -91,7 +91,7 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
   end
 
   test "提案し直すと、確認待ちだった前の提案は消さずに取り下げになる" do
-    gen = -> { Bookkeeper::ProposalGenerator.new(@voucher, client: FakeClient.new(response([ entry ]))).call }
+    gen = -> { Bookkeeper::ProposalGenerator.new(@voucher, client: FakeClient.new(response([entry]))).call }
     first = gen.call.first
     gen.call
     assert_equal 2, @voucher.journal_proposals.count
@@ -100,8 +100,8 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
   end
 
   test "Claude Code が作った答えを API なしで登録する" do
-    proposals = Bookkeeper::ProposalGenerator.new(@voucher).apply(response([ entry ]), model: "claude-code")
-    assert_equal [ "claude-code" ], proposals.map(&:ai_model)
+    proposals = Bookkeeper::ProposalGenerator.new(@voucher).apply(response([entry]), model: "claude-code")
+    assert_equal ["claude-code"], proposals.map(&:ai_model)
     assert_equal "proposed", @voucher.reload.status
   end
 

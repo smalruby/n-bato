@@ -4,7 +4,8 @@ class IncomingRequestsController < ApplicationController
   undoable_screen
   before_action :set_request, only: %i[show]
 
-  def new; end
+  def new
+  end
 
   # 依頼を作り、最初の発言(メール本文と添付)を下書きとして置く。AI にはまだ送らない(伏せた文を人が確かめてから)。
   def create

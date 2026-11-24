@@ -4,18 +4,18 @@
 class SplitJournalProposalEvents < ActiveRecord::Migration[8.1]
   def up
     create_table :journal_proposal_approvals do |t|
-      t.references :journal_proposal, null: false, foreign_key: true, index: { unique: true }
-      t.references :approver, foreign_key: { to_table: :users }
+      t.references :journal_proposal, null: false, foreign_key: true, index: {unique: true}
+      t.references :approver, foreign_key: {to_table: :users}
       t.references :journal_entry, foreign_key: true
       t.datetime :approved_at, null: false
     end
     create_table :journal_proposal_rejections do |t|
-      t.references :journal_proposal, null: false, foreign_key: true, index: { unique: true }
-      t.references :rejecter, foreign_key: { to_table: :users }
+      t.references :journal_proposal, null: false, foreign_key: true, index: {unique: true}
+      t.references :rejecter, foreign_key: {to_table: :users}
       t.datetime :rejected_at, null: false
     end
     create_table :journal_proposal_withdrawals do |t|
-      t.references :journal_proposal, null: false, foreign_key: true, index: { unique: true }
+      t.references :journal_proposal, null: false, foreign_key: true, index: {unique: true}
       t.datetime :withdrawn_at, null: false
     end
 

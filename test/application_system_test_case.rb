@@ -7,7 +7,7 @@ require Rails.root.join("db/demo/seed").to_s
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   PLAYWRIGHT_VERSION = Rails.root.join(".playwright-version").read.strip
   # HEADFUL=1 でブラウザの窓を出す
-  driven_by :playwright, screen_size: [ 1400, 1000 ], options: {
+  driven_by :playwright, screen_size: [1400, 1000], options: {
     browser_type: :chromium, headless: ENV["HEADFUL"].blank?, locale: "ja-JP",
     playwright_cli_executable_path: "npx -y playwright@#{PLAYWRIGHT_VERSION}"
   }

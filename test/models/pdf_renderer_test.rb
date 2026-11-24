@@ -60,7 +60,7 @@ class PdfRendererTest < ActiveSupport::TestCase
     with_fake_browser do
       assert_equal "%PDF-fake", PdfRenderer::Chrome.render("<p>見本</p>")
       browser = FakeBrowser.last
-      assert_equal [ true, 60, 60, 60 ], browser.options.values_at(:headless, :timeout, :process_timeout, :protocol_timeout)
+      assert_equal [true, 60, 60, 60], browser.options.values_at(:headless, :timeout, :process_timeout, :protocol_timeout)
       assert_equal "<p>見本</p>", browser.page.content
       assert_equal :A4, browser.page.pdf_options[:format]
       assert browser.quitted

@@ -3,6 +3,6 @@ namespace :ops do
   task run: :environment do
     require "base64"
     OpsScript.run!(source: Base64.decode64(ENV.fetch("OPS_SCRIPT")).force_encoding(Encoding::UTF_8),
-                   name: ENV.fetch("OPS_SCRIPT_NAME"), apply: ENV["OPS_APPLY"] == "1")
+      name: ENV.fetch("OPS_SCRIPT_NAME"), apply: ENV["OPS_APPLY"] == "1")
   end
 end

@@ -19,13 +19,13 @@ class Ledger::BookTest < ActiveSupport::TestCase
     bank = Account.find_by!(code: 106)
     assert_equal 10_000 + 5000 - 1200 - 3000 + 2000 - 84, s.closing_balances[cash]
     assert_equal 3003, s.closing_balances[bank]
-    assert_equal({ Department.find_by!(code: 113) => 1200 }, s.program_expense_by_department)
+    assert_equal({Department.find_by!(code: 113) => 1200}, s.program_expense_by_department)
   end
 
   test "仕訳の無い年度は前年度末を繰り越す" do
     travel_to Date.new(2027, 1, 1) do
       book = Ledger::Book.new
-      assert_equal [ 2024, 2025 ], book.years
+      assert_equal [2024, 2025], book.years
       s = book.statement(2025)
       assert_equal 15_719, s.opening_net_assets
       assert_equal 0, s.net_assets_change

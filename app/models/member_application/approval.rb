@@ -2,6 +2,7 @@
 # 人の記録(いなければ作る)と、その年度の正会員の資格を作る。申込のいまの状態(status など)を書き換える。
 class MemberApplication::Approval < ApplicationRecord
   include EventRecord
+
   event_of :approved_at, entry: :approve!
 
   belongs_to :member_application

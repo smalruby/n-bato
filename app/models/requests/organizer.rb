@@ -7,40 +7,40 @@ module Requests
       type: "object", additionalProperties: false,
       required: %w[title fiscal_year kind assignee due_on target done_rule note],
       properties: {
-        title: { type: "string", description: "やること。1 件に 1 つの作業。年度ごとに解決するものは年度ごとに分ける。" },
-        fiscal_year: { type: "integer", description: "対象の年度(西暦の年度。2024 = 令和6年度)。年度に関係ないものは 0。" },
-        kind: { type: "string", enum: Todo::KINDS.keys },
-        assignee: { type: "string", description: "担当(理事長・監事・理事・正会員全員・AI など)。" },
-        due_on: { type: "string", description: "期限(YYYY-MM-DD)。無ければ空。" },
-        target: { type: "string", enum: Todo::TARGETS.keys, description: "n-bato で解決する画面。n-bato の外の作業なら空。" },
-        done_rule: { type: "string", enum: Todo::DONE_RULES.keys },
-        note: { type: "string", description: "手順・使う書類やメモの置き場所・根拠(どの書類を見て判断したか)。" }
+        title: {type: "string", description: "やること。1 件に 1 つの作業。年度ごとに解決するものは年度ごとに分ける。"},
+        fiscal_year: {type: "integer", description: "対象の年度(西暦の年度。2024 = 令和6年度)。年度に関係ないものは 0。"},
+        kind: {type: "string", enum: Todo::KINDS.keys},
+        assignee: {type: "string", description: "担当(理事長・監事・理事・正会員全員・AI など)。"},
+        due_on: {type: "string", description: "期限(YYYY-MM-DD)。無ければ空。"},
+        target: {type: "string", enum: Todo::TARGETS.keys, description: "n-bato で解決する画面。n-bato の外の作業なら空。"},
+        done_rule: {type: "string", enum: Todo::DONE_RULES.keys},
+        note: {type: "string", description: "手順・使う書類やメモの置き場所・根拠(どの書類を見て判断したか)。"}
       }
     }.freeze
     SCHEMA = {
       type: "object", additionalProperties: false,
       required: %w[reply request todos_new todos_update],
       properties: {
-        reply: { type: "string", description: "人への返事。日本語で短く。指摘が正しいか・もう直っているかを、根拠と一緒に書く。分からないことは分からないと書く。" },
+        reply: {type: "string", description: "人への返事。日本語で短く。指摘が正しいか・もう直っているかを、根拠と一緒に書く。分からないことは分からないと書く。"},
         request: {
           type: "object", additionalProperties: false, required: %w[title counterpart received_on due_on],
           properties: {
-            title: { type: "string", description: "依頼の題名(短く)。変えないなら空。" },
-            counterpart: { type: "string", description: "相手(例: 松江市 市民生活相談課)。変えないなら空。" },
-            received_on: { type: "string", description: "届いた日(YYYY-MM-DD)。分からなければ空。" },
-            due_on: { type: "string", description: "依頼の期限(YYYY-MM-DD)。無ければ空。" }
+            title: {type: "string", description: "依頼の題名(短く)。変えないなら空。"},
+            counterpart: {type: "string", description: "相手(例: 松江市 市民生活相談課)。変えないなら空。"},
+            received_on: {type: "string", description: "届いた日(YYYY-MM-DD)。分からなければ空。"},
+            due_on: {type: "string", description: "依頼の期限(YYYY-MM-DD)。無ければ空。"}
           }
         },
-        todos_new: { type: "array", items: TODO_ITEM },
+        todos_new: {type: "array", items: TODO_ITEM},
         todos_update: {
           type: "array",
           items: {
             type: "object", additionalProperties: false, required: %w[id status waiting_on done_note],
             properties: {
-              id: { type: "integer", description: "直すやることの番号(一覧の #)。" },
-              status: { type: "string", enum: Todo::STATUSES.keys },
-              waiting_on: { type: "string", description: "待ちのとき、誰の何を待っているか。それ以外は空。" },
-              done_note: { type: "string", description: "済みにするとき、何をもって済みとしたか。それ以外は空。" }
+              id: {type: "integer", description: "直すやることの番号(一覧の #)。"},
+              status: {type: "string", enum: Todo::STATUSES.keys},
+              waiting_on: {type: "string", description: "待ちのとき、誰の何を待っているか。それ以外は空。"},
+              done_note: {type: "string", description: "済みにするとき、何をもって済みとしたか。それ以外は空。"}
             }
           }
         }
@@ -55,12 +55,12 @@ module Requests
     # AI の返事を IncomingRequestMessage::Delivery.deliver! で記録し、AI の発言(IncomingRequestMessage)を返す。
     def call(message, masked_body:, send_attachments: false)
       at = Time.current
-      content = [ { type: "text", text: prompt_text(message, masked_body) } ]
+      content = [{type: "text", text: prompt_text(message, masked_body)}]
       if send_attachments
         message.files.each do |f|
           case f.content_type
-          when %r{\Aimage/} then content << { type: "image", source: { type: "base64", media_type: f.content_type, data: Base64.strict_encode64(f.download) } }
-          when "application/pdf" then content << { type: "document", source: { type: "base64", media_type: "application/pdf", data: Base64.strict_encode64(f.download) } }
+          when %r{\Aimage/} then content << {type: "image", source: {type: "base64", media_type: f.content_type, data: Base64.strict_encode64(f.download)}}
+          when "application/pdf" then content << {type: "document", source: {type: "base64", media_type: "application/pdf", data: Base64.strict_encode64(f.download)}}
           end
         end
       end
@@ -88,16 +88,16 @@ module Requests
     end
 
     def prompt_text(message, masked_body)
-      history = @request.messages.where.not(id: message.id).includes(:delivery).map { |m| "#{m.user? ? '人' : 'AI'}: #{m.user? ? m.masked_body : m.body}" }.last(10)
-      todos = @request.todos.map { |t| "##{t.id} [#{t.status_label}] #{t.fiscal_year ? "#{t.fiscal_year}年度" : '年度なし'} #{t.title}(#{t.kind_label}#{"・待ち: #{t.waiting_on}" if t.waiting_on.present?})" }
+      history = @request.messages.where.not(id: message.id).includes(:delivery).map { |m| "#{m.user? ? "人" : "AI"}: #{m.user? ? m.masked_body : m.body}" }.last(10)
+      todos = @request.todos.map { |t| "##{t.id} [#{t.status_label}] #{t.fiscal_year ? "#{t.fiscal_year}年度" : "年度なし"} #{t.title}(#{t.kind_label}#{"・待ち: #{t.waiting_on}" if t.waiting_on.present?})" }
       years = FiscalPeriod.ordered.map { "#{it.year}年度: #{it.state_label}" }
       <<~TEXT
-        依頼: #{@request.title}(相手: #{@request.counterpart.presence || '不明'}、届いた日: #{@request.received_on || '不明'}、期限: #{@request.due_on || 'なし'})
+        依頼: #{@request.title}(相手: #{@request.counterpart.presence || "不明"}、届いた日: #{@request.received_on || "不明"}、期限: #{@request.due_on || "なし"})
         いまのやること:
-        #{todos.presence&.join("\n") || '(まだ無い)'}
-        n-bato の年度の状態: #{years.join('、')}
+        #{todos.presence&.join("\n") || "(まだ無い)"}
+        n-bato の年度の状態: #{years.join("、")}
         これまでの対話:
-        #{history.presence&.join("\n") || '(はじめて)'}
+        #{history.presence&.join("\n") || "(はじめて)"}
 
         人の今回の発言:
         #{masked_body}

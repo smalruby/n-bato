@@ -1,7 +1,7 @@
 class ResolutionsController < ApplicationController
   before_action :set_resolution, only: %i[show edit update destroy document]
 
-  DOCUMENTS = { "proposal" => "提案書", "consent_form" => "同意書", "minutes" => "議事録" }.freeze
+  DOCUMENTS = {"proposal" => "提案書", "consent_form" => "同意書", "minutes" => "議事録"}.freeze
 
   def index
     @resolutions = ::Resolution.recent.includes(:items, :consents).where(proposed_on: FiscalYear.new(Current.working_year).range)
@@ -14,7 +14,7 @@ class ResolutionsController < ApplicationController
 
   def new
     @resolution = ::Resolution.new(body: params[:body].presence_in(::Resolution::BODIES.keys) || "general_meeting", voting_method: "written", proposed_on: Date.current,
-                                 proposer: OfficerTerm.serving_on(Date.current).find { it.role == "chair" }&.person)
+      proposer: OfficerTerm.serving_on(Date.current).find { it.role == "chair" }&.person)
     3.times { |i| @resolution.items.build(position: i) }
   end
 
@@ -23,7 +23,7 @@ class ResolutionsController < ApplicationController
     if @resolution.save
       redirect_to @resolution, notice: "決議の提案を作りました"
     else
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 
@@ -35,7 +35,7 @@ class ResolutionsController < ApplicationController
     if @resolution.update(resolution_params)
       redirect_to @resolution, notice: "保存しました"
     else
-      render :edit, status: :unprocessable_entity
+      render :edit, status: :unprocessable_content
     end
   end
 
@@ -56,7 +56,7 @@ class ResolutionsController < ApplicationController
       format.html { render "resolutions/document", layout: "print" }
       format.pdf do
         @pdf = true
-        html = render_to_string("resolutions/document", layout: "print", formats: [ :html ])
+        html = render_to_string("resolutions/document", layout: "print", formats: [:html])
         send_data PdfRenderer.render(html), filename: "resolution-#{@resolution.id}-#{@doc}.pdf", type: "application/pdf", disposition: "inline"
       end
     end
@@ -68,6 +68,6 @@ class ResolutionsController < ApplicationController
 
   def resolution_params
     params.require(:resolution).permit(:body, :title, :proposed_on, :proposer_id, :voting_method, :held_on, :place, :note, :minutes_author_id,
-                                       items_attributes: %i[id position kind title content appointments_text fiscal_year _destroy])
+      items_attributes: %i[id position kind title content appointments_text fiscal_year _destroy])
   end
 end

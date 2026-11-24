@@ -11,13 +11,13 @@ module IconHelper
     todo: "list-todo", accounting: "calculator", resolution: "gavel", registration: "landmark", accounts: "tags", organization: "building-2", destination: "send", passkey: "key-round",
     articles: "scroll-text"
   }.freeze
-  SIZES = { md: 16, sm: 14 }.freeze
+  SIZES = {md: 16, sm: 14}.freeze
 
   def icon(role, size: :md)
     file = ICONS.fetch(role)
     px = SIZES.fetch(size)
     tag.svg(icon_paths(file), class: "nb-icon", width: px, height: px, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor",
-            "stroke-width": 1.75, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": true, focusable: false)
+      "stroke-width": 1.75, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": true, focusable: false)
   end
 
   private

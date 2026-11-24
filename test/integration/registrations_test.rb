@@ -13,9 +13,9 @@ class RegistrationsTest < ActionDispatch::IntegrationTest
   end
 
   test "住所が変わった・氏名が変わった・取り消す(人の画面)" do
-    post person_address_changes_path(@vice), params: { address: "テスト県テスト市3-3", year: "2025", month: "4", day: "" }
+    post person_address_changes_path(@vice), params: {address: "テスト県テスト市3-3", year: "2025", month: "4", day: ""}
     assert_redirected_to person_path(@vice, anchor: "person-history")
-    post person_name_changes_path(@vice), params: { name: "鈴木　花子", year: "2025", month: "9", day: "8", show_former_name: "1" }
+    post person_name_changes_path(@vice), params: {name: "鈴木　花子", year: "2025", month: "9", day: "8", show_former_name: "1"}
     get person_path(@vice)
     assert_select "#person-history tbody tr", 3
     assert_select "#person-history", text: /2025\/04\(日は不明\)/
@@ -24,20 +24,20 @@ class RegistrationsTest < ActionDispatch::IntegrationTest
     get edit_person_path(@vice)
     assert_select "input[name='person[address]']", 0
     nc = @vice.reload.latest_name_change
-    post person_change_cancellation_path(@vice, change_type: "name", change_id: nc.id), params: { reason: "打ち間違い" }
+    post person_change_cancellation_path(@vice, change_type: "name", change_id: nc.id), params: {reason: "打ち間違い"}
     assert nc.reload.cancelled?
-    post person_change_cancellation_path(@vice, change_type: "address", change_id: 999_999), params: { reason: "x" }
+    post person_change_cancellation_path(@vice, change_type: "address", change_id: 999_999), params: {reason: "x"}
     assert_response :not_found
-    post person_change_cancellation_path(@vice, change_type: "zzz", change_id: 1), params: { reason: "x" }
+    post person_change_cancellation_path(@vice, change_type: "zzz", change_id: 1), params: {reason: "x"}
     assert_equal "key not found: \"zzz\"", flash[:alert]
-    post person_address_changes_path(@vice), params: { address: "", year: "2025", month: "5" }
+    post person_address_changes_path(@vice), params: {address: "", year: "2025", month: "5"}
     assert_match "新しい住所", flash[:alert]
-    post person_name_changes_path(@vice), params: { name: "x", year: "", month: "" }
+    post person_name_changes_path(@vice), params: {name: "x", year: "", month: ""}
     assert_match "年と月", flash[:alert]
   end
 
   test "出来事の無い人は、記録の始まりの値を直せる(打ち間違い)" do
-    patch person_path(@chair), params: { person: { name: "山田　一郎", address: "テスト県テスト市1-2" } }
+    patch person_path(@chair), params: {person: {name: "山田　一郎", address: "テスト県テスト市1-2"}}
     assert_equal "山田　一郎", @chair.reload.name
     assert_equal "テスト県テスト市1-2", @chair.address_at_start
     get edit_person_path(@chair)
@@ -51,9 +51,9 @@ class RegistrationsTest < ActionDispatch::IntegrationTest
     assert_select ".nb-online-note a[href*='condition']"
     reg = @term.registrations.first
     assert_select "input[name='registration_ids[]'][value='#{reg.id}']"
-    post registration_filings_path, params: { registration_ids: [] }
+    post registration_filings_path, params: {registration_ids: []}
     assert_match "1 つ以上", flash[:alert]
-    post registration_filings_path, params: { registration_ids: Registration.pluck(:id) }
+    post registration_filings_path, params: {registration_ids: Registration.pluck(:id)}
     filing = RegistrationFiling.last
     assert_redirected_to filing
     follow_redirect!
@@ -79,29 +79,29 @@ class RegistrationsTest < ActionDispatch::IntegrationTest
     post exclude_registration_filing_path(filing, registration_id: regs.last.id)
     proposer = @chair
     gm = Resolution.create!(body: "general_meeting", title: "役員の選任", proposed_on: Date.new(2024, 6, 1), proposer:)
-    patch registration_filing_path(filing), params: { registration_filing: { general_meeting_resolution_id: gm.id } }
+    patch registration_filing_path(filing), params: {registration_filing: {general_meeting_resolution_id: gm.id}}
     assert_equal gm, filing.reload.general_meeting_resolution
     get registration_filing_path(filing)
     assert_select "a[href=?]", document_resolution_path(gm, doc: "minutes", format: :pdf)
 
-    post registration_filing_submission_path(filing), params: { on: "", application_number: "1" }
+    post registration_filing_submission_path(filing), params: {on: "", application_number: "1"}
     assert_match "日付", flash[:alert]
-    post registration_filing_submission_path(filing), params: { on: "2026-12-01", application_number: "A-1" }
+    post registration_filing_submission_path(filing), params: {on: "2026-12-01", application_number: "A-1"}
     assert_equal "submitted", filing.reload.status
     post exclude_registration_filing_path(filing, registration_id: regs.first.id)
     assert_match "変えられません", flash[:alert]
-    post registration_filing_acceptance_path(filing), params: { on: "2026-12-02", receipt_number: "R-1" }
-    post registration_filing_corrections_path(filing), params: { on: "2026-12-03", note: "" }
+    post registration_filing_acceptance_path(filing), params: {on: "2026-12-02", receipt_number: "R-1"}
+    post registration_filing_corrections_path(filing), params: {on: "2026-12-03", note: ""}
     assert_match "求められたこと", flash[:alert]
-    post registration_filing_corrections_path(filing), params: { on: "2026-12-03", note: "日付を直す" }
+    post registration_filing_corrections_path(filing), params: {on: "2026-12-03", note: "日付を直す"}
     get registration_filing_path(filing)
     assert_select ".nb-reg-events", text: /申請番号 A-1/
     assert_select ".nb-reg-events", text: /受付番号 R-1/
-    post registration_filing_completion_path(filing), params: { on: "2026-12-08" }
+    post registration_filing_completion_path(filing), params: {on: "2026-12-08"}
     assert filing.reload.completed?
-    post registration_filing_acceptance_path(filing), params: { on: "2026-12-09" }
+    post registration_filing_acceptance_path(filing), params: {on: "2026-12-09"}
     assert_match "まだ申請", flash[:alert]
-    post registration_filing_completion_path(filing), params: { on: "2026-12-09" }
+    post registration_filing_completion_path(filing), params: {on: "2026-12-09"}
     assert_match "終わった", flash[:alert]
     get registrations_path
     assert_select "h2", text: "登記したこと"
@@ -122,11 +122,11 @@ class RegistrationsTest < ActionDispatch::IntegrationTest
     assert_select "p", text: /定款の版が登録されていません/
     get document_registration_filing_path(filing, doc: "zzz")
     assert_response :not_found
-    post registration_filing_withdrawal_path(filing), params: { on: "2026-12-01", reason: "" }
+    post registration_filing_withdrawal_path(filing), params: {on: "2026-12-01", reason: ""}
     assert_match "理由", flash[:alert]
-    post registration_filing_withdrawal_path(filing), params: { on: "2026-12-01", reason: "まとめ直す" }
+    post registration_filing_withdrawal_path(filing), params: {on: "2026-12-01", reason: "まとめ直す"}
     assert filing.reload.withdrawn?
-    post registration_filing_completion_path(filing), params: { on: "2026-12-01" }
+    post registration_filing_completion_path(filing), params: {on: "2026-12-01"}
     assert_match "終わった", flash[:alert]
     assert_pdf document_registration_filing_path(filing, doc: "cover", format: :pdf)
   end
@@ -144,9 +144,9 @@ class RegistrationsTest < ActionDispatch::IntegrationTest
     get registration_filing_path(filing)
     assert_response :success
     assert_select "button", text: "申請したことを記録する", count: 0
-    post registration_filings_path, params: { registration_ids: [] }
+    post registration_filings_path, params: {registration_ids: []}
     assert_match "監査", flash[:alert]
-    post registration_filing_submission_path(filing), params: { on: "2026-12-01" }
+    post registration_filing_submission_path(filing), params: {on: "2026-12-01"}
     assert_match "監査", flash[:alert]
     assert filing.reload.drafting?
   end

@@ -1,5 +1,6 @@
 class Account < ApplicationRecord
   include YearlyDataset
+
   # NPO 法人会計基準の区分。会計王の科目性格コードで決める。
   CATEGORIES = {
     "asset" => "資産", "liability" => "負債", "net_assets" => "正味財産",
@@ -13,7 +14,7 @@ class Account < ApplicationRecord
 
   validates :code, presence: true
   validates :name, presence: true
-  validates :category, inclusion: { in: CATEGORIES.keys }
+  validates :category, inclusion: {in: CATEGORIES.keys}
 
   before_validation do
     if code
@@ -46,9 +47,9 @@ class Account < ApplicationRecord
   # 勘定科目設定を取り込む前(SIWAKE だけ取り込んだとき)に使う、会計王の NPO 法人向け標準の科目コードの範囲。
   # 2026-11-20 に会計王の勘定科目設定の書き出しで確かめた。
   DEFAULT_NATURES = [
-    [ 100..199, 11150 ], [ 200..299, 11210 ], [ 300..369, 12110 ], [ 370..399, 12200 ],
-    [ 500..599, 21110 ], [ 600..619, 21121 ], [ 620..699, 21122 ], [ 700..719, 21181 ], [ 720..799, 21182 ],
-    [ 950..959, 22100 ], [ 960..979, 22300 ], [ 980..980, 23000 ], [ 981..988, 23002 ]
+    [100..199, 11150], [200..299, 11210], [300..369, 12110], [370..399, 12200],
+    [500..599, 21110], [600..619, 21121], [620..699, 21122], [700..719, 21181], [720..799, 21182],
+    [950..959, 22100], [960..979, 22300], [980..980, 23000], [981..988, 23002]
   ].freeze
 
   def self.default_nature_code(code)
@@ -57,17 +58,17 @@ class Account < ApplicationRecord
 
   # 活動計算書の小区分(勘定科目設定が無いときの受取収益の区分)
   REVENUE_GROUPS = [
-    [ 500..509, "受取会費" ], [ 510..519, "受取寄付金" ], [ 520..529, "受取助成金等" ],
-    [ 530..549, "事業収益" ], [ 550..599, "その他収益" ]
+    [500..509, "受取会費"], [510..519, "受取寄付金"], [520..529, "受取助成金等"],
+    [530..549, "事業収益"], [550..599, "その他収益"]
   ].freeze
-  PERSONNEL_NATURES = [ 21121, 21181 ].freeze
+  PERSONNEL_NATURES = [21121, 21181].freeze
 
   def activity_group
     case category
     when "revenue"
       group_name.presence || REVENUE_GROUPS.find { |range, _| range.cover?(code) }&.last || "その他収益"
     when "program_expense", "admin_expense" then personnel? ? "人件費" : "その他経費"
-    when "extraordinary" then nature_code < 22300 ? "経常外収益" : "経常外費用"
+    when "extraordinary" then (nature_code < 22300) ? "経常外収益" : "経常外費用"
     end
   end
 

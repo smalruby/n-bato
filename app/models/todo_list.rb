@@ -6,10 +6,10 @@ class TodoList
     def done? = status == "done"
     def overdue?(today = Date.current) = !done? && due_on.present? && due_on < today
   end
-  SOURCES = { "request" => "依頼", "duty" => "義務", "procedure" => "手続き", "application" => "入会申込" }.freeze
+  SOURCES = {"request" => "依頼", "duty" => "義務", "procedure" => "手続き", "application" => "入会申込"}.freeze
   # 件数のまとめ(デザインシステム TodoSummary、見直し第12回)の札。期限ごとと担当ごと。
-  DUES = { "over" => "期限を過ぎた", "week" => "7 日以内", "later" => "それより先", "none" => "期限なし" }.freeze
-  WHOS = { "human" => "人がやる", "ai" => "AI がやる" }.freeze
+  DUES = {"over" => "期限を過ぎた", "week" => "7 日以内", "later" => "それより先", "none" => "期限なし"}.freeze
+  WHOS = {"human" => "人がやる", "ai" => "AI がやる"}.freeze
   SOON_DAYS = 7
 
   def initialize(helpers:, today: Date.current, source: nil, year: nil, include_done: false, due: nil, who: nil)
@@ -26,7 +26,10 @@ class TodoList
     @summary ||= begin
       open = raw_groups.flat_map { narrow(it.items) }.reject(&:done?)
       counts = (DUES.keys + WHOS.keys).index_with(0)
-      open.each { counts[due_key(it)] += 1; counts[who_key(it)] += 1 }
+      open.each {
+        counts[due_key(it)] += 1
+        counts[who_key(it)] += 1
+      }
       counts
     end
   end
@@ -35,10 +38,10 @@ class TodoList
     return "none" unless item.due_on
     return "over" if item.due_on < @today
 
-    item.due_on <= @today + SOON_DAYS ? "week" : "later"
+    (item.due_on <= @today + SOON_DAYS) ? "week" : "later"
   end
 
-  def who_key(item) = item.assignee.to_s.strip == "AI" ? "ai" : "human"
+  def who_key(item) = (item.assignee.to_s.strip == "AI") ? "ai" : "human"
 
   def items = groups.flat_map(&:items)
 
@@ -77,11 +80,11 @@ class TodoList
 
       items = r.todos.map do |t|
         Item.new(status: t.status, fiscal_year: t.fiscal_year, title: t.title, kind_label: t.kind_label, assignee: t.assignee,
-                 due_on: t.due_on, path: @h.todo_path(t), todo: t,
-                 note: [ (t.status == "wait" && t.waiting_on.present? ? "待ち: #{t.waiting_on}" : nil), (t.done? ? t.done_note.presence : nil) ].compact.join(" "))
+          due_on: t.due_on, path: @h.todo_path(t), todo: t,
+          note: [((t.status == "wait" && t.waiting_on.present?) ? "待ち: #{t.waiting_on}" : nil), (t.done? ? t.done_note.presence : nil)].compact.join(" "))
       end
-      Group.new(key: "request-#{r.id}", source: "request", title: r.title, note: [ r.counterpart.presence, ("#{r.done_count} / #{r.todos.size} 済み" if r.todos.any?) ].compact.join("・"),
-                due_on: r.due_on, request: r, items:)
+      Group.new(key: "request-#{r.id}", source: "request", title: r.title, note: [r.counterpart.presence, ("#{r.done_count} / #{r.todos.size} 済み" if r.todos.any?)].compact.join("・"),
+        due_on: r.due_on, request: r, items:)
     end.compact
   end
 
@@ -89,7 +92,7 @@ class TodoList
     items = Compliance::Checklist.new(today: @today).items.map do |c|
       st = c.done? ? "done" : "todo"
       Item.new(status: st, fiscal_year: c.title[/(\d{4})年度/, 1]&.to_i, title: c.title, kind_label: c.category, assignee: "理事長",
-               due_on: c.due_on, path: c.path, todo: nil, note: c.note.to_s)
+        due_on: c.due_on, path: c.path, todo: nil, note: c.note.to_s)
     end
     Group.new(key: "duty", source: "duty", title: "定款・法律の義務", note: "n-bato が期限から自動で出す", due_on: nil, request: nil, items:)
   end
@@ -98,7 +101,7 @@ class TodoList
   def application_group
     items = MemberApplication.received.order(:applied_on).map do |a|
       Item.new(status: "todo", fiscal_year: a.default_year, title: "入会申込が届いた: #{a.name}", kind_label: "画面", assignee: "理事長",
-               due_on: nil, path: @h.member_application_path(a), todo: nil, note: "#{a.applied_on.strftime('%Y/%m/%d')} に申込")
+        due_on: nil, path: @h.member_application_path(a), todo: nil, note: "#{a.applied_on.strftime("%Y/%m/%d")} に申込")
     end
     Group.new(key: "application", source: "application", title: "入会申込", note: "認めるかを決める(定款第7条)", due_on: nil, request: nil, items:)
   end
@@ -107,9 +110,9 @@ class TodoList
     items = ProcedureRun.ordered.reject(&:finished?).filter_map do |run|
       next unless (step = run.next_step)
 
-      Item.new(status: step.status == "current" ? "doing" : "todo", fiscal_year: run.period.to_i.positive? ? run.period.to_i : nil,
-               title: "#{run.name}: #{step.definition.title}", kind_label: "手続き", assignee: "理事長", due_on: run.due_on,
-               path: @h.procedure_path(run, step: step.key), todo: nil, note: run.period_label)
+      Item.new(status: (step.status == "current") ? "doing" : "todo", fiscal_year: run.period.to_i.positive? ? run.period.to_i : nil,
+        title: "#{run.name}: #{step.definition.title}", kind_label: "手続き", assignee: "理事長", due_on: run.due_on,
+        path: @h.procedure_path(run, step: step.key), todo: nil, note: run.period_label)
     end
     Group.new(key: "procedure", source: "procedure", title: "進めている手続き", note: "次の手順", due_on: nil, request: nil, items:)
   end

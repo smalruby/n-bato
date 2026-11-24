@@ -5,14 +5,14 @@
 # 保存する状態(列の status・completed_on)は「いまの状態」で、ProcedureStep::StatusChange.change! だけが書き換える(照合は model:verify)。
 # 確かめたこと(checks)・メモは作業の中身で、ふつうに直してよい(操作履歴に残る。ADR-0006)。
 class ProcedureStep < ApplicationRecord
-  STATUS_LABELS = { "todo" => "未着手", "current" => "進行中", "waiting" => "待ち", "done" => "済み", "overdue" => "期限切れ", "skipped" => "対象外" }.freeze
+  STATUS_LABELS = {"todo" => "未着手", "current" => "進行中", "waiting" => "待ち", "done" => "済み", "overdue" => "期限切れ", "skipped" => "対象外"}.freeze
   STORED_STATUSES = %w[open done skipped].freeze
   STATE_COLUMNS = %w[status completed_on].freeze
 
   belongs_to :procedure_run
   has_many :status_changes, -> { order(:id) }, class_name: "ProcedureStep::StatusChange", dependent: :restrict_with_error
 
-  validates :key, presence: true, uniqueness: { scope: :procedure_run_id }
+  validates :key, presence: true, uniqueness: {scope: :procedure_run_id}
   validate { errors.add(:status, :inclusion) unless self[:status].in?(STORED_STATUSES) } # 保存する値(status メソッドは計算した状態)
   validate { errors.add(:key, "が手続きの定義にありません") if procedure_run && definition.nil? }
   validate :state_written_by_status_change
@@ -24,7 +24,7 @@ class ProcedureStep < ApplicationRecord
 
   # 保存する状態は、最後の変化(id の順)から決まる。変化が無ければ open(docs/adr/0005)
   def self.state_for(change)
-    { "status" => change&.status || "open", "completed_on" => change&.status.in?(%w[done skipped]) ? change.completed_on : nil }
+    {"status" => change&.status || "open", "completed_on" => change&.status.in?(%w[done skipped]) ? change.completed_on : nil}
   end
 
   def derived_state = ProcedureStep.state_for(status_changes.max_by(&:id))
@@ -126,7 +126,7 @@ class ProcedureStep < ApplicationRecord
     if new_record?
       errors.add(:base, "手順は open で作ってください(済みにするときは ProcedureStep::StatusChange.change!)") unless self[:status] == "open" && completed_on.nil?
     elsif (changed = STATE_COLUMNS & changed_attribute_names_to_save).any?
-      errors.add(:base, "#{changed.join('・')} は直接書き換えません。ProcedureStep::StatusChange.change!(手順, status: …) を使ってください")
+      errors.add(:base, "#{changed.join("・")} は直接書き換えません。ProcedureStep::StatusChange.change!(手順, status: …) を使ってください")
     end
   end
 end

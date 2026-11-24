@@ -4,7 +4,7 @@ require "test_helper"
 class RightPaneTest < ActionDispatch::IntegrationTest
   setup do
     sign_in
-    [ 2024, 2025 ].each { FiscalPeriod.find_or_create_by!(year: it) }
+    [2024, 2025].each { FiscalPeriod.find_or_create_by!(year: it) }
   end
 
   test "説明は役割と状態に合わせて出し、畳んだことを画面ごとに覚える" do
@@ -13,7 +13,7 @@ class RightPaneTest < ActionDispatch::IntegrationTest
     assert_select ".nb-help-now li", text: /仮/
     assert_select ".nb-help-ops dt", minimum: 3
 
-    post help_pref_path, params: { screen: "journal_entries", collapsed: "1" }
+    post help_pref_path, params: {screen: "journal_entries", collapsed: "1"}
     get journal_entries_path
     assert_select ".nb-help-body[hidden]"
     get accounts_path
@@ -26,18 +26,18 @@ class RightPaneTest < ActionDispatch::IntegrationTest
     assert_select ".nb-help .nb-help-role", text: "監査"
     assert_select ".nb-help h3", text: "ほかに出せるもの"
 
-    post people_path, params: { person: { name: "新しい人" } }
+    post people_path, params: {person: {name: "新しい人"}}
     assert_redirected_to root_path
     assert_nil Person.find_by(name: "新しい人")
   end
 
   test "AI の鍵が無ければ、そう答える" do
-    post assistant_path, params: { q: "仕訳して", screen: "journal_entries" }
+    post assistant_path, params: {q: "仕訳して", screen: "journal_entries"}
     assert_match "AI の鍵", response.parsed_body["answer"] unless Bookkeeper::Client.configured?
   end
 
   test "個人情報を含む頼みごと(会員の記録を直す)は、AI の案にしない" do
-    action, problem = Assistant::Action.prepare({ "kind" => "update_person" }, year: 2025)
+    action, problem = Assistant::Action.prepare({"kind" => "update_person"}, year: 2025)
     assert_nil action
     assert_nil problem
     assert_not_includes Assistant::Responder::SCHEMA.dig(:properties, :action, :properties, :kind, :enum), "update_person"
@@ -48,17 +48,17 @@ class RightPaneTest < ActionDispatch::IntegrationTest
     assert_select ".nb-role-switch summary", text: /事務として使う/
     assert_select ".nb-role-band", count: 0
 
-    patch role_path, params: { role: "auditor" }
+    patch role_path, params: {role: "auditor"}
     assert_equal "auditor", users(:one).reload.role
     get journal_entries_path
     assert_select ".nb-role-band", text: /監査として見ています/
     assert_select ".nb-role-band button", text: "事務に切り替える"
 
-    patch role_path, params: { role: "clerk" }   # 監査で使っていても切り替えられる
+    patch role_path, params: {role: "clerk"}   # 監査で使っていても切り替えられる
     assert_equal "clerk", users(:one).reload.role
 
     sign_in users(:two)
-    patch role_path, params: { role: "auditor" }
+    patch role_path, params: {role: "auditor"}
     assert_equal "clerk", users(:two).reload.role
     get journal_entries_path
     assert_select ".nb-role-chip", text: /事務として使う/

@@ -3,11 +3,11 @@
 class CreateJournalEntryCancellations < ActiveRecord::Migration[8.1]
   def change
     create_table :journal_entry_cancellations do |t|
-      t.references :journal_entry, null: false, foreign_key: true, index: { unique: true }
-      t.references :canceller, foreign_key: { to_table: :users }
+      t.references :journal_entry, null: false, foreign_key: true, index: {unique: true}
+      t.references :canceller, foreign_key: {to_table: :users}
       t.text :reason, null: false
       t.datetime :cancelled_at, null: false
     end
-    add_reference :journal_proposals, :reproposed_from, foreign_key: { to_table: :journal_proposals }
+    add_reference :journal_proposals, :reproposed_from, foreign_key: {to_table: :journal_proposals}
   end
 end

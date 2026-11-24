@@ -15,7 +15,7 @@ class Backup::ArchiveTest < ActiveSupport::TestCase
       db.execute("CREATE TABLE todos (title TEXT)")
       db.execute("INSERT INTO todos VALUES ('a'), ('b')")
       db.execute("INSERT INTO active_storage_blobs VALUES (?, ?, ?, 'local')",
-                 [ @blob, @content.bytesize, Digest::MD5.base64digest(@content) ])
+        [@blob, @content.bytesize, Digest::MD5.base64digest(@content)])
     end
     SQLite3::Database.new(@storage.join("production_queue.sqlite3").to_s) { it.execute("CREATE TABLE q (id INTEGER)") }
   end
@@ -25,11 +25,11 @@ class Backup::ArchiveTest < ActiveSupport::TestCase
   test "storage を固めて広げると、DB と添付がそろい、確かめが通る" do
     restored = archive_and_extract
     assert_equal %w[ab/cd/abcdefghijkl production.sqlite3 production_queue.sqlite3],
-                 restored.glob("**/*").select(&:file?).map { it.relative_path_from(restored).to_s }.sort
+      restored.glob("**/*").select(&:file?).map { it.relative_path_from(restored).to_s }.sort
 
     result = Backup::Verification.new(restored).run
     assert result.ok?, result.problems.inspect
-    assert_equal({ "production.sqlite3" => "ok", "production_queue.sqlite3" => "ok" }, result.databases)
+    assert_equal({"production.sqlite3" => "ok", "production_queue.sqlite3" => "ok"}, result.databases)
     assert_equal 2, result.tables["todos"]
     assert_equal 1, result.blobs
   end
@@ -48,12 +48,15 @@ class Backup::ArchiveTest < ActiveSupport::TestCase
   test "Backup.run! は日時の名前で S3 に送る" do
     client = Aws::S3::Client.new(stub_responses: true)
     sent = []
-    client.stub_responses(:put_object, ->(context) { sent << context.params.slice(:bucket, :key); {} })
+    client.stub_responses(:put_object, ->(context) {
+      sent << context.params.slice(:bucket, :key)
+      {}
+    })
     upload = Backup::Upload.new(client:, bucket: "example-bucket")
 
     key = Backup.run!(storage_dir: @storage, now: Time.utc(2026, 11, 24, 19, 0), upload:)
     assert_equal "n-bato/daily/2026-11-24T1900Z.tar.gz", key
-    assert_equal [ { bucket: "example-bucket", key: "n-bato/daily/2026-11-24T1900Z.tar.gz" } ], sent
+    assert_equal [{bucket: "example-bucket", key: "n-bato/daily/2026-11-24T1900Z.tar.gz"}], sent
   end
 
   private

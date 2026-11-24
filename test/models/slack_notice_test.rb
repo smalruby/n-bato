@@ -4,8 +4,11 @@ require "test_helper"
 class SlackNoticeTest < ActiveSupport::TestCase
   setup do
     @sent = []
-    SlackNotice.poster = ->(text) { @sent << text; true }
-    [ 2023, 2024, 2025, 2026 ].each { FiscalPeriod.find_or_create_by!(year: it) }
+    SlackNotice.poster = ->(text) {
+      @sent << text
+      true
+    }
+    [2023, 2024, 2025, 2026].each { FiscalPeriod.find_or_create_by!(year: it) }
   end
   teardown { SlackNotice.poster = nil }
 
@@ -84,7 +87,7 @@ class SlackNoticeTest < ActiveSupport::TestCase
     def initialize(body) = (@body, @requests = body, [])
 
     def start(host, port, **opts)
-      @requests << [ host, port, opts ]
+      @requests << [host, port, opts]
       yield self
     end
 
@@ -106,9 +109,9 @@ class SlackNoticeTest < ActiveSupport::TestCase
     end
     host, _, opts = http.requests.first
     req = http.requests.last
-    assert_equal [ "slack.com", true ], [ host, opts[:use_ssl] ]
+    assert_equal ["slack.com", true], [host, opts[:use_ssl]]
     assert_equal "Bearer xoxb-test", req["Authorization"]
-    assert_equal({ "channel" => "C0TEST", "text" => "こんにちは", "unfurl_links" => false }, JSON.parse(req.body))
+    assert_equal({"channel" => "C0TEST", "text" => "こんにちは", "unfurl_links" => false}, JSON.parse(req.body))
   end
 
   test "鍵が無ければ送らない" do

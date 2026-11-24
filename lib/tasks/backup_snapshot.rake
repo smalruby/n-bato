@@ -10,7 +10,7 @@ namespace :backup do
   end
 
   desc "書く前のバックアップを本体の DB に戻す(アプリを止めてから。bin/prod-restore が使う)"
-  task :restore_snapshot, [ :name ] => :environment do |_, args|
+  task :restore_snapshot, [:name] => :environment do |_, args|
     puts "戻した: #{Backup::Snapshot.new.restore!(args.fetch(:name))}"
   end
 end

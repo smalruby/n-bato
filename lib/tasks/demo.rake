@@ -26,7 +26,7 @@ namespace :demo do
     require Rails.root.join("db/demo/seed").to_s
     seed = Demo.seed!(password:)
     puts "架空のデータを入れました(#{db.database})"
-    puts "  ログイン: #{Demo::EMAIL} / パスワード: #{ENV['NBATO_DEMO_PASSWORD'].present? ? 'NBATO_DEMO_PASSWORD' : password_file.relative_path_from(Rails.root)}"
-    puts "  年度 #{FiscalPeriod.years.join('・')}(いまの年度 #{seed.year})、仕訳 #{JournalEntry.count} 件、人 #{Person.count} 人、決議 #{Resolution.count} 件"
+    puts "  ログイン: #{Demo::EMAIL} / パスワード: #{ENV["NBATO_DEMO_PASSWORD"].present? ? "NBATO_DEMO_PASSWORD" : password_file.relative_path_from(Rails.root)}"
+    puts "  年度 #{FiscalPeriod.years.join("・")}(いまの年度 #{seed.year})、仕訳 #{JournalEntry.count} 件、人 #{Person.count} 人、決議 #{Resolution.count} 件"
   end
 end

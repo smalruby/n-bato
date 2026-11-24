@@ -3,7 +3,7 @@ class PickersController < ApplicationController
   def show
     year = Current.working_year
     items = PickerItems.new(params[:source], year).all
-    items.unshift({ id: "", code: "", name: "(なし)" }) if params[:source] == "departments"
-    render json: { items: }
+    items.unshift({id: "", code: "", name: "(なし)"}) if params[:source] == "departments"
+    render json: {items:}
   end
 end

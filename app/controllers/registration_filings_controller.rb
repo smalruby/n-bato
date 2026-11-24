@@ -1,6 +1,6 @@
 # 登記の申請(長いイベント)。始める・登記することを足す/外す・添付する決議を選ぶ・書類(PDF)。docs/adr/0031
 class RegistrationFilingsController < ApplicationController
-  DOCUMENTS = { "cover" => "書面により提出する添付書面の内訳", "mutual_election" => "理事の互選書", "articles" => "定款" }.freeze
+  DOCUMENTS = {"cover" => "書面により提出する添付書面の内訳", "mutual_election" => "理事の互選書", "articles" => "定款"}.freeze
 
   before_action :set_filing, except: :create
   before_action :forbid_auditor, except: %i[show document]
@@ -50,7 +50,7 @@ class RegistrationFilingsController < ApplicationController
       format.html { render "registration_filings/document", layout: "print" }
       format.pdf do
         @pdf = true
-        html = render_to_string("registration_filings/document", layout: "print", formats: [ :html ])
+        html = render_to_string("registration_filings/document", layout: "print", formats: [:html])
         send_data PdfRenderer.render(html), filename: "registration-#{@filing.id}-#{@doc}.pdf", type: "application/pdf", disposition: "inline"
       end
     end

@@ -10,6 +10,6 @@ class CreateProgramActivities < ActiveRecord::Migration[8.1]
       t.integer :position, null: false, default: 0
       t.timestamps
     end
-    add_index :program_activities, [ :annual_report_id, :department_id ], unique: true
+    add_index :program_activities, [:annual_report_id, :department_id], unique: true
   end
 end

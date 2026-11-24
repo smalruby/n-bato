@@ -4,16 +4,16 @@
 class CreateMemberApplicationEvents < ActiveRecord::Migration[8.1]
   def up
     create_table :member_application_approvals do |t|
-      t.references :member_application, null: false, foreign_key: true, index: { unique: true }
-      t.references :approver, foreign_key: { to_table: :users }
+      t.references :member_application, null: false, foreign_key: true, index: {unique: true}
+      t.references :approver, foreign_key: {to_table: :users}
       t.references :person, null: false, foreign_key: true
       t.integer :fiscal_year, null: false
       t.date :joined_on, null: false
       t.datetime :approved_at, null: false
     end
     create_table :member_application_rejections do |t|
-      t.references :member_application, null: false, foreign_key: true, index: { unique: true }
-      t.references :rejecter, foreign_key: { to_table: :users }
+      t.references :member_application, null: false, foreign_key: true, index: {unique: true}
+      t.references :rejecter, foreign_key: {to_table: :users}
       t.text :reason, null: false
       t.datetime :rejected_at, null: false
     end

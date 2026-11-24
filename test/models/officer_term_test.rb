@@ -17,7 +17,7 @@ class OfficerTermTest < ActiveSupport::TestCase
     OfficerTerm.create!(person: @b, role: "chair", starts_on: Date.new(2026, 12, 10), ends_on: Date.new(2028, 12, 9))
     assert_not @term.serving_on?(Date.new(2026, 12, 10))
     assert_equal Date.new(2026, 4, 1)..Date.new(2026, 12, 9), @term.period_in(FiscalYear.new(2026))
-    assert_equal [ "役員B" ], OfficerTerm.serving_on(Date.new(2027, 1, 1)).map { it.person.name }
+    assert_equal ["役員B"], OfficerTerm.serving_on(Date.new(2027, 1, 1)).map { it.person.name }
   end
 
   test "住所は暗号化して保存する" do

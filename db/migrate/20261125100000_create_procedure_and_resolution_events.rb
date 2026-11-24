@@ -21,7 +21,7 @@ class CreateProcedureAndResolutionEvents < ActiveRecord::Migration[8.1]
       t.string :status, null: false
       t.date :completed_on
       t.text :note, default: "", null: false
-      t.references :changed_by, foreign_key: { to_table: :users }
+      t.references :changed_by, foreign_key: {to_table: :users}
       t.datetime :changed_at, null: false
     end
     create_table :annual_report_milestones do |t|
@@ -29,17 +29,17 @@ class CreateProcedureAndResolutionEvents < ActiveRecord::Migration[8.1]
       t.string :kind, null: false
       t.date :dated_on
       t.boolean :automatic, default: false, null: false
-      t.references :recorded_by, foreign_key: { to_table: :users }
+      t.references :recorded_by, foreign_key: {to_table: :users}
       t.datetime :recorded_at, null: false
     end
     create_table :resolution_item_applications do |t|
-      t.references :resolution_item, null: false, foreign_key: true, index: { unique: true }
-      t.references :applied_by, foreign_key: { to_table: :users }
+      t.references :resolution_item, null: false, foreign_key: true, index: {unique: true}
+      t.references :applied_by, foreign_key: {to_table: :users}
       t.date :applied_on, null: false
     end
     create_table :consent_cancellations do |t|
-      t.references :consent, null: false, foreign_key: true, index: { unique: true }
-      t.references :cancelled_by, foreign_key: { to_table: :users }
+      t.references :consent, null: false, foreign_key: true, index: {unique: true}
+      t.references :cancelled_by, foreign_key: {to_table: :users}
       t.datetime :cancelled_at, null: false
     end
 
@@ -57,11 +57,11 @@ class CreateProcedureAndResolutionEvents < ActiveRecord::Migration[8.1]
     SQL
 
     # 事業報告: 日付の入っている列ごとに、節目のイベントを 1 つ。出し直しが要る は決まりで付けたもの(automatic)
-    { "approved" => "approved_on", "submitted" => "submitted_on", "bs_published" => "bs_published_on",
-      "resubmit_needed" => "resubmit_needed_on", "resubmitted" => "resubmitted_on" }.each do |kind, column|
+    {"approved" => "approved_on", "submitted" => "submitted_on", "bs_published" => "bs_published_on",
+     "resubmit_needed" => "resubmit_needed_on", "resubmitted" => "resubmitted_on"}.each do |kind, column|
       execute <<~SQL
         INSERT INTO annual_report_milestones (annual_report_id, kind, dated_on, automatic, recorded_at)
-        SELECT id, '#{kind}', #{column}, #{kind == 'resubmit_needed' ? 1 : 0}, updated_at
+        SELECT id, '#{kind}', #{column}, #{(kind == "resubmit_needed") ? 1 : 0}, updated_at
         FROM annual_reports WHERE #{column} IS NOT NULL
       SQL
     end
@@ -83,7 +83,7 @@ class CreateProcedureAndResolutionEvents < ActiveRecord::Migration[8.1]
       UPDATE audit_operations SET kind = 'final'
       WHERE kind = 'do' AND id IN (
         SELECT audit_operation_id FROM audit_changes
-        WHERE auditable_type IN (#{MODELS.map { "'#{it}'" }.join(', ')})
+        WHERE auditable_type IN (#{MODELS.map { "'#{it}'" }.join(", ")})
       )
     SQL
   end
@@ -103,13 +103,13 @@ class CreateProcedureAndResolutionEvents < ActiveRecord::Migration[8.1]
     SQL
     if duplicated.any?
       raise ActiveRecord::IrreversibleMigration,
-            "取り消していない同意が同じ人に 2 つ以上あるので戻せません(#{duplicated.map { |r, p| "決議 ##{r}・人 ##{p}" }.join('、')})。" \
-            "どれを残すかを決めて、ほかを取り消してから戻してください"
+        "取り消していない同意が同じ人に 2 つ以上あるので戻せません(#{duplicated.map { |r, p| "決議 ##{r}・人 ##{p}" }.join("、")})。" \
+        "どれを残すかを決めて、ほかを取り消してから戻してください"
     end
 
     cancelled = select_values("SELECT consent_id FROM consent_cancellations")
     drop_table :consent_cancellations
-    execute "DELETE FROM consents WHERE id IN (#{cancelled.map(&:to_i).join(', ')})" if cancelled.any?
+    execute "DELETE FROM consents WHERE id IN (#{cancelled.map(&:to_i).join(", ")})" if cancelled.any?
     add_column :consents, :created_at, :datetime
     add_column :consents, :updated_at, :datetime
     execute "UPDATE consents SET created_at = consented_on, updated_at = consented_on"

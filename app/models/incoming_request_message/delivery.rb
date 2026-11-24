@@ -3,6 +3,7 @@
 # AI を呼ぶのは Requests::Organizer。返事が来てから、この入口で記録する(AI を待つ間、記録をつかまないように)。
 class IncomingRequestMessage::Delivery < ApplicationRecord
   include EventRecord
+
   event_of :delivered_at, entry: :deliver!
 
   belongs_to :message, class_name: "IncomingRequestMessage", inverse_of: :delivery

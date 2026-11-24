@@ -3,8 +3,8 @@
 # 成立した日は、取り消していない同意から毎回決まる(列には持たない)。件名・提案日・議案などの中身は、ふつうに直してよい。
 # 同意を記録した(取り消したものも)・議案を反映した決議は消せない(出来事を消さないため)。
 class Resolution < ApplicationRecord
-  BODIES = { "general_meeting" => "総会", "board" => "理事会" }.freeze
-  METHODS = { "written" => "書面による決議（みなし決議）", "meeting" => "会議" }.freeze
+  BODIES = {"general_meeting" => "総会", "board" => "理事会"}.freeze
+  METHODS = {"written" => "書面による決議（みなし決議）", "meeting" => "会議"}.freeze
 
   belongs_to :proposer, class_name: "Person"
   belongs_to :minutes_author, class_name: "Person", optional: true
@@ -15,8 +15,8 @@ class Resolution < ApplicationRecord
   has_many :all_consents, class_name: "Consent", dependent: :restrict_with_error
   accepts_nested_attributes_for :items, allow_destroy: true, reject_if: ->(a) { a["title"].blank? }
 
-  validates :body, inclusion: { in: BODIES.keys }
-  validates :voting_method, inclusion: { in: METHODS.keys }
+  validates :body, inclusion: {in: BODIES.keys}
+  validates :voting_method, inclusion: {in: METHODS.keys}
   validates :title, :proposed_on, presence: true
   validate { errors.add(:base, "記録に反映した議案は消せません") if items.any? { it.marked_for_destruction? && it.applied? } }
 
@@ -57,7 +57,7 @@ class Resolution < ApplicationRecord
   def state_mismatches
     list = []
     list << "取り消していない同意(同じ人に 2 つ)" if consents.group(:person_id).having("COUNT(*) > 1").exists?
-    list << "成立(反映した議案があるのに成立していない)" if ResolutionItem::Application.joins(:resolution_item).exists?(resolution_items: { resolution_id: id }) && !established?
+    list << "成立(反映した議案があるのに成立していない)" if ResolutionItem::Application.joins(:resolution_item).exists?(resolution_items: {resolution_id: id}) && !established?
     list
   end
 

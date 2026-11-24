@@ -13,9 +13,9 @@ class ProcedureStepTest < ActiveSupport::TestCase
 
   test "返事を待つ人を役員・正会員の記録から出す" do
     election = ProcedureRun.create!(kind: "officer_election", period: 2026)
-    assert_equal [ "理事 一郎(理事長)", "監事 花子(監事)" ], election.step("candidates").people_waited_for
-    assert_equal [ "理事 一郎(理事長)" ], election.step("mutual_election").people_waited_for
-    assert_equal [ "会員 次郎" ], election.step("general_meeting").people_waited_for
+    assert_equal ["理事 一郎(理事長)", "監事 花子(監事)"], election.step("candidates").people_waited_for
+    assert_equal ["理事 一郎(理事長)"], election.step("mutual_election").people_waited_for
+    assert_equal ["会員 次郎"], election.step("general_meeting").people_waited_for
     assert_equal [], election.step("notify_city").people_waited_for
   end
 
@@ -43,7 +43,7 @@ class ProcedureStepTest < ActiveSupport::TestCase
 
     tax = run.step("corporate_tax") # 対象外にできるのは、定義で optional の手順だけ
     ProcedureStep::StatusChange.change!(tax, status: "skipped", reason: "今年は対象外")
-    assert_equal [ "skipped", "今年は対象外" ], [ tax.reload.status, tax.note ]
+    assert_equal ["skipped", "今年は対象外"], [tax.reload.status, tax.note]
     ProcedureStep::StatusChange.change!(tax, status: "open")
     ProcedureStep::StatusChange.change!(tax, status: "skipped", reason: "")
     assert_equal "今年は対象外", tax.reload.note, "理由が空なら前のメモを残す"

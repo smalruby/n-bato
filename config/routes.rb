@@ -1,18 +1,18 @@
 Rails.application.routes.draw do
-  post "undo" => "undo#undo", as: :undo
-  post "redo" => "undo#redo", as: :redo
-  get "history" => "undo#history", as: :history
-  get "changes" => "changes#index", as: :changes
-  post "ui_prefs/help" => "ui_prefs#help", as: :help_pref
-  patch "role" => "roles#update", as: :role
-  get "pickers/:source" => "pickers#show", as: :picker, constraints: { source: /accounts|departments/ }
-  post "assistant" => "assistant#create", as: :assistant
-  post "assistant/perform" => "assistant#perform", as: :assistant_perform
+  post "undo" => "undo#undo", :as => :undo
+  post "redo" => "undo#redo", :as => :redo
+  get "history" => "undo#history", :as => :history
+  get "changes" => "changes#index", :as => :changes
+  post "ui_prefs/help" => "ui_prefs#help", :as => :help_pref
+  patch "role" => "roles#update", :as => :role
+  get "pickers/:source" => "pickers#show", :as => :picker, :constraints => {source: /accounts|departments/}
+  post "assistant" => "assistant#create", :as => :assistant
+  post "assistant/perform" => "assistant#perform", :as => :assistant_perform
   resources :fiscal_periods, only: [] do
     post :start_next, on: :collection
     post :reopen, on: :member
   end
-  get "year/:year" => "working_years#switch", as: :year_switch, constraints: { year: /\d{4}/ }
+  get "year/:year" => "working_years#switch", :as => :year_switch, :constraints => {year: /\d{4}/}
 
   # 手続き。手順の済みにする・対象外にする・済みを取り消すは、状態の変化を「作る」で表す(docs/adr/0008・0038)
   resources :procedures, only: %i[index show create] do
@@ -124,5 +124,5 @@ Rails.application.routes.draw do
   resources :articles, only: %i[index show]
   resources :program_profiles, only: %i[update]
 
-  get "up" => "rails/health#show", as: :rails_health_check
+  get "up" => "rails/health#show", :as => :rails_health_check
 end

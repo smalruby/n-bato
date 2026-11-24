@@ -11,7 +11,7 @@ module Articles
       def anchor = "a-#{number}"
     end
     Chapter = Data.define(:title, :articles, :paragraphs) do
-      def anchor = "c-#{title[/第([0-9０-９]+)章/, 1]&.tr('０-９', '0-9') || 'x'}"
+      def anchor = "c-#{title[/第([0-9０-９]+)章/, 1]&.tr("０-９", "0-9") || "x"}"
     end
 
     def self.number(str) = str.to_s.tr("０-９", "0-9").to_i
@@ -31,20 +31,20 @@ module Articles
 
     # 「要約」に出すもの: [見出し, 条の配列]
     SUMMARY = [
-      [ "目的", [ [ "目的" ] ] ],
-      [ "事業", [ [ "事業" ] ] ],
-      [ "会員と会費", [ [ "種別", /会員/ ], [ "入会金及び会費" ] ] ],
-      [ "事業年度", [ [ "事業年度" ] ] ],
-      [ "役員", [ [ "種別及び定数" ], [ "任期等" ] ] ],
-      [ "総会", [ [ "開催", /総会/ ], [ "議決", /総会/ ] ] ],
-      [ "理事会", [ [ "開催", /理事会/ ], [ "議決", /理事会/ ] ] ],
-      [ "決算", [ [ "事業報告及び決算" ] ] ]
+      ["目的", [["目的"]]],
+      ["事業", [["事業"]]],
+      ["会員と会費", [["種別", /会員/], ["入会金及び会費"]]],
+      ["事業年度", [["事業年度"]]],
+      ["役員", [["種別及び定数"], ["任期等"]]],
+      ["総会", [["開催", /総会/], ["議決", /総会/]]],
+      ["理事会", [["開催", /理事会/], ["議決", /理事会/]]],
+      ["決算", [["事業報告及び決算"]]]
     ].freeze
 
     def summary
       SUMMARY.filter_map do |title, keys|
         list = keys.filter_map { |caption, chapter| find(caption, chapter:) }
-        [ title, list ] if list.any?
+        [title, list] if list.any?
       end
     end
 
@@ -52,7 +52,7 @@ module Articles
     def programs
       Array(find("事業")&.paragraphs).filter_map do |line|
         m = line.sub(/\A[[:space:]]+/, "").match(/\A([①-⑨])(.+)\z/) or next
-        [ "①②③④⑤⑥⑦⑧⑨".index(m[1]) + 1, m[2].strip ]
+        ["①②③④⑤⑥⑦⑧⑨".index(m[1]) + 1, m[2].strip]
       end
     end
 
@@ -66,16 +66,16 @@ module Articles
         next if line.start_with?(">") || line.match?(/\A# [^#]/) || line.strip.empty?
 
         if (m = line.match(/\A##\s+(.+)\z/)) && !line.start_with?("###")
-          list << { title: m[1].strip, articles: [], paragraphs: [] }
+          list << {title: m[1].strip, articles: [], paragraphs: []}
           caption = nil
         elsif (m = line.match(/\A####\s*(.+)\z/))
           caption = m[1].strip.delete_prefix("（").delete_suffix("）")
         elsif (m = line.match(/\A第([0-9０-９]+)条[　 ]*(.*)\z/))
-          list << { title: "", articles: [], paragraphs: [] } if list.empty?
-          list.last[:articles] << { number: self.class.number(m[1]), caption:, paragraphs: [ m[2] ] }
+          list << {title: "", articles: [], paragraphs: []} if list.empty?
+          list.last[:articles] << {number: self.class.number(m[1]), caption:, paragraphs: [m[2]]}
           caption = nil
         else
-          list << { title: "", articles: [], paragraphs: [] } if list.empty?
+          list << {title: "", articles: [], paragraphs: []} if list.empty?
           target = list.last[:articles].last
           target ? target[:paragraphs] << line.strip : list.last[:paragraphs] << line.strip
         end

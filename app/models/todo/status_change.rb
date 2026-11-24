@@ -4,12 +4,13 @@
 # ふつうの操作なので、元に戻せる(元に戻すと、この変化も消え、やることは前の状態に戻る)。
 class Todo::StatusChange < ApplicationRecord
   include EventRecord
+
   event_of :changed_at, entry: :change!
 
   belongs_to :todo
   belongs_to :changed_by, class_name: "User", optional: true
 
-  validates :status, inclusion: { in: Todo::STATUSES.keys }
+  validates :status, inclusion: {in: Todo::STATUSES.keys}
 
   def self.model_name_label = "やることの状態の変化"
 
@@ -22,8 +23,8 @@ class Todo::StatusChange < ApplicationRecord
   def self.change!(todo, status:, waiting_on: "", note: "", automatic: false, by: Current.user, at: Time.current)
     raise ArgumentError, "状態が分かりません" unless Todo::STATUSES.key?(status)
 
-    change = new(todo:, status:, waiting_on: status == "wait" ? waiting_on.to_s.strip : "", note: note.to_s.strip,
-                 automatic:, changed_by: automatic ? nil : by, changed_at: at)
+    change = new(todo:, status:, waiting_on: (status == "wait") ? waiting_on.to_s.strip : "", note: note.to_s.strip,
+      automatic:, changed_by: automatic ? nil : by, changed_at: at)
     state = Todo.state_for(change)
     return if state.except("done_at") == todo.attributes.slice(*Todo::STATE_COLUMNS).except("done_at")
 

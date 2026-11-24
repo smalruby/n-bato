@@ -1,7 +1,7 @@
 # パスキーでログインする(見直し第14回)。チャレンジはセッションに覚え、1 回使ったら消す。
 class PasskeySessionsController < ApplicationController
   allow_unauthenticated_access
-  rate_limit to: 20, within: 3.minutes, only: :create, with: -> { render json: { ok: false, message: "しばらくしてからもう一度お試しください" }, status: :too_many_requests }
+  rate_limit to: 20, within: 3.minutes, only: :create, with: -> { render json: {ok: false, message: "しばらくしてからもう一度お試しください"}, status: :too_many_requests }
 
   def options
     opts = ceremony.authentication_options
@@ -12,9 +12,9 @@ class PasskeySessionsController < ApplicationController
   def create
     passkey = ceremony.authenticate(credential: credential_param, challenge: session.delete(:passkey_login_challenge))
     start_new_session_for passkey.user
-    render json: { ok: true, redirect: after_authentication_url }
+    render json: {ok: true, redirect: after_authentication_url}
   rescue Passkeys::Ceremony::Failed
-    render json: { ok: false, message: "パスキーでログインできませんでした。もう一度試すか、メールアドレスとパスワードでログインしてください" }, status: :unprocessable_entity
+    render json: {ok: false, message: "パスキーでログインできませんでした。もう一度試すか、メールアドレスとパスワードでログインしてください"}, status: :unprocessable_content
   end
 
   private

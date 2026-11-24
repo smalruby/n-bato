@@ -1,6 +1,7 @@
 # 役員の任期(年度をまたぐ)。締めた年度にかかる任期を変えるときは理由を書く。
 class OfficerTermsController < ApplicationController
   include ClosedYearGuard
+
   before_action { @person = Person.find(params[:person_id]) }
 
   def create

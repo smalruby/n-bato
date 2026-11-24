@@ -1,13 +1,13 @@
 # 提出先を AI に調べてもらう(長いイベント。日時は requested_at、いまの状態は status)。docs/adr/0028
 # 送るのは法人の所在地と法人の種類だけ(会員の情報は送らない)。見つけた窓口は「AI の案」として提出先に足し、人が確かめるまで書類には使わない。
 class FilingDestinationSearch < ApplicationRecord
-  STATUSES = { "searching" => "調べています", "done" => "調べ終わりました", "failed" => "調べられませんでした" }.freeze
+  STATUSES = {"searching" => "調べています", "done" => "調べ終わりました", "failed" => "調べられませんでした"}.freeze
   ORG_KIND = "特定非営利活動法人(NPO 法人)".freeze
 
   belongs_to :requested_by, class_name: "User", optional: true
 
   validates :address, presence: true
-  validates :status, inclusion: { in: STATUSES.keys }
+  validates :status, inclusion: {in: STATUSES.keys}
 
   SCHEMA = {
     type: "object", additionalProperties: false, required: %w[destinations],
@@ -18,15 +18,15 @@ class FilingDestinationSearch < ApplicationRecord
           type: "object", additionalProperties: false,
           required: %w[kind name addressee office address phone fax email hours forms_url source notes],
           properties: {
-            kind: { type: "string", enum: FilingDestination::KINDS.keys },
-            name: { type: "string", description: "機関の名前(例: ○○市、○○県○○県税事務所、○○地方法務局、○○税務署)" },
-            addressee: { type: "string", description: "書類の宛先(役職と氏名。例: ○○市長　氏　名)。分からなければ空" },
-            office: { type: "string", description: "担当の窓口の部・課・係の名前だけ(例: 市民部 市民生活相談課)。説明は notes に書く" },
-            address: { type: "string" }, phone: { type: "string" }, fax: { type: "string" }, email: { type: "string" },
-            hours: { type: "string", description: "受付の時間" },
-            forms_url: { type: "string", description: "様式・手引きのページの URL" },
-            source: { type: "string", description: "この情報を確かめたページの URL(必須)" },
-            notes: { type: "string", description: "補足(受け持つ区域・郵送先・所轄の決まり方など)。無ければ空" }
+            kind: {type: "string", enum: FilingDestination::KINDS.keys},
+            name: {type: "string", description: "機関の名前(例: ○○市、○○県○○県税事務所、○○地方法務局、○○税務署)"},
+            addressee: {type: "string", description: "書類の宛先(役職と氏名。例: ○○市長　氏　名)。分からなければ空"},
+            office: {type: "string", description: "担当の窓口の部・課・係の名前だけ(例: 市民部 市民生活相談課)。説明は notes に書く"},
+            address: {type: "string"}, phone: {type: "string"}, fax: {type: "string"}, email: {type: "string"},
+            hours: {type: "string", description: "受付の時間"},
+            forms_url: {type: "string", description: "様式・手引きのページの URL"},
+            source: {type: "string", description: "この情報を確かめたページの URL(必須)"},
+            notes: {type: "string", description: "補足(受け持つ区域・郵送先・所轄の決まり方など)。無ければ空"}
           }
         }
       }
@@ -49,10 +49,10 @@ class FilingDestinationSearch < ApplicationRecord
   def run!(client: Bookkeeper::Client.new)
     result = client.search_json(system: system_prompt, prompt: prompt, schema: SCHEMA)
     found = Array(result["destinations"]).select { it["source"].present? && it["name"].present? }
-                                          .reject { existing_kinds.include?(it["kind"]) }
+      .reject { existing_kinds.include?(it["kind"]) }
     transaction do
       found.each do |d|
-        notes = [ "AI が #{requested_at.to_date} に調べた案(人が確かめる)", d["notes"].presence ].compact.join("。")
+        notes = ["AI が #{requested_at.to_date} に調べた案(人が確かめる)", d["notes"].presence].compact.join("。")
         FilingDestination.create!(d.slice(*FilingDestination::CONTENT_FIELDS).merge(origin: "ai", notes: notes))
       end
       update!(status: "done", found_count: found.size)
@@ -77,8 +77,8 @@ class FilingDestinationSearch < ApplicationRecord
 
   def prompt
     skip = existing_kinds.map { FilingDestination::KINDS[it] }
-    [ "法人の種類: #{ORG_KIND}", "主たる事務所の所在地: #{address}",
-      ("調べなくてよい種類(すでにある): #{skip.join('、')}" if skip.any?),
-      "この法人が書類を出す先の窓口を調べてください。" ].compact.join("\n")
+    ["法人の種類: #{ORG_KIND}", "主たる事務所の所在地: #{address}",
+      ("調べなくてよい種類(すでにある): #{skip.join("、")}" if skip.any?),
+      "この法人が書類を出す先の窓口を調べてください。"].compact.join("\n")
   end
 end

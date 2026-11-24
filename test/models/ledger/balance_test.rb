@@ -24,7 +24,7 @@ class Ledger::BalanceTest < ActiveSupport::TestCase
   test "元帳の残高の推移" do
     ledger = Ledger::Book.new.account_ledger(@cash, 2024)
     assert_equal 10_000, ledger[:opening]
-    assert_equal [ 15_000, 13_800, 10_800, 12_800, 12_716 ], ledger[:rows].pluck(:balance)
+    assert_equal [15_000, 13_800, 10_800, 12_800, 12_716], ledger[:rows].pluck(:balance)
     assert_equal 12_716, ledger[:closing]
   end
 end

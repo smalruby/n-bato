@@ -6,7 +6,7 @@ class Kaikeiou::AccountMasterTest < ActiveSupport::TestCase
 
   test "仕訳に使う科目だけを読み、小区分をすぐ上の合計行から取る" do
     entries = Kaikeiou::AccountMaster.parse_accounts(accounts_bytes).index_by(&:code)
-    assert_equal [ 100, 106, 220, 322, 370, 500, 501, 510, 530, 550, 600, 646, 700, 720, 730, 956, 968, 980 ], entries.keys
+    assert_equal [100, 106, 220, 322, 370, 500, 501, 510, 530, 550, 600, 646, 700, 720, 730, 956, 968, 980], entries.keys
     assert_equal "受取会費", entries[500].group_name
     assert_equal "受取寄付金", entries[510].group_name
     assert_equal "人件費", entries[600].group_name
@@ -15,7 +15,7 @@ class Kaikeiou::AccountMasterTest < ActiveSupport::TestCase
 
   test "科目性格コードで区分・人件費・流動を決める" do
     Kaikeiou::AccountMaster.import_accounts(accounts_bytes)
-    a = Account.where(code: [ 106, 220, 322, 370, 600, 646, 700, 720, 956, 968, 980 ]).index_by(&:code)
+    a = Account.where(code: [106, 220, 322, 370, 600, 646, 700, 720, 956, 968, 980]).index_by(&:code)
     assert a[106].current_asset?
     assert_not a[220].current_asset?
     assert_equal "asset", a[220].category
@@ -41,7 +41,7 @@ class Kaikeiou::AccountMasterTest < ActiveSupport::TestCase
 
   test "集計用の部門は取り込まない" do
     list = Kaikeiou::AccountMaster.import_departments(departments_bytes)
-    assert_equal [ 111, 112, 900 ], list.map(&:code)
+    assert_equal [111, 112, 900], list.map(&:code)
     assert_equal "管理部門", Department.find_by!(code: 900).full_name
   end
 

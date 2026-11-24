@@ -3,6 +3,7 @@
 # 証憑から記帳した仕訳なら、元の提案と同じ内容の提案を確認待ちでもう一度作る(AI は呼ばない)。元に戻せない操作。
 class JournalEntry::Cancellation < ApplicationRecord
   include EventRecord
+
   event_of :cancelled_at, entry: :cancel!
 
   belongs_to :journal_entry
@@ -27,7 +28,7 @@ class JournalEntry::Cancellation < ApplicationRecord
         JournalProposal.repropose!(proposal, at:)
         proposal.voucher.advance_status!
       end
-      Audit.final!("仕訳を取り消した(伝票 #{entry.slip_number}・#{entry.entry_date.strftime('%Y/%m/%d')}・#{entry.amount.to_fs(:delimited)}円): #{reason}")
+      Audit.final!("仕訳を取り消した(伝票 #{entry.slip_number}・#{entry.entry_date.strftime("%Y/%m/%d")}・#{entry.amount.to_fs(:delimited)}円): #{reason}")
       cancellation
     end
   end

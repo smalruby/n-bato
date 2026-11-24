@@ -7,11 +7,11 @@ class CreateAuditTables < ActiveRecord::Migration[8.1]
       t.string :kind, null: false, default: "do" # do / undo / redo / final(元に戻せない)
       t.string :state, null: false, default: "active" # active / undone
       t.boolean :redoable, null: false, default: false
-      t.references :target, foreign_key: { to_table: :audit_operations } # undo・redo が対象にした操作
+      t.references :target, foreign_key: {to_table: :audit_operations} # undo・redo が対象にした操作
       t.string :label
       t.timestamps
     end
-    add_index :audit_operations, [ :user_id, :scope, :kind, :state ]
+    add_index :audit_operations, [:user_id, :scope, :kind, :state]
 
     # 操作の中の 1 件の記録の変化。暗号化した項目(住所など)もあるので中身は暗号化する。
     create_table :audit_changes do |t|
@@ -23,6 +23,6 @@ class CreateAuditTables < ActiveRecord::Migration[8.1]
       t.text :snapshot             # 削除したときの全項目(元に戻すため)
       t.timestamps
     end
-    add_index :audit_changes, [ :auditable_type, :auditable_id ]
+    add_index :audit_changes, [:auditable_type, :auditable_id]
   end
 end

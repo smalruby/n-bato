@@ -11,12 +11,12 @@ module ClosedYearGuard
 
     reason = params[:reason].to_s.strip
     if reason.empty?
-      @reason_needed = "#{closed.map { FiscalPeriod.for(it).label }.join('・')}は締めた年度です。直す理由を書いてください。"
+      @reason_needed = "#{closed.map { FiscalPeriod.for(it).label }.join("・")}は締めた年度です。直す理由を書いてください。"
       return false
     end
     Audit.reason!(reason)
     FiscalPeriod.changed_after_close!(closed)
-    Audit.label!("締めた年度(#{closed.map { "#{it}年度" }.join('・')})の#{what}を直した")
+    Audit.label!("締めた年度(#{closed.map { "#{it}年度" }.join("・")})の#{what}を直した")
     true
   end
 

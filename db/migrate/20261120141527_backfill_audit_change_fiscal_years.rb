@@ -10,5 +10,6 @@ class BackfillAuditChangeFiscalYears < ActiveRecord::Migration[8.1]
     end
   end
 
-  def down; end
+  def down
+  end
 end

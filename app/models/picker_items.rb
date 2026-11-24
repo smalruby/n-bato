@@ -21,7 +21,7 @@ class PickerItems
 
   private
 
-  def model = @source == "accounts" ? Account : Department
+  def model = (@source == "accounts") ? Account : Department
 
   def scope
     @scope ||= begin
@@ -38,7 +38,7 @@ class PickerItems
 
   # 部門には、事業ごとの主な活動(定款と事業)を添える。探す語にも入る。
   def item(r)
-    h = { id: r.id, code: r.code.to_s, name: r.display_name }
+    h = {id: r.id, code: r.code.to_s, name: r.display_name}
     h[:hint] = hints[r.code] if model == Department && hints[r.code]
     h
   end

@@ -2,8 +2,8 @@
 # 代表権のある理事(定款で決める。既定は理事長・副理事長)の就任・重任、住所の変更、氏名の変更は、2 週間以内に変更登記する。
 # どの申請(RegistrationFiling)に入れたかと、登記した日(いまの状態。申請の完了で決まる)を持つ。
 class Registration < ApplicationRecord
-  KINDS = { "representative_change" => "理事の変更（重任・就任）", "address_change" => "理事の住所の変更",
-            "name_change" => "理事の氏名の変更", "other" => "その他の登記" }.freeze
+  KINDS = {"representative_change" => "理事の変更（重任・就任）", "address_change" => "理事の住所の変更",
+           "name_change" => "理事の氏名の変更", "other" => "その他の登記"}.freeze
   DEADLINE_DAYS = 14
 
   belongs_to :officer_term, optional: true
@@ -11,7 +11,7 @@ class Registration < ApplicationRecord
   belongs_to :person_name_change, class_name: "Person::NameChange", optional: true
   belongs_to :registration_filing, optional: true
 
-  validates :kind, inclusion: { in: KINDS.keys }
+  validates :kind, inclusion: {in: KINDS.keys}
   validates :cause_on, presence: true
 
   scope :pending, -> { where(registered_on: nil) }
@@ -45,7 +45,7 @@ class Registration < ApplicationRecord
   def cause_line
     date = cause_day_known? ? Wareki.date(cause_on) : "【日が不明: #{change.date_label}。住民票で確かめる】"
     case kind
-    when "representative_change" then "「原因年月日」#{date}#{reappointment? ? '重任' : '就任'}"
+    when "representative_change" then "「原因年月日」#{date}#{reappointment? ? "重任" : "就任"}"
     when "address_change" then "「原因年月日」#{date}住所移転"
     when "name_change" then "「原因年月日」#{date}#{person_name_change.former_name}の#{person_name_change.change_word}"
     else "「原因年月日」#{date}#{note}"

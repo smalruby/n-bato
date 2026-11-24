@@ -3,7 +3,7 @@ class UiPrefsController < ApplicationController
   skip_around_action :record_operation
 
   def help
-    screen = params.require(:screen).to_s[/\A[a-z_]{1,40}\z/] or return head(:unprocessable_entity)
+    screen = params.require(:screen).to_s[/\A[a-z_]{1,40}\z/] or return head(:unprocessable_content)
     prefs = Current.user.ui_prefs.deep_dup
     (prefs["help_collapsed"] ||= {})[screen] = params[:collapsed] == "1"
     Current.user.update_column(:ui_prefs, prefs)

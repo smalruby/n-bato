@@ -5,9 +5,9 @@ class RolesController < ApplicationController
 
   def update
     role = params.require(:role).to_s
-    return redirect_back(fallback_location: root_path, alert: "その役割には切り替えられません") unless Current.user.can_use?(role)
+    return redirect_back_or_to(root_path, alert: "その役割には切り替えられません") unless Current.user.can_use?(role)
 
     Current.user.update!(role:)
-    redirect_back fallback_location: root_path, notice: "#{Current.user.role_label}として使います"
+    redirect_back_or_to(root_path, notice: "#{Current.user.role_label}として使います")
   end
 end

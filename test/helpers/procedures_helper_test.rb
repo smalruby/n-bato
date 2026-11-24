@@ -56,10 +56,10 @@ class ProceduresHelperTest < ActionView::TestCase
 
     AnnualReport.create!(fiscal_year: 2025)
     run = ProcedureRun.find(@run.id)
-    { "annual_report_edit" => "事業報告を書く", "document_business_report" => "事業報告書(帳票)", "document_letter" => "提出書(帳票)",
-      "pack" => "書類一式(帳票)", "resolutions" => "決議の一覧", "new_resolution" => "決議を作る", "people" => "会員・役員",
-      "officer_terms" => "役員の任期", "registrations" => "登記", "articles" => "定款と事業(主な活動)",
-      "fiscal_year" => "2025年度の会計", "balance_checks" => "残高の照合" }.each do |name, label|
+    {"annual_report_edit" => "事業報告を書く", "document_business_report" => "事業報告書(帳票)", "document_letter" => "提出書(帳票)",
+     "pack" => "書類一式(帳票)", "resolutions" => "決議の一覧", "new_resolution" => "決議を作る", "people" => "会員・役員",
+     "officer_terms" => "役員の任期", "registrations" => "登記", "articles" => "定款と事業(主な活動)",
+     "fiscal_year" => "2025年度の会計", "balance_checks" => "残高の照合"}.each do |name, label|
       assert_match label, procedure_link(name, run)
     end
     assert_nil procedure_link("知らないリンク", run)

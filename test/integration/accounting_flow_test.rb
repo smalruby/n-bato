@@ -10,7 +10,7 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
     sign_in
     file = fixture_file_upload("siwake_sample.txt", "text/plain")
     assert_difference -> { JournalEntry.count }, 6 do
-      post siwake_imports_path, params: { files: [ file ] }
+      post siwake_imports_path, params: {files: [file]}
     end
     follow_redirect!
     assert_match "6 件を取り込みました", response.body
@@ -19,7 +19,7 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
   test "形式の違うファイルはエラーを表示する" do
     sign_in
     file = Rack::Test::UploadedFile.new(StringIO.new("a,b\r\n"), "text/plain", original_filename: "bad.txt")
-    post siwake_imports_path, params: { files: [ file ] }
+    post siwake_imports_path, params: {files: [file]}
     follow_redirect!
     assert_match "読み込めません", response.body
   end
@@ -47,10 +47,10 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
     cash = Account.find_by!(code: 100)
     supplies = Account.find_by!(code: 658)
     dept = Department.find_by!(code: 113)
-    post journal_entries_path, params: { journal_entry: {
+    post journal_entries_path, params: {journal_entry: {
       entry_date: "2024-12-01", amount: "1,500", debit_account_id: supplies.id, debit_department_id: dept.id,
       credit_account_id: cash.id, summary: "消耗品を買った", sub_summary: "USB ケーブル"
-    } }
+    }}
     entry = JournalEntry.order(:id).last
     assert_equal 1500, entry.debit_amount
     assert_equal 1500, entry.credit_amount
@@ -101,7 +101,7 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
     assert_match "消耗品費(事業)", response.body
     get fiscal_year_ledger_path(2024, 106)
     assert_response :success
-    post balance_checks_path, params: { balance_check: { account_id: Account.find_by!(code: 106).id, checked_on: "2025-03-31", actual_amount: 3003 } }
+    post balance_checks_path, params: {balance_check: {account_id: Account.find_by!(code: 106).id, checked_on: "2025-03-31", actual_amount: 3003}}
     follow_redirect!
     assert_match "帳簿と一致しました", response.body
     assert_pdf fiscal_year_ledgers_path(2024, format: :pdf)

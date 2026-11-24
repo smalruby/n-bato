@@ -14,14 +14,14 @@ class FilingSamplesController < ApplicationController
     @statement = Ledger::YearStatement.new(@fiscal_year, {}, [])
     @report = Ledger::Report.new(@statement)
     @organization = Organization.new(name: "（例）NPO法人サンプル", address: "（例）○○県○○市○○町１－２－３", representative_title: "理事長",
-                                     representative_name: "（例）○○　○○", phone: "000-0000-0000", first_fiscal_year: SAMPLE_YEAR)
+      representative_name: "（例）○○　○○", phone: "000-0000-0000", first_fiscal_year: SAMPLE_YEAR)
     @addressee = "（例）○○市長　○○　○○"
     respond_to do |format|
       format.html { render "filings/documents" }
       format.pdf do
         @pdf = true
-        send_data PdfRenderer.render(render_to_string("filings/documents", formats: [ :html ])),
-                  filename: "n-bato-forms-sample.pdf", type: "application/pdf", disposition: "attachment"
+        send_data PdfRenderer.render(render_to_string("filings/documents", formats: [:html])),
+          filename: "n-bato-forms-sample.pdf", type: "application/pdf", disposition: "attachment"
       end
     end
   end

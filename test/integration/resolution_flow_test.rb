@@ -4,7 +4,7 @@ class ResolutionFlowTest < ActionDispatch::IntegrationTest
   setup do
     import_sample
     Organization.create!(name: "NPO法人テスト", representative_title: "理事長", representative_name: "役員A", first_fiscal_year: 2024,
-                         settings: { "written_resolution_articles" => { "general_meeting" => "定款第２９条第３項" } })
+      settings: {"written_resolution_articles" => {"general_meeting" => "定款第２９条第３項"}})
     @people = %w[役員A 役員B 役員C 監事D 会員E].map { Person.create!(name: it) }
     @people.each { Membership.create!(person: it, fiscal_year: 2026, kind: "regular") }
     start = Date.new(2022, 7, 1)
@@ -19,20 +19,20 @@ class ResolutionFlowTest < ActionDispatch::IntegrationTest
 
   test "総会の書面決議で役員を再任し、事業報告を承認し、理事会で互選する" do
     travel_to Date.new(2026, 11, 25) do
-      post resolutions_path, params: { resolution: {
+      post resolutions_path, params: {resolution: {
         body: "general_meeting", voting_method: "written", title: "通常総会（書面決議）", proposed_on: "2026-11-25", proposer_id: @people[0].id,
         items_attributes: {
-          "0" => { position: 0, kind: "officer_election", title: "第1号議案 役員選任の件", appointments_text: "役員A 理事\n役員B 理事\n役員C 理事\n監事D 監事" },
-          "1" => { position: 1, kind: "annual_report_approval", title: "第2号議案 2025年度事業報告承認の件", fiscal_year: "2025" }
+          "0" => {position: 0, kind: "officer_election", title: "第1号議案 役員選任の件", appointments_text: "役員A 理事\n役員B 理事\n役員C 理事\n監事D 監事"},
+          "1" => {position: 1, kind: "annual_report_approval", title: "第2号議案 2025年度事業報告承認の件", fiscal_year: "2025"}
         }
-      } }
+      }}
       gm = Resolution.last
       assert_redirected_to resolution_path(gm)
       assert_equal 5, gm.voters.size
       assert_not gm.established?
 
       @people.each_with_index do |p, i|
-        post resolution_consents_path(gm), params: { consent: { person_id: p.id, consented_on: "2026-12-0#{i + 1}", via: "email" } }
+        post resolution_consents_path(gm), params: {consent: {person_id: p.id, consented_on: "2026-12-0#{i + 1}", via: "email"}}
       end
       assert_equal Date.new(2026, 12, 5), gm.reload.established_on
 
@@ -51,13 +51,13 @@ class ResolutionFlowTest < ActionDispatch::IntegrationTest
       old_chair = OfficerTerm.find_by!(person: @people[0], role: "chair")
       assert_equal Date.new(2026, 12, 4), old_chair.last_day
 
-      post resolutions_path, params: { resolution: {
+      post resolutions_path, params: {resolution: {
         body: "board", voting_method: "written", title: "理事会（互選）", proposed_on: "2026-12-06", proposer_id: @people[0].id,
-        items_attributes: { "0" => { position: 0, kind: "officer_mutual_election", title: "理事長・副理事長の互選", appointments_text: "役員A 理事長\n役員B 副理事長" } }
-      } }
+        items_attributes: {"0" => {position: 0, kind: "officer_mutual_election", title: "理事長・副理事長の互選", appointments_text: "役員A 理事長\n役員B 副理事長"}}
+      }}
       board = Resolution.last
       assert_equal 3, board.voters.size
-      @people[0..2].each { post resolution_consents_path(board), params: { consent: { person_id: it.id, consented_on: "2026-12-07", via: "paper" } } }
+      @people[0..2].each { post resolution_consents_path(board), params: {consent: {person_id: it.id, consented_on: "2026-12-07", via: "paper"}} }
       post resolution_item_application_path(board, board.items.first)
       assert_equal "chair", OfficerTerm.find_by!(person: @people[0], starts_on: Date.new(2026, 12, 5)).role
       reg = Registration.find_by!(cause_on: Date.new(2026, 12, 7), note: "役員A（理事長）の就任・重任")
@@ -67,10 +67,10 @@ class ResolutionFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "読めない氏名はエラー" do
-    post resolutions_path, params: { resolution: {
+    post resolutions_path, params: {resolution: {
       body: "general_meeting", voting_method: "written", title: "x", proposed_on: "2026-11-25", proposer_id: @people[0].id,
-      items_attributes: { "0" => { kind: "officer_election", title: "選任", appointments_text: "知らない人 理事" } }
-    } }
+      items_attributes: {"0" => {kind: "officer_election", title: "選任", appointments_text: "知らない人 理事"}}
+    }}
     assert_response :unprocessable_entity
     assert_match "知らない人", response.body
   end

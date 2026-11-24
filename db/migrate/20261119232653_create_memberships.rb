@@ -9,6 +9,6 @@ class CreateMemberships < ActiveRecord::Migration[8.1]
       t.date :fee_paid_on
       t.timestamps
     end
-    add_index :memberships, [ :fiscal_year, :person_id, :kind ], unique: true
+    add_index :memberships, [:fiscal_year, :person_id, :kind], unique: true
   end
 end

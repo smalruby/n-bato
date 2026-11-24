@@ -32,14 +32,14 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
     assert_select "input[name='journal_entry[amount]'][value='1000']"
     assert_select "button", text: /元に戻す/
 
-    patch journal_entry_path(@entry, format: :json), params: { journal_entry: { amount: "1,280" }, undo_scope: "journal_entries" }
+    patch journal_entry_path(@entry, format: :json), params: {journal_entry: {amount: "1,280"}, undo_scope: "journal_entries"}
     assert_response :success
     body = response.parsed_body
     assert body["ok"]
     assert_equal 1, body["undo"]
     assert_equal 1280, @entry.reload.amount
 
-    post undo_path(format: :json), params: { scope: "journal_entries" }, as: :json
+    post undo_path(format: :json), params: {scope: "journal_entries"}, as: :json
     assert response.parsed_body["ok"]
     assert_equal 1000, @entry.reload.amount
 
@@ -53,7 +53,7 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
     assert_select ".nb-year-menu a[href='#{year_switch_path(FiscalYear.current.year)}']"
     assert_select "body[data-year-hue='#{FiscalPeriod.hue(2024)}']"
 
-    get year_switch_path(FiscalYear.current.year), headers: { "Referer" => "http://www.example.com/journal_entries?year=2024" }
+    get year_switch_path(FiscalYear.current.year), headers: {"Referer" => "http://www.example.com/journal_entries?year=2024"}
     assert_redirected_to "/journal_entries"
     follow_redirect!
     assert_select ".nb-bar .nb-year-chip", text: /#{FiscalYear.current.year}年度/
@@ -62,12 +62,12 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
   end
 
   test "年度の外の日付は保存せずに知らせ、移すと選んだら移す" do
-    patch journal_entry_path(@entry, format: :json), params: { journal_entry: { entry_date: "2025-04-01" }, sheet_year: 2024, undo_scope: "journal_entries" }
+    patch journal_entry_path(@entry, format: :json), params: {journal_entry: {entry_date: "2025-04-01"}, sheet_year: 2024, undo_scope: "journal_entries"}
     assert_response :conflict
     assert_equal "outside_year", response.parsed_body["code"]
     assert_equal 2024, @entry.reload.fiscal_year
 
-    patch journal_entry_path(@entry, format: :json), params: { journal_entry: { entry_date: "2025-04-01" }, sheet_year: 2024, move: "1", undo_scope: "journal_entries" }
+    patch journal_entry_path(@entry, format: :json), params: {journal_entry: {entry_date: "2025-04-01"}, sheet_year: 2024, move: "1", undo_scope: "journal_entries"}
     body = response.parsed_body
     assert body["ok"]
     assert_equal journal_entries_path(year: 2025), body["location"]
@@ -76,12 +76,12 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
 
   test "締めた年度の仕訳は、理由を書かないと直せず、理由は変更の記録に残る" do
     FiscalPeriod.for(2024).update!(closed_on: Date.current)
-    patch journal_entry_path(@entry, format: :json), params: { journal_entry: { amount: "1,500" }, sheet_year: 2024, undo_scope: "journal_entries" }
+    patch journal_entry_path(@entry, format: :json), params: {journal_entry: {amount: "1,500"}, sheet_year: 2024, undo_scope: "journal_entries"}
     assert_response :conflict
     assert_equal "reason_required", response.parsed_body["code"]
     assert_equal 1000, @entry.reload.amount
 
-    patch journal_entry_path(@entry, format: :json), params: { journal_entry: { amount: "1,500" }, sheet_year: 2024, reason: "領収書の読み違い", undo_scope: "journal_entries" }
+    patch journal_entry_path(@entry, format: :json), params: {journal_entry: {amount: "1,500"}, sheet_year: 2024, reason: "領収書の読み違い", undo_scope: "journal_entries"}
     assert response.parsed_body["ok"]
     assert_equal 1500, @entry.reload.amount
     op = AuditOperation.where(scope: "journal_entries").order(:id).last
@@ -96,8 +96,9 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
   end
 
   test "表のいちばん下の行から仕訳を足すと、行の ID と年度の表の場所を返す" do
-    post journal_entries_path(format: :json), params: { undo_scope: "journal_entries", sheet_year: 2025, journal_entry: {
-      entry_date: "2025-05-01", debit_account_id: @supplies.id, credit_account_id: @cash.id, amount: "2,000", summary: "紙" } }
+    post journal_entries_path(format: :json), params: {undo_scope: "journal_entries", sheet_year: 2025, journal_entry: {
+      entry_date: "2025-05-01", debit_account_id: @supplies.id, credit_account_id: @cash.id, amount: "2,000", summary: "紙"
+    }}
     body = response.parsed_body
     assert body["ok"]
     entry = JournalEntry.order(:id).last
@@ -108,7 +109,7 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
   end
 
   test "元に戻すボタンに戻る項目を出し、戻したら記録のある年度の表を返す" do
-    patch journal_entry_path(@entry, format: :json), params: { journal_entry: { amount: "1,280" }, undo_scope: "journal_entries" }
+    patch journal_entry_path(@entry, format: :json), params: {journal_entry: {amount: "1,280"}, undo_scope: "journal_entries"}
     body = response.parsed_body
     assert_equal "金額", body.dig("undo_peek", "item")
     assert_equal "金額 1,280 → 1,000", body.dig("undo_peek", "detail")
@@ -116,10 +117,10 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
     get journal_entries_path(year: 2024)
     assert_select "button[data-undo-target=undoButton] [data-undo-target=undoItem]", text: ": 金額"
 
-    post undo_path(format: :json), params: { scope: "journal_entries" }, as: :json
+    post undo_path(format: :json), params: {scope: "journal_entries"}, as: :json
     body = response.parsed_body
     assert_equal journal_entries_path(year: 2024), body["location"]
-    assert_equal({ "record" => "journal_entry_#{@entry.id}", "field" => "amount" }, body["highlight"])
+    assert_equal({"record" => "journal_entry_#{@entry.id}", "field" => "amount"}, body["highlight"])
   end
 
   test "科目で絞り込むと、件数と科目の残高を出し、画面を離れても保つ" do
@@ -143,7 +144,7 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
   end
 
   test "保存できないときは理由を返す" do
-    patch journal_entry_path(@entry, format: :json), params: { journal_entry: { entry_date: "" } }
+    patch journal_entry_path(@entry, format: :json), params: {journal_entry: {entry_date: ""}}
     assert_response :unprocessable_entity
     assert_match "保存できませんでした", response.parsed_body["message"]
   end
@@ -151,27 +152,27 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
   test "会計王から取り込んだ仕訳は変えられない" do
     import_sample
     imported = JournalEntry.where.not(siwake_import_id: nil).first
-    patch journal_entry_path(imported, format: :json), params: { journal_entry: { summary: "x" } }
+    patch journal_entry_path(imported, format: :json), params: {journal_entry: {summary: "x"}}
     assert_response :forbidden
   end
 
   test "手続きを始め、確かめたことをチェックし、手順を済みにする" do
     AnnualReport.draft_for(2025).save!
-    post procedures_path, params: { kind: "annual_report", period: 2025 }
+    post procedures_path, params: {kind: "annual_report", period: 2025}
     run = ProcedureRun.last
     follow_redirect!
     assert_response :success
     assert_match "決算を締める", response.body
     assert_match %r{定款 <a[^>]*data-turbo-frame="article_ref"[^>]*>第49条</a>}, response.body
 
-    patch procedure_step_path(run, "close_books", format: :json), params: { checks: { "通帳を記帳した" => "1" }, undo_scope: "procedure:#{run.id}" }
+    patch procedure_step_path(run, "close_books", format: :json), params: {checks: {"通帳を記帳した" => "1"}, undo_scope: "procedure:#{run.id}"}
     assert response.parsed_body["ok"], response.body
     assert_equal "current", run.reload.step("close_books").status
 
-    post procedure_step_status_changes_path(run, "close_books"), params: { status: "done" }
+    post procedure_step_status_changes_path(run, "close_books"), params: {status: "done"}
     assert_equal "done", run.reload.step("close_books").status
 
-    post undo_path, params: { scope: "procedure:#{run.id}" }
+    post undo_path, params: {scope: "procedure:#{run.id}"}
     assert_equal "current", run.reload.step("close_books").status, "済みにしたのを元に戻せる"
   end
 
@@ -179,16 +180,16 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
     report = AnnualReport.draft_for(2025)
     report.save!
     run = ProcedureRun.create!(kind: "annual_report", period: 2025)
-    post procedure_step_status_changes_path(run, "submit"), params: { status: "done" }
+    post procedure_step_status_changes_path(run, "submit"), params: {status: "done"}
     assert_equal Date.current, report.reload.submitted_on
     assert_equal "final", AuditOperation.last.kind
-    post procedure_step_status_changes_path(run, "submit"), params: { status: "open" }
+    post procedure_step_status_changes_path(run, "submit"), params: {status: "open"}
     assert_equal Date.current, report.reload.submitted_on
   end
 
   test "返事がそろうまで済みにできない" do
     run = ProcedureRun.create!(kind: "annual_report", period: 2025)
-    post procedure_step_status_changes_path(run, "audit"), params: { status: "done" }
+    post procedure_step_status_changes_path(run, "audit"), params: {status: "done"}
     assert_equal "todo", run.reload.step("audit").status
   end
 end

@@ -1,5 +1,6 @@
 class Department < ApplicationRecord
   include YearlyDataset
+
   ADMIN_CODE = 900
   validates :code, presence: true
   validates :name, presence: true

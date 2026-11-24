@@ -2,6 +2,7 @@
 # 元に戻せない操作(記帳)。訂正は、仕訳を取り消す仕訳と正しい仕訳で行う(docs/adr/0007)。
 class JournalProposal::Approval < ApplicationRecord
   include EventRecord
+
   event_of :approved_at, entry: :approve!
 
   belongs_to :journal_proposal
@@ -15,7 +16,7 @@ class JournalProposal::Approval < ApplicationRecord
     transaction do
       fields = JournalProposal::ENTRY_FIELDS.map(&:to_s)
       # 画面から来た値で上書きする。空の選択(部門なし)は nil に、空の文字(補助摘要など)は空の文字のまま(NOT NULL の列があるため)
-      given = entry.to_h.stringify_keys.slice(*fields).to_h { |k, v| [ k, k.end_with?("_id") ? v.presence : v.to_s ] }
+      given = entry.to_h.stringify_keys.slice(*fields).to_h { |k, v| [k, k.end_with?("_id") ? v.presence : v.to_s] }
       attrs = proposal.attributes.slice(*fields).merge(given)
       attrs["sub_summary"] = attrs["sub_summary"].to_s
       journal_entry = JournalEntry.create!(

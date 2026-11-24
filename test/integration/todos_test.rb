@@ -5,6 +5,7 @@ class TodosTest < ActionDispatch::IntegrationTest
   class FakeClient
     attr_reader :sent
     def initialize(json) = @json = json
+
     def complete_json(system:, content:, schema:, max_tokens: nil)
       @sent = content
       @json
@@ -13,7 +14,7 @@ class TodosTest < ActionDispatch::IntegrationTest
 
   setup do
     sign_in
-    [ 2023, 2024, 2025, 2026 ].each { FiscalPeriod.find_or_create_by!(year: it) }
+    [2023, 2024, 2025, 2026].each { FiscalPeriod.find_or_create_by!(year: it) }
     FiscalPeriod.find_by(year: 2023).update!(closed_at: Time.current) if FiscalPeriod.column_names.include?("closed_at")
   end
 
@@ -30,16 +31,16 @@ class TodosTest < ActionDispatch::IntegrationTest
   end
 
   test "依頼の対話: 下書き → 伏せた文だけを送る → 人が決めてから記録する" do
-    post incoming_requests_path, params: { body: "H30年度の届出書の日付を直してください。担当 TEL 0852-55-5169" }
+    post incoming_requests_path, params: {body: "H30年度の届出書の日付を直してください。担当 TEL 0852-55-5169"}
     req = IncomingRequest.last
     follow_redirect!
     assert_select ".nb-mask", minimum: 1
     assert_equal 0, req.todos.count
 
-    json = { "reply" => "指摘は正しいです。", "request" => { "title" => "書類の差し替え依頼", "counterpart" => "松江市", "received_on" => "2023-12-07", "due_on" => "" },
-             "todos_new" => [ { "title" => "役員の変更等届出書を出し直す", "fiscal_year" => 2018, "kind" => "document", "assignee" => "理事長", "due_on" => "2026-11-24", "target" => "", "done_rule" => "", "note" => "" },
-                              { "title" => "最終版を出す", "fiscal_year" => 2024, "kind" => "window", "assignee" => "理事長", "due_on" => "", "target" => "annual_reports", "done_rule" => "annual_report_submitted", "note" => "" } ],
-             "todos_update" => [] }
+    json = {"reply" => "指摘は正しいです。", "request" => {"title" => "書類の差し替え依頼", "counterpart" => "松江市", "received_on" => "2023-12-07", "due_on" => ""},
+            "todos_new" => [{"title" => "役員の変更等届出書を出し直す", "fiscal_year" => 2018, "kind" => "document", "assignee" => "理事長", "due_on" => "2026-11-24", "target" => "", "done_rule" => "", "note" => ""},
+              {"title" => "最終版を出す", "fiscal_year" => 2024, "kind" => "window", "assignee" => "理事長", "due_on" => "", "target" => "annual_reports", "done_rule" => "annual_report_submitted", "note" => ""}],
+            "todos_update" => []}
     fake = FakeClient.new(json)
     msg = req.messages.last
     Requests::Organizer.new(req, client: fake).call(msg, masked_body: Masker.new.mask(msg.body).text)
@@ -51,7 +52,7 @@ class TodosTest < ActionDispatch::IntegrationTest
     assert_equal "書類の差し替え依頼", req.title
     assert_equal Date.new(2023, 12, 7), req.received_on
 
-    post undo_path(format: :json), params: { scope: "todos" }, as: :json
+    post undo_path(format: :json), params: {scope: "todos"}, as: :json
   end
 
   test "一覧: 依頼・義務・手続きを年度をまたいで出し、開くと年度を切り替える" do
@@ -76,12 +77,16 @@ class TodosTest < ActionDispatch::IntegrationTest
   test "状態を変える(待ち・済み)と、自動で済み" do
     req = IncomingRequest.create!(title: "依頼B")
     t = req.todos.create!(title: "提出する", fiscal_year: 2024, kind: "window", done_rule: "annual_report_submitted")
-    post todo_status_changes_path(t), params: { status: "wait", waiting_on: "監事の返事" }
-    assert_equal [ "wait", "監事の返事" ], [ t.reload.status, t.waiting_on ]
-    post todo_status_changes_path(t), params: { status: "done", done_note: "出した" }
+    post todo_status_changes_path(t), params: {status: "wait", waiting_on: "監事の返事"}
+    assert_equal ["wait", "監事の返事"], [t.reload.status, t.waiting_on]
+    post todo_status_changes_path(t), params: {status: "done", done_note: "出した"}
     assert t.reload.done?
-    post todo_status_changes_path(t), params: { status: "todo" }
-    create_annual_report!(2024, submitted_on: Date.new(2026, 11, 24)) rescue skip("事業報告書を作れない")
+    post todo_status_changes_path(t), params: {status: "todo"}
+    begin
+      create_annual_report!(2024, submitted_on: Date.new(2026, 11, 24))
+    rescue
+      skip("事業報告書を作れない")
+    end
     Todo.refresh_auto!
     assert t.reload.done?
     assert_equal "auto", t.done_by
@@ -94,8 +99,8 @@ class TodosTest < ActionDispatch::IntegrationTest
       get todos_path
     end
     assert t.reload.done?
-    assert_equal [ "todos_auto" ], AuditOperation.where(id: AuditOperation.maximum(:id)).pluck(:scope)
-    post undo_path(format: :json), params: { scope: "todos" }, as: :json
+    assert_equal ["todos_auto"], AuditOperation.where(id: AuditOperation.maximum(:id)).pluck(:scope)
+    post undo_path(format: :json), params: {scope: "todos"}, as: :json
     assert t.reload.done?
     assert_equal 1, t.status_changes.count
     assert_empty ModelVerification.mismatches
@@ -107,7 +112,7 @@ class TodosTest < ActionDispatch::IntegrationTest
     t = req.todos.create!(title: "見るだけ", kind: "ask")
     get todos_path
     assert_select "a", text: /AI と依頼を整理する/, count: 0
-    post todo_status_changes_path(t), params: { status: "done" }
+    post todo_status_changes_path(t), params: {status: "done"}
     assert_not t.reload.done?
   end
 
@@ -117,8 +122,8 @@ class TodosTest < ActionDispatch::IntegrationTest
     req.todos.create!(title: "近いもの", kind: "ask", due_on: Date.current + 3)
     req.todos.create!(title: "AI のもの", kind: "ask", assignee: "AI")
     get todos_path(source: "request")
-    tiles = css_select(".nb-todo-sum a.nb-todo-tile").to_h { [ it.at("small").text, it.at("b").text.to_i ] }
-    assert_equal({ "期限を過ぎた" => 1, "7 日以内" => 1, "それより先" => 0, "期限なし" => 1, "人がやる" => 2, "AI がやる" => 1 }, tiles)
+    tiles = css_select(".nb-todo-sum a.nb-todo-tile").to_h { [it.at("small").text, it.at("b").text.to_i] }
+    assert_equal({"期限を過ぎた" => 1, "7 日以内" => 1, "それより先" => 0, "期限なし" => 1, "人がやる" => 2, "AI がやる" => 1}, tiles)
 
     get todos_path(source: "request", due: "over")
     assert_response :success

@@ -18,8 +18,8 @@ class ProcedureRun < ApplicationRecord
     where(kind:, period:).take!
   end
 
-  validates :kind, inclusion: { in: -> { ProcedureDefinition.all.keys } }
-  validates :period, presence: true, uniqueness: { scope: :kind }
+  validates :kind, inclusion: {in: -> { ProcedureDefinition.all.keys }}
+  validates :period, presence: true, uniqueness: {scope: :kind}
 
   scope :ordered, -> { order(period: :desc, kind: :asc) }
 

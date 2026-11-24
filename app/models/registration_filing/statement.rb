@@ -27,8 +27,8 @@ class RegistrationFiling::Statement
   # 登記すべき事項(申請用総合ソフトの欄に貼る文)
   def matters
     by_person.map do |person, regs|
-      [ "「役員に関する事項」", "「資格」理事", "「住所」#{person.address_on(as_of).presence || '【住所が空】'}",
-        "「氏名」#{person.display_name_on(as_of)}", *regs.sort_by { [ it.cause_on, it.id ] }.map(&:cause_line) ].join("\n")
+      ["「役員に関する事項」", "「資格」理事", "「住所」#{person.address_on(as_of).presence || "【住所が空】"}",
+        "「氏名」#{person.display_name_on(as_of)}", *regs.sort_by { [it.cause_on, it.id] }.map(&:cause_line)].join("\n")
     end.join("\n")
   end
 
@@ -68,6 +68,6 @@ class RegistrationFiling::Statement
 
   def by_person
     order = %w[chair vice_chair director auditor]
-    @registrations.group_by(&:person).compact.sort_by { |p, regs| [ regs.map { order.index(it.officer_term&.role) || 9 }.min, p.id ] }
+    @registrations.group_by(&:person).compact.sort_by { |p, regs| [regs.map { order.index(it.officer_term&.role) || 9 }.min, p.id] }
   end
 end

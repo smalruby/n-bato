@@ -6,7 +6,7 @@ class DemoScreensTest < ApplicationSystemTestCase
     sign_in_as_ai
     assert_text "NPO法人見本こども会"
 
-    links = all("nav.nb-nav a").map { [ it.text.strip, it[:href] ] }
+    links = all("nav.nb-nav a").map { [it.text.strip, it[:href]] }
     assert_operator links.size, :>=, 15
     links.each do |label, href|
       visit href
@@ -19,11 +19,11 @@ class DemoScreensTest < ApplicationSystemTestCase
 
   test "詳しい画面も開ける(手続き・決議・人・登記の申請・証憑・入会申込・依頼)" do
     sign_in_as_ai
-    [ procedure_path(ProcedureRun.order(:id).last), resolution_path(Resolution.order(:id).first), person_path(Person.order(:id).first),
+    [procedure_path(ProcedureRun.order(:id).last), resolution_path(Resolution.order(:id).first), person_path(Person.order(:id).first),
       registration_filing_path(RegistrationFiling.order(:id).last), voucher_path(Voucher.order(:id).last),
       member_application_path(MemberApplication.order(:id).first), incoming_request_path(IncomingRequest.first),
       fiscal_year_path(@demo.year - 1), annual_report_path(@demo.year - 1), member_applications_path, balance_checks_path,
-      opening_balances_path, siwake_imports_path, passkeys_path ].each do |path|
+      opening_balances_path, siwake_imports_path, passkeys_path].each do |path|
       visit path
       assert_selector "main#main"
       assert_no_text "Action Controller: Exception caught"
@@ -34,8 +34,8 @@ class DemoScreensTest < ApplicationSystemTestCase
     sign_in_as_ai
     year = @demo.year - 1
     gm = Resolution.find_by!(body: "general_meeting")
-    [ fiscal_year_statement_path(year, "activity"), fiscal_year_statement_path(year, "balance_sheet"), fiscal_year_ledgers_path(year),
-      document_resolution_path(gm, "minutes"), document_registration_filing_path(RegistrationFiling.order(:id).last, "mutual_election") ].each do |path|
+    [fiscal_year_statement_path(year, "activity"), fiscal_year_statement_path(year, "balance_sheet"), fiscal_year_ledgers_path(year),
+      document_resolution_path(gm, "minutes"), document_registration_filing_path(RegistrationFiling.order(:id).last, "mutual_election")].each do |path|
       visit path
       assert_no_text "Action Controller: Exception caught"
       assert_operator page.text.strip.size, :>, 50, "#{path} が空です"
@@ -78,7 +78,7 @@ class DemoScreensTest < ApplicationSystemTestCase
   test "スマホの幅(390px)でも開けて、ページが横にはみ出さない" do
     sign_in_as_ai
     page.driver.with_playwright_page { it.set_viewport_size(width: 390, height: 844) }
-    [ root_path, todos_path, people_path, journal_entries_path, procedures_path, resolutions_path ].each do |path|
+    [root_path, todos_path, people_path, journal_entries_path, procedures_path, resolutions_path].each do |path|
       visit path
       assert_selector "main#main"
       assert_equal 0, horizontal_overflow, "#{path} が横にはみ出しています"

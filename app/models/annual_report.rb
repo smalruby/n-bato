@@ -26,7 +26,7 @@ class AnnualReport < ApplicationRecord
   # いまの状態は、節目の種類ごとに最後の記録の日付(docs/adr/0005)
   def derived_state
     latest = milestones.group_by(&:kind).transform_values { it.max_by(&:id) }
-    AnnualReport::Milestone::KINDS.to_h { |kind, (column, _)| [ column, latest[kind]&.dated_on ] }
+    AnnualReport::Milestone::KINDS.to_h { |kind, (column, _)| [column, latest[kind]&.dated_on] }
   end
 
   def state_mismatches
@@ -48,7 +48,7 @@ class AnnualReport < ApplicationRecord
   # 保存できなければ false(画面に戻すときのために、入れた日付は記録に書かずに持っておく)。
   def save_with_dates(dates, opened: nil)
     dates = dates.to_h.slice(*FORM_DATE_COLUMNS)
-    stored = FORM_DATE_COLUMNS.to_h { [ it, self[it] ] }
+    stored = FORM_DATE_COLUMNS.to_h { [it, self[it]] }
     opened = opened&.to_h&.slice(*FORM_DATE_COLUMNS)&.transform_values { cast_date(it) }
     dates = dates.reject { |column, on| opened&.key?(column) && cast_date(on) == opened[column] }
     @opened_dates = stored.merge(opened || {})
@@ -127,7 +127,7 @@ class AnnualReport < ApplicationRecord
     end
   end
 
-  def status_label = { "submitted" => "提出済み", "approved" => "総会承認済み", "draft" => "作成中" }[status]
+  def status_label = {"submitted" => "提出済み", "approved" => "総会承認済み", "draft" => "作成中"}[status]
   def due_on = Date.new(fiscal_year + 1, 6, 30)
 
   private
@@ -142,7 +142,7 @@ class AnnualReport < ApplicationRecord
     stale.each do |column|
       on = stored[column]
       name = AnnualReport::Milestone::KINDS.fetch(AnnualReport::Milestone.kind_for(column)).last
-      errors.add(:base, "#{name}は、この画面を開いたあとに別の操作で #{on ? on.strftime('%Y/%m/%d') : '空'} に変わっています。" \
+      errors.add(:base, "#{name}は、この画面を開いたあとに別の操作で #{on ? on.strftime("%Y/%m/%d") : "空"} に変わっています。" \
                         "欄を新しい日付にしたので、確かめてから保存し直してください")
       @opened_dates[column] = on
     end
@@ -155,7 +155,7 @@ class AnnualReport < ApplicationRecord
     if new_record?
       errors.add(:base, "事業報告は日付なしで作ってください(日付は AnnualReport::Milestone.record!)") if STATE_COLUMNS.any? { self[it].present? }
     elsif (changed = STATE_COLUMNS & changed_attribute_names_to_save).any?
-      errors.add(:base, "#{changed.join('・')} は直接書き換えません。AnnualReport::Milestone.record!(事業報告, 種類, on: …) を使ってください")
+      errors.add(:base, "#{changed.join("・")} は直接書き換えません。AnnualReport::Milestone.record!(事業報告, 種類, on: …) を使ってください")
     end
   end
 end

@@ -5,16 +5,16 @@ require "rake"
 class ArticlesTest < ActionDispatch::IntegrationTest
   setup do
     sign_in
-    [ 2016, 2017, 2026 ].each { FiscalPeriod.find_or_create_by!(year: it) }
+    [2016, 2017, 2026].each { FiscalPeriod.find_or_create_by!(year: it) }
     Rails.application.load_tasks unless Rake::Task.task_defined?("articles:load")
     Rake::Task["articles:load"].reenable
     capture_io { Rake::Task["articles:load"].invoke("config/articles.example.yml") }
   end
 
   test "読み込み: 版 2 つと主な活動" do
-    assert_equal [ 1, 2 ], ArticleVersion.ordered.pluck(:number)
+    assert_equal [1, 2], ArticleVersion.ordered.pluck(:number)
     assert_equal "学習の環境の開発と運用", ProgramProfile.find_by(code: 111).activities
-    assert_equal [ [ 1, "プログラミング教材の開発・販売事業" ], [ 2, "初心者向けプログラミング教室の運営事業" ] ], ArticleVersion.current.document.programs
+    assert_equal [[1, "プログラミング教材の開発・販売事業"], [2, "初心者向けプログラミング教室の運営事業"]], ArticleVersion.current.document.programs
   end
 
   test "要約: 目的と事業(部門と主な活動)、条文番号は全文へ" do
@@ -55,7 +55,7 @@ class ArticlesTest < ActionDispatch::IntegrationTest
   end
 
   test "主な活動を直すと記録に残り、部門選びと AI の指示文に出る" do
-    patch program_profile_path(112, format: :json), params: { program_profile: { activities: "体験教室" }, undo_scope: "articles" }
+    patch program_profile_path(112, format: :json), params: {program_profile: {activities: "体験教室"}, undo_scope: "articles"}
     assert_response :success
     assert_equal "体験教室", ProgramProfile.find_by(code: 112).activities
     assert AuditOperation.where(scope: "articles").exists? if defined?(AuditOperation)

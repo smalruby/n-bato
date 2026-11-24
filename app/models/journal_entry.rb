@@ -16,7 +16,7 @@ class JournalEntry < ApplicationRecord
   has_one :cancellation, class_name: "JournalEntry::Cancellation", dependent: :restrict_with_error
 
   validates :entry_date, presence: true
-  validates :debit_amount, :credit_amount, numericality: { only_integer: true }
+  validates :debit_amount, :credit_amount, numericality: {only_integer: true}
   validate :amounts_balance
 
   before_validation { self.fiscal_year = FiscalYear.for(entry_date).year if entry_date }
@@ -49,11 +49,11 @@ class JournalEntry < ApplicationRecord
   def fiscal_year_object = FiscalYear.new(fiscal_year)
 
   # 費用の仕訳の部門(事業区分)。
-  def department_for(account) = account == debit_account ? debit_department : credit_department
+  def department_for(account) = (account == debit_account) ? debit_department : credit_department
 
   def self.from_siwake_row(row, accounts:, departments:)
-    attrs = { slip_number: row.slip_number, line_number: row.line_number, entry_date: row.entry_date,
-              summary: row.summary, sub_summary: row.sub_summary, memo: row.memo, tag1: row.tag1, tag2: row.tag2 }
+    attrs = {slip_number: row.slip_number, line_number: row.line_number, entry_date: row.entry_date,
+             summary: row.summary, sub_summary: row.sub_summary, memo: row.memo, tag1: row.tag1, tag2: row.tag2}
     SIDES.each do |side|
       attrs[:"#{side}_account"] = accounts.fetch(row[:"#{side}_account_code"])
       dept_code = row[:"#{side}_department_code"]
@@ -64,8 +64,8 @@ class JournalEntry < ApplicationRecord
   end
 
   def to_siwake_row
-    attrs = { slip_number: slip_number.to_i, line_number: line_number, entry_date: entry_date,
-              summary: summary, sub_summary: sub_summary, memo: memo, tag1: tag1, tag2: tag2 }
+    attrs = {slip_number: slip_number.to_i, line_number: line_number, entry_date: entry_date,
+             summary: summary, sub_summary: sub_summary, memo: memo, tag1: tag1, tag2: tag2}
     SIDES.each do |side|
       account = public_send(:"#{side}_account")
       department = public_send(:"#{side}_department")

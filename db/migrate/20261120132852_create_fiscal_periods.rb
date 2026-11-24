@@ -4,7 +4,7 @@ class CreateFiscalPeriods < ActiveRecord::Migration[8.1]
     create_table :fiscal_periods do |t|
       t.integer :year, null: false
       t.date :closed_on
-      t.references :closed_by, foreign_key: { to_table: :users }
+      t.references :closed_by, foreign_key: {to_table: :users}
       t.text :note
       t.timestamps
     end

@@ -2,10 +2,10 @@
 # 手順: 何を登記するか → 書類を作る → 申請した(申請番号) → 受付(受付番号) → 補正(あれば) → 完了。
 # 申請した・受付・補正・完了・取下げは詳細のイベント。いまの状態(status)はイベントから決まり、入口だけが書き換える(照合は model:verify)。
 class RegistrationFiling < ApplicationRecord
-  STATUSES = { "drafting" => "書類を作っている", "submitted" => "申請した", "accepted" => "受け付けられた",
-               "correcting" => "補正を求められた", "completed" => "完了した", "withdrawn" => "取り下げた" }.freeze
-  STEPS = [ [ "items", "何を登記するか" ], [ "documents", "書類を作る" ], [ "submitted", "申請した" ],
-            [ "accepted", "受付" ], [ "correcting", "補正(あれば)" ], [ "completed", "完了" ] ].freeze
+  STATUSES = {"drafting" => "書類を作っている", "submitted" => "申請した", "accepted" => "受け付けられた",
+              "correcting" => "補正を求められた", "completed" => "完了した", "withdrawn" => "取り下げた"}.freeze
+  STEPS = [["items", "何を登記するか"], ["documents", "書類を作る"], ["submitted", "申請した"],
+    ["accepted", "受付"], ["correcting", "補正(あれば)"], ["completed", "完了"]].freeze
 
   has_many :registrations, -> { order(:cause_on, :id) }, dependent: :nullify
   belongs_to :general_meeting_resolution, class_name: "Resolution", optional: true
@@ -16,7 +16,7 @@ class RegistrationFiling < ApplicationRecord
   has_one :completion, class_name: "RegistrationFiling::Completion", dependent: :restrict_with_error
   has_one :withdrawal, class_name: "RegistrationFiling::Withdrawal", dependent: :restrict_with_error
 
-  validates :status, inclusion: { in: STATUSES.keys }
+  validates :status, inclusion: {in: STATUSES.keys}
 
   scope :recent, -> { order(id: :desc) }
 
@@ -49,7 +49,7 @@ class RegistrationFiling < ApplicationRecord
     transaction do
       filing = create!(note:)
       regs.each { it.update!(registration_filing: filing) }
-      Audit.label!("登記の申請を始めた(#{regs.map(&:kind_label).uniq.join('・')})")
+      Audit.label!("登記の申請を始めた(#{regs.map(&:kind_label).uniq.join("・")})")
       filing
     end
   end
@@ -83,7 +83,11 @@ class RegistrationFiling < ApplicationRecord
 
     i = order.index(key)
     n = order.index(now)
-    i < n ? :done : (i == n ? :now : :todo)
+    if i < n
+      :done
+    else
+      ((i == n) ? :now : :todo)
+    end
   end
 
   def statement = RegistrationFiling::Statement.new(self)

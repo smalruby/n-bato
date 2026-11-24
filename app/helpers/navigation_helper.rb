@@ -9,7 +9,7 @@ module NavigationHelper
     content_for :crumbs do
       tag.nav(class: "nb-crumb", "aria-label": "いまの場所") do
         parts = ups.map { |label, path| link_to(label, remembered_list_url(path)) }
-        safe_join(parts + [ tag.span(here, "aria-current": "page") ], tag.span("›", class: "nb-crumb-sep", "aria-hidden": "true"))
+        safe_join(parts + [tag.span(here, "aria-current": "page")], tag.span("›", class: "nb-crumb-sep", "aria-hidden": "true"))
       end
     end
   end
@@ -22,7 +22,7 @@ module NavigationHelper
   # Nばとが返す PDF と外のサイトは、別のタブで開く(↗ を付ける)。
   def new_tab_link_to(label, path, **options)
     link_to(path, target: "_blank", rel: "noopener", title: options.delete(:title) || "別のタブで開く", **options) do
-      safe_join([ label, NEW_TAB_MARK ])
+      safe_join([label, NEW_TAB_MARK])
     end
   end
 end

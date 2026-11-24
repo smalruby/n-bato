@@ -18,23 +18,23 @@ class CreateTodoAndRequestEvents < ActiveRecord::Migration[8.1]
       t.string :waiting_on, default: "", null: false
       t.text :note, default: "", null: false
       t.boolean :automatic, default: false, null: false
-      t.references :changed_by, foreign_key: { to_table: :users }
+      t.references :changed_by, foreign_key: {to_table: :users}
       t.datetime :changed_at, null: false
     end
     create_table :incoming_request_settlements do |t|
-      t.references :incoming_request, null: false, foreign_key: true, index: { unique: true }
-      t.references :settled_by, foreign_key: { to_table: :users }
+      t.references :incoming_request, null: false, foreign_key: true, index: {unique: true}
+      t.references :settled_by, foreign_key: {to_table: :users}
       t.date :settled_on, null: false
     end
     create_table :incoming_request_message_deliveries do |t|
-      t.references :message, null: false, foreign_key: { to_table: :incoming_request_messages }, index: { unique: true }
+      t.references :message, null: false, foreign_key: {to_table: :incoming_request_messages}, index: {unique: true}
       t.text :masked_body, default: "", null: false
       t.boolean :send_attachments, default: false, null: false
       t.datetime :delivered_at, null: false
     end
     create_table :incoming_request_message_adoptions do |t|
-      t.references :message, null: false, foreign_key: { to_table: :incoming_request_messages }, index: { unique: true }
-      t.references :adopted_by, foreign_key: { to_table: :users }
+      t.references :message, null: false, foreign_key: {to_table: :incoming_request_messages}, index: {unique: true}
+      t.references :adopted_by, foreign_key: {to_table: :users}
       t.datetime :adopted_at, null: false
     end
 

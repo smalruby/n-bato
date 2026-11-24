@@ -5,7 +5,7 @@ class JournalProposals::ApprovalsController < ApplicationController
     return redirect_to(proposal.voucher, alert: "この提案はすでに処理済みです") unless proposal.proposed?
 
     entry = JournalProposal::Approval.approve!(proposal, by: Current.user, entry: entry_params).journal_entry
-    redirect_to proposal.voucher, notice: "仕訳を承認して記帳しました: #{entry.entry_date.strftime('%Y/%m/%d')} 借方 #{entry.debit_account.display_name} / 貸方 #{entry.credit_account.display_name} #{entry.amount.to_fs(:delimited)}円(会計王に未取り込み)"
+    redirect_to proposal.voucher, notice: "仕訳を承認して記帳しました: #{entry.entry_date.strftime("%Y/%m/%d")} 借方 #{entry.debit_account.display_name} / 貸方 #{entry.credit_account.display_name} #{entry.amount.to_fs(:delimited)}円(会計王に未取り込み)"
   rescue ActiveRecord::RecordInvalid => e
     redirect_to proposal.voucher, alert: e.record.errors.full_messages.join(" / ")
   end

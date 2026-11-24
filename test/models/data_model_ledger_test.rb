@@ -9,7 +9,7 @@ class DataModelLedgerTest < ActiveSupport::TestCase
       cells = line.split("|").map(&:strip)
       next unless cells.size > 8 && cells[1].match?(/\A[A-Z][A-Za-z:]+\z/)
 
-      { name: cells[1], kind: cells[3], migrated: cells[8] }
+      {name: cells[1], kind: cells[3], migrated: cells[8]}
     end.index_by { it[:name] }
   end
 

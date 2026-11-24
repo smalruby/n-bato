@@ -12,8 +12,8 @@ class FilingDestination < ApplicationRecord
 
   has_many :confirmations, -> { order(:confirmed_at) }, class_name: "FilingDestination::Confirmation", dependent: :destroy
 
-  validates :kind, inclusion: { in: KINDS.keys }
-  validates :origin, inclusion: { in: %w[human ai] }
+  validates :kind, inclusion: {in: KINDS.keys}
+  validates :origin, inclusion: {in: %w[human ai]}
 
   scope :ordered, -> { order(:position, :id) }
 
@@ -33,8 +33,8 @@ class FilingDestination < ApplicationRecord
   end
 
   # 行が 1 件でもある種類(「その他」を除く)と、まだ無い種類(「提出先を足す ▼」・AI が調べる種類)。見直し第19回
-  def self.existing_kinds = distinct.pluck(:kind) - [ "other" ]
-  def self.missing_kinds = KINDS.keys - [ "other" ] - existing_kinds
+  def self.existing_kinds = distinct.pluck(:kind) - ["other"]
+  def self.missing_kinds = KINDS.keys - ["other"] - existing_kinds
 
   def self.confirmed_authority = where(kind: "authority").ordered.find(&:confirmed?)
 

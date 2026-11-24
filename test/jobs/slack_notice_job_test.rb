@@ -3,7 +3,10 @@ require "test_helper"
 class SlackNoticeJobTest < ActiveJob::TestCase
   setup do
     @sent = []
-    SlackNotice.poster = ->(text) { @sent << text; true }
+    SlackNotice.poster = ->(text) {
+      @sent << text
+      true
+    }
     # 知らせることを 1 つ用意する(記録の知らせの続きの位置より後に、年度を始めた操作)
     SlackPost.create!(key: SlackNotice::Activity::CURSOR, text: (AuditOperation.maximum(:id) || 0).to_s)
     Audit.operation(user: nil, scope: "t") { FiscalPeriod.create!(year: 2030) }

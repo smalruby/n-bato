@@ -21,7 +21,7 @@ module RegistrationOnline
 
   def closed_day?(date)
     from, to = config[:closed].map { Date.strptime("#{date.year}-#{it}", "%Y-%m-%d") }
-    from > to ? (date >= from || date <= to) : date.between?(from, to)
+    (from > to) ? (date >= from || date <= to) : date.between?(from, to)
   end
 
   def holiday?(date) = date.saturday? || date.sunday?
@@ -54,8 +54,8 @@ module RegistrationOnline
     end
 
     nxt = next_open_after(now)
-    day = { date => "今日", date + 1 => "明日" }.fetch(nxt.to_date) { "#{nxt.month}/#{nxt.day}(#{WDAYS[nxt.wday]})" }
-    Status.new(open: false, message: "いまは使えません。次は#{day} #{nxt.strftime('%-H:%M')} から", office_message: office_message(now))
+    day = {date => "今日", date + 1 => "明日"}.fetch(nxt.to_date) { "#{nxt.month}/#{nxt.day}(#{WDAYS[nxt.wday]})" }
+    Status.new(open: false, message: "いまは使えません。次は#{day} #{nxt.strftime("%-H:%M")} から", office_message: office_message(now))
   end
 
   # いま送ったら、いつの受付になるか(期限の 2 週間に関わる)
@@ -64,7 +64,7 @@ module RegistrationOnline
     from, to = config[:office].map { at(date, it) }
     return "いま送ると、今日の受付になります(祝日なら次の平日)。" if !holiday?(date) && !closed_day?(date) && now >= from && now < to
 
-    d = date + (now < from && !holiday?(date) && !closed_day?(date) ? 0 : 1)
+    d = date + ((now < from && !holiday?(date) && !closed_day?(date)) ? 0 : 1)
     d += 1 while holiday?(d) || closed_day?(d)
     "いま送ると、#{d.month}/#{d.day}(#{WDAYS[d.wday]})の受付になります(祝日なら、その次の平日)。"
   end

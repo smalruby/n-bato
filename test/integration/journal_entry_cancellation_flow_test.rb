@@ -7,10 +7,10 @@ class JournalEntryCancellationFlowTest < ActionDispatch::IntegrationTest
     sign_in
     @voucher = Voucher.create!(kind: "bank", issued_on: Date.new(2025, 6, 1), description: "通帳")
     p = JournalProposal.propose!(voucher: @voucher, model: "test", entry_date: Date.new(2025, 6, 1), amount: 20,
-                                 debit_account: Account.find_by!(code: 106), credit_account: Account.find_by!(code: 550),
-                                 summary: "預金利息を受け取る", rationale: "テスト", confidence: "high")
+      debit_account: Account.find_by!(code: 106), credit_account: Account.find_by!(code: 550),
+      summary: "預金利息を受け取る", rationale: "テスト", confidence: "high")
     @voucher.advance_status!
-    post journal_proposal_approval_path(p), params: { journal_proposal: { debit_account_id: Account.find_by!(code: 658).id } }
+    post journal_proposal_approval_path(p), params: {journal_proposal: {debit_account_id: Account.find_by!(code: 658).id}}
     @entry = p.reload.journal_entry
   end
 
@@ -18,12 +18,12 @@ class JournalEntryCancellationFlowTest < ActionDispatch::IntegrationTest
     get voucher_path(@voucher)
     assert_select "form[action='#{journal_entry_cancellation_path(@entry)}'] input[name=reason][required]"
 
-    post journal_entry_cancellation_path(@entry), params: { reason: "", back_to: "voucher" }
+    post journal_entry_cancellation_path(@entry), params: {reason: "", back_to: "voucher"}
     assert_redirected_to voucher_path(@voucher)
     assert_match "理由", flash[:alert]
     assert_not @entry.reload.cancelled?
 
-    post journal_entry_cancellation_path(@entry), params: { reason: "選び間違い", back_to: "voucher" }
+    post journal_entry_cancellation_path(@entry), params: {reason: "選び間違い", back_to: "voucher"}
     assert_redirected_to voucher_path(@voucher)
     assert_match "確認待ちでもう一度", flash[:notice]
     follow_redirect!
@@ -38,7 +38,7 @@ class JournalEntryCancellationFlowTest < ActionDispatch::IntegrationTest
     assert_select "##{ActionView::RecordIdentifier.dom_id(@entry)} form[action='#{journal_entry_cancellation_path(@entry)}']"
     assert_select "##{ActionView::RecordIdentifier.dom_id(@entry)} input[name='journal_entry[amount]']", 0
 
-    post journal_entry_cancellation_path(@entry), params: { reason: "表から取り消す", back_to: "sheet" }
+    post journal_entry_cancellation_path(@entry), params: {reason: "表から取り消す", back_to: "sheet"}
     assert_redirected_to journal_entries_path(year:)
     get journal_entries_path(year:)
     assert_select "##{ActionView::RecordIdentifier.dom_id(@entry)}", 0
@@ -52,7 +52,7 @@ class JournalEntryCancellationFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "承認でできた仕訳は表で書き換えも削除もしない" do
-    patch journal_entry_path(@entry, format: :json), params: { journal_entry: { amount: 999 } }
+    patch journal_entry_path(@entry, format: :json), params: {journal_entry: {amount: 999}}
     assert_response :forbidden
     delete journal_entry_path(@entry)
     assert JournalEntry.exists?(@entry.id)

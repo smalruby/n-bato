@@ -7,11 +7,11 @@ class JournalEntryCancellationTest < ActiveSupport::TestCase
     @user = users(:one)
     @voucher = Voucher.create!(kind: "bank", issued_on: Date.new(2025, 6, 1), description: "通帳")
     @proposal = JournalProposal.propose!(voucher: @voucher, model: "test", entry_date: Date.new(2025, 6, 1), amount: 20,
-                                         debit_account: Account.find_by!(code: 106), credit_account: Account.find_by!(code: 550),
-                                         summary: "預金利息を受け取る", sub_summary: "", rationale: "テスト", confidence: "high")
+      debit_account: Account.find_by!(code: 106), credit_account: Account.find_by!(code: 550),
+      summary: "預金利息を受け取る", sub_summary: "", rationale: "テスト", confidence: "high")
     @voucher.advance_status!
     Audit.operation(user: @user, scope: "vouchers") do
-      @entry = JournalProposal::Approval.approve!(@proposal, by: @user, entry: { debit_account_id: Account.find_by!(code: 658).id }).journal_entry
+      @entry = JournalProposal::Approval.approve!(@proposal, by: @user, entry: {debit_account_id: Account.find_by!(code: 658).id}).journal_entry
     end
   end
 
@@ -31,7 +31,7 @@ class JournalEntryCancellationTest < ActiveSupport::TestCase
     assert_equal "proposed", @voucher.reload.status
     again = @voucher.journal_proposals.pending.sole
     assert_equal @proposal, again.reproposed_from
-    assert_equal [ 106, 550, 20 ], [ again.debit_account.code, again.credit_account.code, again.amount ], "人が直す前の、元の提案の内容"
+    assert_equal [106, 550, 20], [again.debit_account.code, again.credit_account.code, again.amount], "人が直す前の、元の提案の内容"
     assert_equal "approved", @proposal.reload.status
 
     assert_empty ModelVerification.mismatches

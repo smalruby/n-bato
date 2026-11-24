@@ -26,11 +26,11 @@ module Ledger
     def activity_by_department
       @activity_by_department ||= Hash.new(0).tap do |h|
         entries.each do |e|
-          [ [ e.debit_account, e.debit_department, :debit ], [ e.credit_account, e.credit_department, :credit ] ].each do |account, dept, side|
+          [[e.debit_account, e.debit_department, :debit], [e.credit_account, e.credit_department, :credit]].each do |account, dept, side|
             next unless account.activity?
 
-            sign = (side == :debit) == account.debit_normal? ? 1 : -1
-            h[[ account, dept ]] += sign * e.amount
+            sign = ((side == :debit) == account.debit_normal?) ? 1 : -1
+            h[[account, dept]] += sign * e.amount
           end
         end
       end
@@ -39,27 +39,35 @@ module Ledger
     def closing_balances
       @closing_balances ||= begin
         accounts = (opening_balances.keys + movements.keys.select(&:balance_sheet?)).uniq
-        accounts.to_h { |a| [ a, opening_balances.fetch(a, 0) + movements.fetch(a, 0) ] }.reject { |_, v| v.zero? }
+        accounts.to_h { |a| [a, opening_balances.fetch(a, 0) + movements.fetch(a, 0)] }.reject { |_, v| v.zero? }
       end
     end
 
     def activity_amounts = movements.select { |a, v| a.activity? && !v.zero? }
 
-    def total(category, amounts = activity_amounts) = amounts.sum { |a, v| a.category == category ? v : 0 }
+    def total(category, amounts = activity_amounts) = amounts.sum { |a, v| (a.category == category) ? v : 0 }
 
     def revenue_total = total("revenue")
     def program_expense_total = total("program_expense")
     def admin_expense_total = total("admin_expense")
     def expense_total = program_expense_total + admin_expense_total
     def ordinary_change = revenue_total - expense_total
+
     # 経常外は 8xx = 収益、9xx = 費用 とみなす(会計王の科目体系。実データにまだ無い)
     def extraordinary_change
-      activity_amounts.sum { |a, v| a.category == "extraordinary" ? (a.code < 900 ? v : -v) : 0 }
+      activity_amounts.sum { |a, v|
+        if a.category == "extraordinary"
+          (a.code < 900) ? v : -v
+        else
+          0
+        end
+      }
     end
+
     def net_assets_change = ordinary_change + extraordinary_change
 
-    def assets_total(balances) = balances.sum { |a, v| a.category == "asset" ? v : 0 }
-    def liabilities_total(balances) = balances.sum { |a, v| a.category == "liability" ? v : 0 }
+    def assets_total(balances) = balances.sum { |a, v| (a.category == "asset") ? v : 0 }
+    def liabilities_total(balances) = balances.sum { |a, v| (a.category == "liability") ? v : 0 }
 
     def opening_net_assets = assets_total(opening_balances) - liabilities_total(opening_balances)
     def closing_assets_total = assets_total(closing_balances)
@@ -71,7 +79,7 @@ module Ledger
 
     def program_expense_by_department
       activity_by_department.select { |(a, _), v| a.category == "program_expense" && !v.zero? }
-                            .group_by { |(_, d), _| d }.transform_values { |pairs| pairs.sum(&:last) }
+        .group_by { |(_, d), _| d }.transform_values { |pairs| pairs.sum(&:last) }
     end
   end
 end

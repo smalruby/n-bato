@@ -4,7 +4,7 @@ module YearlyDataset
 
   included do
     validates :fiscal_year, presence: true
-    validates :code, uniqueness: { scope: :fiscal_year }
+    validates :code, uniqueness: {scope: :fiscal_year}
     scope :in_year, ->(year) { where(fiscal_year: year) }
     before_validation { self.fiscal_year ||= Current.working_year || FiscalYear.current.year }
   end
@@ -22,5 +22,5 @@ module YearlyDataset
   end
 
   # 同じコードの、別の年度の行
-  def in_year(year) = year == fiscal_year ? self : self.class.for_year(year, code)
+  def in_year(year) = (year == fiscal_year) ? self : self.class.for_year(year, code)
 end

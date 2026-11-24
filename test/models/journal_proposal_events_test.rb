@@ -10,8 +10,8 @@ class JournalProposalEventsTest < ActiveSupport::TestCase
 
   def propose(amount: 1980)
     JournalProposal.propose!(voucher: @voucher, model: "test", entry_date: Date.new(2025, 6, 1), amount:,
-                             debit_account: Account.find_by!(code: 658), debit_department: Department.find_by!(code: 113),
-                             credit_account: Account.find_by!(code: 100), summary: "消耗品を買った", rationale: "テスト", confidence: "high")
+      debit_account: Account.find_by!(code: 658), debit_department: Department.find_by!(code: 113),
+      credit_account: Account.find_by!(code: 100), summary: "消耗品を買った", rationale: "テスト", confidence: "high")
   end
 
   test "提案は日時 1 つで作り、確認待ち" do
@@ -22,13 +22,13 @@ class JournalProposalEventsTest < ActiveSupport::TestCase
     assert_equal "高", p.confidence_label
     @voucher.advance_status!
     assert_equal "proposed", @voucher.status
-    assert_equal [ p ], @voucher.open_proposals.to_a
+    assert_equal [p], @voucher.open_proposals.to_a
   end
 
   test "承認すると仕訳を作り、直した内容は仕訳に入り、提案はそのまま" do
     p = propose
     approval = Audit.operation(user: @user, scope: "vouchers") do
-      JournalProposal::Approval.approve!(p, by: @user, entry: { amount: 2080, sub_summary: "HDMI", debit_department_id: "" })
+      JournalProposal::Approval.approve!(p, by: @user, entry: {amount: 2080, sub_summary: "HDMI", debit_department_id: ""})
     end
     entry = approval.journal_entry
     assert_equal 2080, entry.amount

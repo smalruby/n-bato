@@ -10,7 +10,7 @@ class EventRulesTest < ActiveSupport::TestCase
   end
 
   def app_sources
-    @app_sources ||= Rails.root.glob("app/**/*.{rb,erb}").map(&:to_s).to_h { [ it, File.read(it) ] }
+    @app_sources ||= Rails.root.glob("app/**/*.{rb,erb}").map(&:to_s).to_h { [it, File.read(it)] }
   end
 
   test "イベントのクラスがある" do

@@ -1,15 +1,15 @@
 # 役員の任期 1 回分。任期が満了しても後任が選ばれるまでは職務を続ける(定款の伸長規定)。
 class OfficerTerm < ApplicationRecord
-  ROLES = { "chair" => "理事長", "vice_chair" => "副理事長", "director" => "理事", "auditor" => "監事" }.freeze
+  ROLES = {"chair" => "理事長", "vice_chair" => "副理事長", "director" => "理事", "auditor" => "監事"}.freeze
   # 名簿の「役名」。理事長・副理事長は理事の中から選ぶ。
-  TITLES = { "chair" => "理事（理事長）", "vice_chair" => "理事（副理事長）", "director" => "理事", "auditor" => "監事" }.freeze
+  TITLES = {"chair" => "理事（理事長）", "vice_chair" => "理事（副理事長）", "director" => "理事", "auditor" => "監事"}.freeze
   TERM_YEARS = 2
 
   belongs_to :person
   has_many :registrations, dependent: :nullify
 
   after_create :schedule_registration, if: :representative?
-  validates :role, inclusion: { in: ROLES.keys }
+  validates :role, inclusion: {in: ROLES.keys}
   validates :starts_on, :ends_on, presence: true
   validate { errors.add(:ends_on, "は就任日より後にしてください") if starts_on && ends_on && ends_on < starts_on }
 
@@ -28,7 +28,7 @@ class OfficerTerm < ApplicationRecord
 
   # 職務を行う最後の日
   def last_day
-    candidates = [ left_on ]
+    candidates = [left_on]
     candidates << (next_election_on&.yesterday || Date::Infinity.new) if left_on.nil?
     candidates.compact.min { |a, b| a <=> b }
   end
@@ -38,9 +38,9 @@ class OfficerTerm < ApplicationRecord
 
   # 年度の中で職務を行った期間(名簿の「就任期間」)
   def period_in(fiscal_year)
-    from = [ starts_on, fiscal_year.starts_on ].max
-    to = last_day.is_a?(Date) ? [ fiscal_year.ends_on, last_day ].min : fiscal_year.ends_on
-    from <= to ? from..to : nil
+    from = [starts_on, fiscal_year.starts_on].max
+    to = last_day.is_a?(Date) ? [fiscal_year.ends_on, last_day].min : fiscal_year.ends_on
+    (from <= to) ? from..to : nil
   end
 
   def holdover_on?(date) = serving_on?(date) && expired_on?(date)
@@ -58,6 +58,6 @@ class OfficerTerm < ApplicationRecord
 
   def schedule_registration
     registrations.create!(kind: "representative_change", cause_on: starts_on, due_on: starts_on + Registration::DEADLINE_DAYS,
-                          note: "#{person.name}（#{role_label}）の就任・重任")
+      note: "#{person.name}（#{role_label}）の就任・重任")
   end
 end

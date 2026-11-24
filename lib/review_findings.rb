@@ -7,7 +7,7 @@
 # Rails に頼らない(bin/review-findings から require する)。
 module ReviewFindings
   CATEGORIES = %w[Must Question FYI].freeze
-  ID_PREFIX = { "Must" => "M", "Question" => "Q", "FYI" => "FYI" }.freeze
+  ID_PREFIX = {"Must" => "M", "Question" => "Q", "FYI" => "FYI"}.freeze
 
   MARKER_PREFIX = "<!-- nbato-review-findings"
   ROUND_RE = /<!--\s*nbato-review-findings\s+round=(\d+)\s*-->/
@@ -15,7 +15,7 @@ module ReviewFindings
   ID_MARKER_RE = /\*\*\[(M|Q|FYI)(\d+)\]\*\*/
   # 人の返事の中の番号。表記のゆれ(Question1・Must1・F1)を受け、前後が英数字なら番号とみなさない(HTTP2・AM1)
   REF_RE = /(?<![A-Za-z0-9])(must|question|fyi|m|q|f)(\d+)(?![A-Za-z0-9])/i
-  REF_ALIAS = { "must" => "Must", "m" => "Must", "question" => "Question", "q" => "Question", "fyi" => "FYI", "f" => "FYI" }.freeze
+  REF_ALIAS = {"must" => "Must", "m" => "Must", "question" => "Question", "q" => "Question", "fyi" => "FYI", "f" => "FYI"}.freeze
 
   # 「直さなくてよい」を「直して」より先に見る(「修正しなくていい」を直す指示にしない)
   NO_FIX_RE = /(修正|変更|対応)(しなくて|せず|は?不要)|直さ(なくて|ず)|しないで/
@@ -55,7 +55,7 @@ module ReviewFindings
     number = m[2].to_i
     return nil if number.zero?
 
-    { id: "#{ID_PREFIX[category]}#{number}", category:, number: }
+    {id: "#{ID_PREFIX[category]}#{number}", category:, number:}
   end
 
   # まとめコメント(印のあるもの)の中の番号つきの指摘を、出てきた順に重ねずに集める。人のコメントは数えない
@@ -66,8 +66,8 @@ module ReviewFindings
 
   # 次の回で使う、分類ごとの始めの番号(いまある最大の番号 + 1)
   def next_numbers(comments)
-    start = CATEGORIES.to_h { [ it, 1 ] }
-    identified_findings(comments).each { |f| start[f[:category]] = [ start[f[:category]], f[:number] + 1 ].max }
+    start = CATEGORIES.to_h { [it, 1] }
+    identified_findings(comments).each { |f| start[f[:category]] = [start[f[:category]], f[:number] + 1].max }
     start
   end
 
@@ -93,8 +93,8 @@ module ReviewFindings
   # 1 回のレビューのすべての指摘を、1 つのコメントの本文にする
   def render(round:, findings:, start: {})
     assigned = assign_ids(findings, start)
-    counts = CATEGORIES.to_h { |c| [ c, assigned.count { it["category"] == c } ] }
-    lines = [ marker(round), "🤖 敵対的レビュー(round #{round}): #{summary(counts)}" ]
+    counts = CATEGORIES.to_h { |c| [c, assigned.count { it["category"] == c }] }
+    lines = [marker(round), "🤖 敵対的レビュー(round #{round}): #{summary(counts)}"]
     CATEGORIES.each do |category|
       group = assigned.select { it["category"] == category }
       next if group.empty?
@@ -120,7 +120,7 @@ module ReviewFindings
     existing = find_comment(comments, round)
     others = comments.reject { it.equal?(existing) }
     body = render(round:, findings:, start: next_numbers(others))
-    [ body, existing ? "PATCH #{existing["id"]}" : "POST" ]
+    [body, existing ? "PATCH #{existing["id"]}" : "POST"]
   end
 
   def classify_instruction(clause)
@@ -157,15 +157,15 @@ module ReviewFindings
     by_id.values
   end
 
-  ACTIONS = { ok: "no-change", fix: "fix", other: "reply" }.freeze
+  ACTIONS = {ok: "no-change", fix: "fix", other: "reply"}.freeze
 
   # address のときの対応の計画。人が番号で触れた指摘だけを返す(触れなかった指摘は、レビューのときの扱いのまま)。
   # replies は人の返事の本文の配列(古い順。後のものを使う)。まとめコメントに無い番号は捨てる。
   def plan(comments, replies)
-    refs = replies.flat_map { parse_references(it) }.to_h { [ it[:id], it ] }
+    refs = replies.flat_map { parse_references(it) }.to_h { [it[:id], it] }
     identified_findings(comments).filter_map do |f|
       ref = refs[f[:id]]
-      ref && { "id" => f[:id], "category" => f[:category], "action" => ACTIONS.fetch(ref[:instruction]) }
+      ref && {"id" => f[:id], "category" => f[:category], "action" => ACTIONS.fetch(ref[:instruction])}
     end
   end
 end

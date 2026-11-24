@@ -7,12 +7,12 @@ module Assistant
       type: "object", additionalProperties: false,
       required: %w[answer action],
       properties: {
-        answer: { type: "string", description: "人への答え。日本語で短く。操作のしかたを聞かれたら手順を書く。" },
+        answer: {type: "string", description: "人への答え。日本語で短く。操作のしかたを聞かれたら手順を書く。"},
         action: {
           type: "object", additionalProperties: false,
           required: %w[kind],
           properties: {
-            kind: { type: "string", enum: %w[none journal_from_receipt] }
+            kind: {type: "string", enum: %w[none journal_from_receipt]}
           }
         }
       }
@@ -25,9 +25,9 @@ module Assistant
     end
 
     def call(question, image: nil)
-      content = [ { type: "text", text: question } ]
+      content = [{type: "text", text: question}]
       if image
-        content << { type: "image", source: { type: "base64", media_type: image.content_type, data: Base64.strict_encode64(image.download) } }
+        content << {type: "image", source: {type: "base64", media_type: image.content_type, data: Base64.strict_encode64(image.download)}}
       end
       json = @client.complete_json(system: system_prompt(image.present?), content:, schema: SCHEMA, max_tokens: 4_000)
       Result.new(json.fetch("answer"), json.fetch("action"))

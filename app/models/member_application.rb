@@ -4,9 +4,9 @@ class MemberApplication < ApplicationRecord
   encrypts :postal_code, :address, :email, :phone, :referral, :help_offers, :comments
   belongs_to :person, optional: true
 
-  STATUSES = { "received" => "届いた", "approved" => "認めた", "rejected" => "認めない" }.freeze
+  STATUSES = {"received" => "届いた", "approved" => "認めた", "rejected" => "認めない"}.freeze
   validates :name, :applied_on, presence: true
-  validates :status, inclusion: { in: STATUSES.keys }
+  validates :status, inclusion: {in: STATUSES.keys}
 
   scope :ordered, -> { order(Arel.sql("status = 'received' DESC"), applied_on: :desc, id: :desc) }
   scope :received, -> { where(status: "received") }
@@ -17,7 +17,7 @@ class MemberApplication < ApplicationRecord
   def approved? = status == "approved"
   def rejected? = status == "rejected"
   def default_year = FiscalYear.for(applied_on).year
-  def full_address = [ postal_code.presence && "〒#{postal_code}", address ].compact.join(" ")
+  def full_address = [postal_code.presence && "〒#{postal_code}", address].compact.join(" ")
   def same_name_people = Person.where(name:).or(Person.where(name: name.to_s.gsub(/[\s　]+/, "　"))).distinct
 
   has_one :approval, class_name: "MemberApplication::Approval", dependent: :restrict_with_error
@@ -40,7 +40,7 @@ class MemberApplication < ApplicationRecord
       #{name} 様
 
       このたびは、#{org&.name}の正会員にお申し込みいただき、ありがとうございます。
-      #{joined_on&.strftime('%Y年%-m月%-d日')}付けで、正会員として入会を認めましたので、お知らせします(定款第7条)。
+      #{joined_on&.strftime("%Y年%-m月%-d日")}付けで、正会員として入会を認めましたので、お知らせします(定款第7条)。
 
       正会員の皆さまには、年 1 回の総会での議決や、議案への同意(書面決議)をお願いしています。
       ご案内が届きましたら、ご回答をよろしくお願いします。

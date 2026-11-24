@@ -3,7 +3,7 @@ class SiwakeImport < ApplicationRecord
   self.audited = false
   has_many :journal_entries, -> { order(:position) }, dependent: :destroy
   validates :filename, :sha256, :header_line, :columns_line, presence: true
-  validates :sha256, uniqueness: { message: "の同じファイルはすでに取り込んでいます" }
+  validates :sha256, uniqueness: {message: "の同じファイルはすでに取り込んでいます"}
 
   def to_siwake_file
     Kaikeiou::SiwakeFile.new(

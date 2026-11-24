@@ -29,8 +29,8 @@ module SlackNotice
       years = changes.filter_map(&:fiscal_year).uniq.sort
       lines = changes.first(5).map { "・#{describe(it)}" }
       lines << "(ほか #{changes.size - 5} 件)" if changes.size > 5
-      SlackNotice.post!("op-#{op.id}", ([ "*締めた年度の変更* #{years.map { "#{it}年度" }.join('・')} #{op.label}", *lines,
-                                         "理由: #{op.reason}", "変えた人: #{who} #{at}", SlackNotice.link("/changes#{"?year=#{years.first}" if years.any?}", "変更の記録を開く") ]).join("\n"))
+      SlackNotice.post!("op-#{op.id}", ["*締めた年度の変更* #{years.map { "#{it}年度" }.join("・")} #{op.label}", *lines,
+        "理由: #{op.reason}", "変えた人: #{who} #{at}", SlackNotice.link("/changes#{"?year=#{years.first}" if years.any?}", "変更の記録を開く")].join("\n"))
     end
 
     def describe(change)
@@ -49,19 +49,19 @@ module SlackNotice
           SlackNotice.post!("ms-start-#{year}", "*#{year}年度を始めました* #{who} #{at}")
         elsif cs.key?("closed_at")
           closed = cs["closed_at"].last.present?
-          SlackNotice.post!("ms-#{closed ? 'close' : 'reopen'}-#{year}-#{op.id}", "*#{year}年度を#{closed ? '締めました' : '締めを解きました'}* #{who} #{at}#{"\n理由: #{op.reason}" if !closed && op.reason.present?}")
+          SlackNotice.post!("ms-#{closed ? "close" : "reopen"}-#{year}-#{op.id}", "*#{year}年度を#{closed ? "締めました" : "締めを解きました"}* #{who} #{at}#{"\n理由: #{op.reason}" if !closed && op.reason.present?}")
         end
       when "ProcedureStep"
         step = change.record
         return unless step && cs["status"]&.last == "done"
 
-        label = { "audit" => "監事の監査が済みました", "submit" => "所轄庁への提出を記録しました" }[step.key] or return
+        label = {"audit" => "監事の監査が済みました", "submit" => "所轄庁への提出を記録しました"}[step.key] or return
         SlackNotice.post!("ms-step-#{step.id}", "*#{label}* #{step.procedure_run.period_label}(#{step.procedure_run.name}) #{who} #{at}")
       when "AnnualReport"
         return if cs["submitted_on"]&.last.blank?
 
         year = change.record&.fiscal_year
-        SlackNotice.post!("ms-submit-#{year}-#{cs['submitted_on'].last}", "*所轄庁への提出を記録しました* #{year}年度(提出日 #{cs['submitted_on'].last}) #{who} #{at}")
+        SlackNotice.post!("ms-submit-#{year}-#{cs["submitted_on"].last}", "*所轄庁への提出を記録しました* #{year}年度(提出日 #{cs["submitted_on"].last}) #{who} #{at}")
       end
     end
   end

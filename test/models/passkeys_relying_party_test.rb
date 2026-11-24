@@ -4,11 +4,11 @@ class PasskeysRelyingPartyTest < ActiveSupport::TestCase
   test "ふつうはリクエストのホスト。環境変数があればそれを使う(ドメインごとに分ける)" do
     rp = Passkeys::RelyingParty.for(host: "localhost", origin: "http://localhost:3200", env: {})
     assert_equal "localhost", rp.id
-    assert_equal [ "http://localhost:3200" ], rp.allowed_origins
+    assert_equal ["http://localhost:3200"], rp.allowed_origins
 
-    rp = Passkeys::RelyingParty.for(host: "web", origin: "http://web", env: { "WEBAUTHN_RP_ID" => "n-bato.example.org", "WEBAUTHN_ORIGIN" => "https://n-bato.example.org" })
+    rp = Passkeys::RelyingParty.for(host: "web", origin: "http://web", env: {"WEBAUTHN_RP_ID" => "n-bato.example.org", "WEBAUTHN_ORIGIN" => "https://n-bato.example.org"})
     assert_equal "n-bato.example.org", rp.id
-    assert_equal [ "https://n-bato.example.org" ], rp.allowed_origins
+    assert_equal ["https://n-bato.example.org"], rp.allowed_origins
   end
 
   test "本人の確かめ直し: 最後に確かめてから 10 分まで" do

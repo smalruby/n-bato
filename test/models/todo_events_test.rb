@@ -18,15 +18,15 @@ class TodoEventsTest < ActiveSupport::TestCase
   test "状態の変化から、いまの状態が決まる(待ち → 済み → 未着手)" do
     assert_equal "todo", @todo.status
     Todo::StatusChange.change!(@todo, status: "wait", waiting_on: " 監事の返事 ", by: @user)
-    assert_equal [ "wait", "監事の返事" ], [ @todo.reload.status, @todo.waiting_on ]
+    assert_equal ["wait", "監事の返事"], [@todo.reload.status, @todo.waiting_on]
     change = Todo::StatusChange.change!(@todo, status: "done", note: "出した", by: @user)
     @todo.reload
-    assert_equal [ "done", "", "user", "出した" ], [ @todo.status, @todo.waiting_on, @todo.done_by, @todo.done_note ]
+    assert_equal ["done", "", "user", "出した"], [@todo.status, @todo.waiting_on, @todo.done_by, @todo.done_note]
     assert_equal change.changed_at.to_i, @todo.done_at.to_i
     assert_equal @user, change.changed_by
     Todo::StatusChange.change!(@todo, status: "todo", by: @user)
     @todo.reload
-    assert_equal [ "todo", nil, "", "" ], [ @todo.status, @todo.done_at, @todo.done_by, @todo.done_note ]
+    assert_equal ["todo", nil, "", ""], [@todo.status, @todo.done_at, @todo.done_by, @todo.done_note]
     assert_equal %w[wait done todo], @todo.status_changes.map(&:status)
     assert_empty ModelVerification.mismatches
   end
@@ -74,15 +74,15 @@ class TodoEventsTest < ActiveSupport::TestCase
     @todo.update!(done_rule: "annual_report_submitted")
     Todo.refresh_auto!
     @todo.reload
-    assert_equal [ "done", "auto" ], [ @todo.status, @todo.done_by ]
+    assert_equal ["done", "auto"], [@todo.status, @todo.done_by]
     assert @todo.status_changes.last.automatic
     assert_nil @todo.status_changes.last.changed_by
 
     other = Todo.create!(title: "待つもの", resume_rule: "registration_completed")
     Todo::StatusChange.change!(other, status: "wait", waiting_on: "登記")
-    assert_equal [ other ], Todo.resume!("registration_completed", note: "登記が完了した")
+    assert_equal [other], Todo.resume!("registration_completed", note: "登記が完了した")
     other.reload
-    assert_equal [ "doing", "" ], [ other.status, other.waiting_on ]
+    assert_equal ["doing", ""], [other.status, other.waiting_on]
     assert_match "登記が完了した", other.note
     assert_empty ModelVerification.mismatches
   end
@@ -104,12 +104,12 @@ class TodoEventsTest < ActiveSupport::TestCase
     op = AuditOperation.last
     assert_equal "todos_auto", op.scope
     assert_equal 4, op.audit_changes.size
-    assert_equal [ true, true ], [ @todo.reload.done?, other.reload.done? ]
+    assert_equal [true, true], [@todo.reload.done?, other.reload.done?]
     assert_no_difference -> { AuditOperation.count } do
       Todo.refresh_auto!
     end
     Audit.undo!(op.user, "todos_auto")
-    assert_equal [ "todo", "todo" ], [ @todo.reload.status, other.reload.status ]
+    assert_equal ["todo", "todo"], [@todo.reload.status, other.reload.status]
     assert_empty ModelVerification.mismatches
   end
 
@@ -117,17 +117,17 @@ class TodoEventsTest < ActiveSupport::TestCase
   test "B2: 移す前の発言の作成(written_at が記録に無い)をやり直すと Conflict" do
     op = AuditOperation.create!(user: @user, scope: "incoming_request_messages", kind: "do", state: "undone", redoable: true)
     op.audit_changes.create!(auditable_type: "IncomingRequestMessage", auditable_id: 9_999, event: "create",
-                             changeset: { "incoming_request_id" => [ nil, @req.id ], "role" => [ nil, "user" ], "body" => [ nil, "古い下書き" ], "masked_body" => [ nil, "" ] })
+      changeset: {"incoming_request_id" => [nil, @req.id], "role" => [nil, "user"], "body" => [nil, "古い下書き"], "masked_body" => [nil, ""]})
     assert_raises(Audit::Conflict) { Audit.redo!(@user, "incoming_request_messages") }
     assert_not IncomingRequestMessage.exists?(9_999)
-    assert_equal [ "undone", true ], op.reload.values_at(:state, :redoable)
+    assert_equal ["undone", true], op.reload.values_at(:state, :redoable)
   end
 
   test "B2: 移す前の下書きを消した操作(snapshot に written_at が無い)を元に戻すと Conflict" do
     op = AuditOperation.create!(user: @user, scope: "incoming_request_messages", kind: "do", state: "active")
-    snap = { "id" => 9_999, "incoming_request_id" => @req.id, "role" => "user", "body" => "消した下書き", "masked_body" => "", "sent_at" => nil,
-             "created_at" => "2026-11-20T10:00:00+09:00", "updated_at" => "2026-11-20T10:00:00+09:00" }
-    op.audit_changes.create!(auditable_type: "IncomingRequestMessage", auditable_id: 9_999, event: "destroy", changeset: snap.compact.transform_values { [ it, nil ] }, snapshot: snap)
+    snap = {"id" => 9_999, "incoming_request_id" => @req.id, "role" => "user", "body" => "消した下書き", "masked_body" => "", "sent_at" => nil,
+            "created_at" => "2026-11-20T10:00:00+09:00", "updated_at" => "2026-11-20T10:00:00+09:00"}
+    op.audit_changes.create!(auditable_type: "IncomingRequestMessage", auditable_id: 9_999, event: "destroy", changeset: snap.compact.transform_values { [it, nil] }, snapshot: snap)
     assert_raises(Audit::Conflict) { Audit.undo!(@user, "incoming_request_messages") }
     assert_equal "active", op.reload.state
   end
@@ -140,7 +140,7 @@ class TodoEventsTest < ActiveSupport::TestCase
     op_in("incoming_request_messages") { Todo::StatusChange.change!(@todo.reload, status: "doing", by: @user) }
     error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "todos") }
     assert_match "やること", error.message
-    assert_equal [ "doing", 3 ], [ @todo.reload.status, @todo.status_changes.count ]
+    assert_equal ["doing", 3], [@todo.reload.status, @todo.status_changes.count]
     assert_empty ModelVerification.mismatches
   end
 
@@ -150,17 +150,17 @@ class TodoEventsTest < ActiveSupport::TestCase
     op_in("incoming_request_messages") { Todo::StatusChange.change!(@todo.reload, status: "wait", waiting_on: "返事", by: @user) }
     op_in("incoming_request_messages") { Todo::StatusChange.change!(@todo.reload, status: "todo", by: @user) }
     assert_raises(Audit::Conflict) { Audit.redo!(@user, "todos") }
-    assert_equal [ "todo", 2 ], [ @todo.reload.status, @todo.status_changes.count ]
+    assert_equal ["todo", 2], [@todo.reload.status, @todo.status_changes.count]
     assert_empty ModelVerification.mismatches
   end
 
   test "B4: 決めるがセーブポイントごと取り消されたら、何もしなかったのと同じ(やり直せる操作も残る)" do
     op { Todo::StatusChange.change!(@todo, status: "doing", by: @user) }
     Audit.undo!(@user, "todos")
-    msg = IncomingRequestMessage.write!(@req, role: "assistant", body: "案", proposal: { "request" => { "title" => "直した題" }, "todos_new" => [ { "title" => "" } ] })
+    msg = IncomingRequestMessage.write!(@req, role: "assistant", body: "案", proposal: {"request" => {"title" => "直した題"}, "todos_new" => [{"title" => ""}]})
     op { assert_raises(ActiveRecord::RecordInvalid) { IncomingRequestMessage::Adoption.adopt!(msg, by: @user) } }
     assert_equal "架空の依頼", @req.reload.title
-    assert_equal({ undo: 0, redo: 1 }, Audit.counts(@user, "todos"))
+    assert_equal({undo: 0, redo: 1}, Audit.counts(@user, "todos"))
   end
 
   # 二度押し(ほぼ同時に 2 回押して、2 回目が古い記録を読んでいる)。一意の制約に当たっても 500 にせず、済んでいることを伝える
@@ -175,7 +175,7 @@ class TodoEventsTest < ActiveSupport::TestCase
   end
 
   test "Q1: この案で決めるの二度押しは、もう決めてあると伝え、やることを二重に作らない" do
-    msg = IncomingRequestMessage.write!(@req, role: "assistant", body: "案", proposal: { "todos_new" => [ { "title" => "新しいやること" } ] })
+    msg = IncomingRequestMessage.write!(@req, role: "assistant", body: "案", proposal: {"todos_new" => [{"title" => "新しいやること"}]})
     stale = IncomingRequestMessage.find(msg.id).tap(&:adoption)
     IncomingRequestMessage::Adoption.adopt!(msg)
     error = ApplicationRecord.transaction { assert_raises(ArgumentError) { IncomingRequestMessage::Adoption.adopt!(stale) } }
@@ -186,9 +186,9 @@ class TodoEventsTest < ActiveSupport::TestCase
   test "Q1: AI に送るの二度押しは、もう送ってあると伝え、AI の返事を二重に残さない" do
     draft = IncomingRequestMessage.write!(@req, role: "user", body: "下書き")
     stale = IncomingRequestMessage.find(draft.id).tap(&:delivery)
-    IncomingRequestMessage::Delivery.deliver!(draft, masked_body: "伏せた", send_attachments: false, reply: { "reply" => "返事" })
+    IncomingRequestMessage::Delivery.deliver!(draft, masked_body: "伏せた", send_attachments: false, reply: {"reply" => "返事"})
     error = ApplicationRecord.transaction do
-      assert_raises(ArgumentError) { IncomingRequestMessage::Delivery.deliver!(stale, masked_body: "伏せた", send_attachments: false, reply: { "reply" => "返事" }) }
+      assert_raises(ArgumentError) { IncomingRequestMessage::Delivery.deliver!(stale, masked_body: "伏せた", send_attachments: false, reply: {"reply" => "返事"}) }
     end
     assert_equal "この発言はもう AI に送ってあります", error.message
     assert_equal 1, @req.messages.where(role: "assistant").count
@@ -208,7 +208,7 @@ class TodoEventsTest < ActiveSupport::TestCase
   test "依頼を解決にする(全部済んでから。force なら済んでいなくても)" do
     assert_raises(ArgumentError) { IncomingRequest::Settlement.settle!(@req) }
     s = IncomingRequest::Settlement.settle!(@req, force: true, by: @user, on: Date.new(2026, 11, 24))
-    assert_equal [ "resolved", Date.new(2026, 11, 24) ], [ @req.reload.status, @req.resolved_on ]
+    assert_equal ["resolved", Date.new(2026, 11, 24)], [@req.reload.status, @req.resolved_on]
     assert_equal @user, s.settled_by
     assert_raises(ArgumentError) { IncomingRequest::Settlement.settle!(@req.reload, force: true) }
     assert_raises(ActiveRecord::RecordInvalid) { @req.update!(status: "open") }
@@ -223,7 +223,7 @@ class TodoEventsTest < ActiveSupport::TestCase
     Audit.operation(user: @user, scope: "incoming_requests") { IncomingRequest::Settlement.settle!(@req, by: @user) }
     assert @req.reload.resolved?
     Audit.undo!(@user, "incoming_requests")
-    assert_equal [ "open", nil ], [ @req.reload.status, @req.resolved_on ]
+    assert_equal ["open", nil], [@req.reload.status, @req.resolved_on]
     assert_nil @req.settlement
     assert_empty ModelVerification.mismatches
   end
@@ -231,17 +231,17 @@ class TodoEventsTest < ActiveSupport::TestCase
   test "対話: 下書き → 送った(伏せた文と AI の返事)→ この案で決める" do
     draft = IncomingRequestMessage.write!(@req, role: "user", body: "架空の依頼の文")
     assert draft.draft?
-    assert_equal [ draft ], @req.messages.drafts.to_a
+    assert_equal [draft], @req.messages.drafts.to_a
     assert_equal "", draft.masked_body
-    json = { "reply" => "わかりました", "request" => { "title" => "架空の依頼(整理済み)", "counterpart" => "", "received_on" => "2026-11-20", "due_on" => "bad" },
-             "todos_new" => [ { "title" => "新しいやること", "fiscal_year" => 0, "kind" => "nope", "assignee" => "AI", "due_on" => "", "target" => "x", "done_rule" => "", "note" => "" } ],
-             "todos_update" => [ { "id" => @todo.id, "status" => "wait", "waiting_on" => "相手の返事", "done_note" => "" }, { "id" => 0, "status" => "done" }, { "id" => @todo.id, "status" => "?" } ] }
+    json = {"reply" => "わかりました", "request" => {"title" => "架空の依頼(整理済み)", "counterpart" => "", "received_on" => "2026-11-20", "due_on" => "bad"},
+            "todos_new" => [{"title" => "新しいやること", "fiscal_year" => 0, "kind" => "nope", "assignee" => "AI", "due_on" => "", "target" => "x", "done_rule" => "", "note" => ""}],
+            "todos_update" => [{"id" => @todo.id, "status" => "wait", "waiting_on" => "相手の返事", "done_note" => ""}, {"id" => 0, "status" => "done"}, {"id" => @todo.id, "status" => "?"}]}
     reply = Requests::Organizer.new(@req, client: FakeClient.new(json)).call(draft, masked_body: "伏せた文", send_attachments: true)
     draft.reload
     assert draft.sent?
     assert_not draft.draft?
-    assert_equal [ "伏せた文", true ], [ draft.masked_body, draft.send_attachments ]
-    assert_equal [ "assistant", "わかりました" ], [ reply.role, reply.body ]
+    assert_equal ["伏せた文", true], [draft.masked_body, draft.send_attachments]
+    assert_equal ["assistant", "わかりました"], [reply.role, reply.body]
     assert reply.proposal_actionable?
     assert_raises(ArgumentError) { IncomingRequestMessage::Delivery.deliver!(draft, masked_body: "", send_attachments: false, reply: json) }
     assert_raises(ArgumentError) { draft.discard! }
@@ -249,11 +249,11 @@ class TodoEventsTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { IncomingRequestMessage::Adoption.adopt!(draft) }
     created, updated = IncomingRequestMessage::Adoption.adopt!(reply, by: @user)
     assert_equal 1, created.size
-    assert_equal [ @todo ], updated
-    assert_equal [ "screen", "", nil ], [ created.first.kind, created.first.target, created.first.fiscal_year ]
+    assert_equal [@todo], updated
+    assert_equal ["screen", "", nil], [created.first.kind, created.first.target, created.first.fiscal_year]
     @req.reload
-    assert_equal [ "架空の依頼(整理済み)", Date.new(2026, 11, 20), nil ], [ @req.title, @req.received_on, @req.due_on ]
-    assert_equal [ "wait", "相手の返事" ], [ @todo.reload.status, @todo.waiting_on ]
+    assert_equal ["架空の依頼(整理済み)", Date.new(2026, 11, 20), nil], [@req.title, @req.received_on, @req.due_on]
+    assert_equal ["wait", "相手の返事"], [@todo.reload.status, @todo.waiting_on]
     assert reply.reload.applied?
     assert_not reply.proposal_actionable?
     assert_equal @user, reply.adoption.adopted_by
@@ -264,8 +264,8 @@ class TodoEventsTest < ActiveSupport::TestCase
   test "下書きだけは消せる。PDF と画像のほかの添付は付けない" do
     pdf = Rack::Test::UploadedFile.new(StringIO.new("%PDF-1.4"), "application/pdf", original_filename: "a.pdf")
     csv = Rack::Test::UploadedFile.new(StringIO.new("a,b"), "text/csv", original_filename: "a.csv")
-    draft = IncomingRequestMessage.write!(@req, role: "user", body: "下書き", files: [ pdf, csv ])
-    assert_equal [ "a.pdf" ], draft.files.map { it.filename.to_s }
+    draft = IncomingRequestMessage.write!(@req, role: "user", body: "下書き", files: [pdf, csv])
+    assert_equal ["a.pdf"], draft.files.map { it.filename.to_s }
     draft.discard!
     assert_not IncomingRequestMessage.exists?(draft.id)
     assert_not @req.reload.discardable?, "やることがある依頼は残す"
@@ -281,7 +281,7 @@ class TodoEventsTest < ActiveSupport::TestCase
     period.update_columns(closed_on: Date.new(2026, 11, 24))
     assert_equal "2024年度を締めた記録で済みにした", @todo.auto_done_reason
     Todo.refresh_auto!
-    assert_equal [ "done", "auto" ], [ @todo.reload.status, @todo.done_by ]
+    assert_equal ["done", "auto"], [@todo.reload.status, @todo.done_by]
     assert_nil @todo.auto_done_reason, "済んだものは調べない"
   end
 
@@ -296,23 +296,23 @@ class TodoEventsTest < ActiveSupport::TestCase
 
   test "添付も送るときは、画像と PDF を base64 で AI に渡す(送らないときは文だけ)" do
     png = file_fixture("receipt.png")
-    files = [ Rack::Test::UploadedFile.new(png, "image/png"),
-              Rack::Test::UploadedFile.new(StringIO.new("%PDF-1.4 架空"), "application/pdf", original_filename: "a.pdf") ]
+    files = [Rack::Test::UploadedFile.new(png, "image/png"),
+      Rack::Test::UploadedFile.new(StringIO.new("%PDF-1.4 架空"), "application/pdf", original_filename: "a.pdf")]
     draft = IncomingRequestMessage.write!(@req, role: "user", body: "添付つきの下書き", files:)
     client = Class.new(FakeClient) do
       attr_reader :content
 
       def complete_json(content:, **) = (@content = content) && super
-    end.new({ "reply" => "見ました" })
+    end.new({"reply" => "見ました"})
     Requests::Organizer.new(@req, client:).call(draft, masked_body: "伏せた文", send_attachments: true)
 
     image, document = client.content.drop(1)
-    assert_equal [ "image", "image/png", Base64.strict_encode64(png.binread) ], [ image[:type], image[:source][:media_type], image[:source][:data] ]
-    assert_equal [ "document", "application/pdf" ], [ document[:type], document[:source][:media_type] ]
+    assert_equal ["image", "image/png", Base64.strict_encode64(png.binread)], [image[:type], image[:source][:media_type], image[:source][:data]]
+    assert_equal ["document", "application/pdf"], [document[:type], document[:source][:media_type]]
     assert_equal "%PDF-1.4 架空".b, Base64.strict_decode64(document[:source][:data])
 
-    other = IncomingRequestMessage.write!(@req, role: "user", body: "文だけ", files: [ Rack::Test::UploadedFile.new(png, "image/png") ])
+    other = IncomingRequestMessage.write!(@req, role: "user", body: "文だけ", files: [Rack::Test::UploadedFile.new(png, "image/png")])
     Requests::Organizer.new(@req, client:).call(other, masked_body: "伏せた文", send_attachments: false)
-    assert_equal [ "text" ], client.content.map { it[:type] }
+    assert_equal ["text"], client.content.map { it[:type] }
   end
 end

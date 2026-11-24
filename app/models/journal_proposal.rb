@@ -3,10 +3,11 @@
 # いまの状態は、詳細のイベント(承認・却下・取り下げ)の有無で決まる。docs/data-model.md
 class JournalProposal < ApplicationRecord
   include EventRecord
+
   event_of :proposed_at, entry: :propose!
 
-  STATUSES = { "proposed" => "確認待ち", "approved" => "承認済み", "rejected" => "却下", "withdrawn" => "取り下げ" }.freeze
-  CONFIDENCES = { "high" => "高", "medium" => "中", "low" => "低" }.freeze
+  STATUSES = {"proposed" => "確認待ち", "approved" => "承認済み", "rejected" => "却下", "withdrawn" => "取り下げ"}.freeze
+  CONFIDENCES = {"high" => "高", "medium" => "中", "low" => "低"}.freeze
   ENTRY_FIELDS = %i[entry_date amount debit_account_id debit_department_id credit_account_id credit_department_id summary sub_summary].freeze
 
   belongs_to :voucher
@@ -21,13 +22,13 @@ class JournalProposal < ApplicationRecord
   belongs_to :reproposed_from, class_name: "JournalProposal", optional: true
 
   validates :entry_date, presence: true
-  validates :amount, numericality: { only_integer: true, greater_than: 0 }
-  validates :confidence, inclusion: { in: CONFIDENCES.keys }
+  validates :amount, numericality: {only_integer: true, greater_than: 0}
+  validates :confidence, inclusion: {in: CONFIDENCES.keys}
 
   scope :approved, -> { where(id: Approval.select(:journal_proposal_id)) }
   scope :pending, lambda {
     where.not(id: Approval.select(:journal_proposal_id)).where.not(id: Rejection.select(:journal_proposal_id))
-         .where.not(id: Withdrawal.select(:journal_proposal_id))
+      .where.not(id: Withdrawal.select(:journal_proposal_id))
   }
 
   # 提案を作る(作る入口)。AI の答えから作る Bookkeeper::ProposalGenerator が使う。

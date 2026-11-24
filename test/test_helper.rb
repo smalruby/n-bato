@@ -31,7 +31,7 @@ module ActiveSupport
 
     # 環境変数を一時的に変える(nil は消す)。テストの後は元に戻す
     def with_env(vars)
-      before = vars.keys.to_h { [ it, ENV[it] ] }
+      before = vars.keys.to_h { [it, ENV[it]] }
       vars.each { |k, v| v.nil? ? ENV.delete(k) : ENV[k] = v }
       yield
     ensure
@@ -57,23 +57,27 @@ class FakeClaudeApi
 
   attr_reader :requests
 
-  def self.reply(text, stop_reason: :end_turn) = Message.new(stop_reason, [ Block.new(:text, text), Block.new(:thinking, "") ])
+  def self.reply(text, stop_reason: :end_turn) = Message.new(stop_reason, [Block.new(:text, text), Block.new(:thinking, "")])
 
   def initialize(*replies) = (@replies, @requests = replies, [])
   def messages = self
 
   def create(**params)
     @requests << params
-    r = @replies.size > 1 ? @replies.shift : @replies.first
+    r = (@replies.size > 1) ? @replies.shift : @replies.first
     raise r if r.is_a?(Exception)
 
-    r.is_a?(Message) ? r : self.class.reply(r.is_a?(String) ? r : r.to_json)
+    if r.is_a?(Message)
+      r
+    else
+      self.class.reply(r.is_a?(String) ? r : r.to_json)
+    end
   end
 end
 
 module SignInHelper
   def sign_in(user = users(:one))
-    post session_path, params: { email_address: user.email_address, password: "password" }
+    post session_path, params: {email_address: user.email_address, password: "password"}
     assert_response :redirect
   end
 

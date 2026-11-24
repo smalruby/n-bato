@@ -16,7 +16,7 @@ class FillBlankOrganizationYearNamesTest < ActiveSupport::TestCase
       migrate
       migrate
     end
-    [ blank_nil, blank_str, blank_sp ].each { assert_equal "テスト法人", it.reload.name }
+    [blank_nil, blank_str, blank_sp].each { assert_equal "テスト法人", it.reload.name }
     assert_equal "旧名の法人", named.reload.name
     assert blank_str.reload.update(phone: "000-0000-0000"), "埋めたあとは、ほかの項目を直せる"
   end

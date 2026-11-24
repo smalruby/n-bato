@@ -6,7 +6,7 @@ namespace :backup do
   end
 
   desc "取り出したバックアップを確かめる(bin/rails 'backup:verify[DIR]')。件数だけを出す"
-  task :verify, [ :dir ] => :environment do |_, args|
+  task :verify, [:dir] => :environment do |_, args|
     result = Backup::Verification.new(args.fetch(:dir)).run
     result.databases.each { |name, status| puts "db #{name}: #{status}" }
     result.tables.each { |name, count| puts "table #{name}: #{count}" }

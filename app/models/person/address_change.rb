@@ -3,6 +3,7 @@
 class Person::AddressChange < ApplicationRecord
   include EventRecord
   include Person::ChangeEvent
+
   event_of :moved_on, entry: :record!
   encrypts :address
 
