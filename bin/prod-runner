@@ -1,14 +1,51 @@
 #!/usr/bin/env bash
-# 手元の Ruby のファイルを、本番(Kamal で動いているコンテナ)の bin/rails runner で実行する。
-# 運用のセッションが、本番のデータを操作するときに使う(.claude/rules/session-roles.md)。
+# 運用のセッションのスクリプト(手元の Ruby のファイル)を、本番の bin/rails runner で流す。
+# 決まりは notes の ops-dev/0001(運用と開発で合意)。.claude/rules/session-roles.md も見る。
 #
-#   NBATO_SECRETS_DIR=<秘密の置き場所> bin/prod-runner path/to/script.rb
+#   NBATO_SECRETS_DIR=<秘密の置き場所> bin/prod-runner --dry-run script.rb   # 試し流し(最後に巻き戻す)。読むだけの確かめもこれ
+#   NBATO_SECRETS_DIR=<秘密の置き場所> bin/prod-runner --apply   script.rb   # 本番流し(書き込む。理事長に確かめてから)
 #
-# ファイルは base64 にして送るので、引用符や改行を気にしなくてよい。
+# - スクリプト全体を 1 つのトランザクションで包む。途中で例外になれば、何も書かれない。
+# - --apply は、流す前に本体の DB を storage/backups/ に写す(書く前のバックアップ。新しい 20 世代を残す)。
+#   その名前は出力の先頭に出る。戻すときは bin/prod-restore <その名前>。
+# - スクリプトの中では `operator`(操作した人)が使える: Audit.operation(user: operator, scope: ..., label: ...) { ... }
+# - 出力の先頭に、試し流しか本番流しか、スクリプトの名前、書く前のバックアップの名前を出す。
+#
+# 試し流しで巻き戻らないもの(気をつける):
+# - 添付ファイル(Active Storage)の書き込み・削除。ファイルは DB の外にあるので残る・消える。
+#   添付を扱うスクリプトは、先に ops-dev に書いてから流す。
+# - 外への送信(API・Slack など)。ジョブは積まず、メールは送らないようにしてある。
+#
+# デプロイとぶつからないように、流す間は Kamal のデプロイのロックを取る。
+# - デプロイ中なら「ロックがかかっている」と止まる。デプロイが終わってから流し直す。
+# - 例外や Ctrl-C でも、ロックは外す。外れずに残ったときは:
+#     bin/kamal lock status    # 誰が取っているか(prod-runner なら、そのスクリプトの名前が出る)
+#     bin/kamal lock release   # 外す(デプロイ中でないことを確かめてから)
+#
+# スクリプトは 64 KB まで(base64 にしてコマンドの引数で送るため)。
 set -euo pipefail
-file="${1:?使い方: bin/prod-runner path/to/script.rb}"
+
+usage() { echo "使い方: bin/prod-runner --dry-run|--apply path/to/script.rb" >&2; exit 2; }
+case "${1:-}" in
+  --dry-run) apply=0 ;;
+  --apply) apply=1 ;;
+  *) usage ;;
+esac
+file="${2:-}"; [ -n "$file" ] || usage
 : "${NBATO_SECRETS_DIR:?NBATO_SECRETS_DIR に秘密の置き場所を入れてください}"
 [ -f "$file" ] || { echo "$file がありません" >&2; exit 1; }
+size=$(wc -c < "$file" | tr -d ' ')
+[ "$size" -le 65536 ] || { echo "$file は $size バイトある(64 KB まで)。ops-dev に書いて相談する" >&2; exit 1; }
+
 cd "$(dirname "$0")/.."
+name=$(basename "$file")
 b64=$(base64 < "$file" | tr -d '\n')
-exec bin/kamal app exec --reuse --quiet "bin/rails runner 'require \"base64\"; eval(Base64.decode64(\"$b64\"), TOPLEVEL_BINDING, \"$(basename "$file")\")'"
+
+bin/kamal lock acquire -m "prod-runner $name" > /dev/null 2>&1 || {
+  echo "デプロイのロックがかかっています(デプロイ中か、残ったロック)。bin/kamal lock status で確かめる" >&2
+  exit 1
+}
+trap 'bin/kamal lock release > /dev/null 2>&1 || echo "ロックを外せなかった。bin/kamal lock release で外す" >&2' EXIT
+
+KAMAL_LOCK=true bin/kamal app exec --reuse --quiet \
+  "env OPS_APPLY=$apply OPS_SCRIPT_NAME=$name OPS_SCRIPT=$b64 bin/rails ops:run"

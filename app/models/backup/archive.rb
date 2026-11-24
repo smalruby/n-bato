@@ -42,6 +42,7 @@ class Backup::Archive
     @storage_dir.glob("**/*", File::FNM_DOTMATCH).select(&:file?).filter_map do |file|
       name = file.relative_path_from(@storage_dir).to_s
       next if name.match?(SKIP)
+      next if name.start_with?("#{Backup::Snapshot::DIR}/") # 書く前のバックアップは送らない
       next if !name.include?("/") && name.match?(SQLITE)
 
       name

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# 書く前のバックアップ(storage/backups/)を、本番の本体の DB に戻す。**理事長に確かめてから使う。**
+# そのバックアップのあとにした変更(画面での操作も)はすべて消える。
+#
+#   NBATO_SECRETS_DIR=... bin/prod-restore production-YYYYMMDD-HHMMSS.sqlite3
+#
+# 手順: ロックを取る → いまの状態も写す(戻しを取り消せるように)→ アプリを止める(この間、画面は開けない)
+#       → 止めたまま、新しいコンテナで写しを本体に置き換える → アプリを起動する → /up を確かめる
+set -euo pipefail
+name="${1:?使い方: bin/prod-restore production-YYYYMMDD-HHMMSS.sqlite3(一覧は bin/prod-backup --list)}"
+[[ "$name" =~ ^production-[0-9]{8}-[0-9]{6}\.sqlite3$ ]] || { echo "名前の形が違う: $name" >&2; exit 1; }
+: "${NBATO_SECRETS_DIR:?NBATO_SECRETS_DIR に秘密の置き場所を入れてください}"
+cd "$(dirname "$0")/.."
+
+echo "本番の DB を $name に戻します。そのあとの変更はすべて消え、しばらく画面が開けなくなります。"
+read -r -p "続けるなら、戻す名前をもう一度入力してください: " again
+[ "$again" = "$name" ] || { echo "やめました" >&2; exit 1; }
+
+bin/kamal lock acquire -m "prod-restore $name" > /dev/null
+trap 'bin/kamal lock release > /dev/null 2>&1 || echo "ロックを外せなかった。bin/kamal lock release で外す" >&2' EXIT
+export KAMAL_LOCK=true
+
+bin/kamal app exec --reuse --quiet "bin/rails backup:snapshot"
+bin/kamal app stop
+bin/kamal app exec --quiet "bin/rails 'backup:restore_snapshot[$name]'" || {
+  echo "置き換えに失敗した。アプリを起動し直す" >&2; bin/kamal app start; exit 1;
+}
+bin/kamal app start
+for _ in $(seq 1 30); do
+  if curl -fsS -o /dev/null https://n-bato.smalruby.app/up; then echo "戻した: $name(/up は 200)"; exit 0; fi
+  sleep 2
+done
+echo "/up が 200 になりません。bin/kamal app logs で確かめる" >&2
+exit 1

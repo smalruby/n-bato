@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# 書く前のバックアップ: 本番の本体の DB を、同じサーバーの storage/backups/ に写す(新しい 20 世代を残す)。
+# bin/prod-runner --apply は流す前に自動で取るので、ふだんは要らない。手で取りたいときに使う。
+#
+#   NBATO_SECRETS_DIR=... bin/prod-backup          # 取る
+#   NBATO_SECRETS_DIR=... bin/prod-backup --list   # 一覧
+set -euo pipefail
+: "${NBATO_SECRETS_DIR:?NBATO_SECRETS_DIR に秘密の置き場所を入れてください}"
+cd "$(dirname "$0")/.."
+task=backup:snapshot
+[ "${1:-}" = "--list" ] && task=backup:snapshots
+exec bin/kamal app exec --reuse --quiet "bin/rails $task"
