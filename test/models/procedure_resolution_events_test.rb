@@ -243,6 +243,10 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     op("consents") { Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2)) }
     op("resolutions") { ResolutionItem::Application.apply!(item, by: @user) }
 
+    consent = resolution.consents.sole
+    error = assert_raises(ArgumentError) { Consent::Cancellation.cancel!(consent, by: @user) }
+    assert_equal "記録に反映した議案があるので、同意の記録は取り消せません", error.message
+
     error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "consents") }
     assert_match "成立していない", error.message
     assert resolution.reload.established?

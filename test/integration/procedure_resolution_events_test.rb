@@ -86,6 +86,10 @@ class ProcedureResolutionEventsFlowTest < ActionDispatch::IntegrationTest
     assert_equal "「第1号議案」を記録に反映しました", flash[:notice]
     post resolution_item_application_path(resolution, item)
     assert_equal "もう記録に反映してあります", flash[:alert]
+    # 反映した議案のある決議の同意は、取り消せない(ボタンはそのまま。押すとわけを出す)
+    post resolution_consent_cancellation_path(resolution, resolution.consents.sole)
+    assert_equal "記録に反映した議案があるので、同意の記録は取り消せません", flash[:alert]
+    assert resolution.reload.established?
 
     delete resolution_path(resolution)
     assert_redirected_to resolution_path(resolution)
