@@ -32,7 +32,7 @@
         <div class="field"><%= itf.label :fiscal_year, "承認する年度（事業報告）" %><%= itf.number_field :fiscal_year, value: itf.object.fiscal_year %>
           <% if itf.object.persisted? && (blocked = itf.object.destroy_blocked_reason) %>
             <% why = info_tip_id %>
-            <span class="text-sm mt-2 flex gap-1 items-center"><label class="flex gap-1 text-stone-500"><%= tag.input(type: "checkbox", disabled: true, aria: { describedby: why }) %> この議案を削除</label><%= info_tip blocked, id: why %></span>
+            <span class="text-sm mt-2 flex gap-1 items-center"><label class="flex gap-1" style="color:var(--ink-muted)"><%= tag.input(type: "checkbox", disabled: true, aria: { describedby: why }) %> この議案を削除</label><%= info_tip blocked, id: why %></span>
           <% elsif itf.object.persisted? %><label class="text-sm mt-2 flex gap-1"><%= itf.check_box :_destroy %> この議案を削除</label><% end %></div>
       </fieldset>
     <% end %>
