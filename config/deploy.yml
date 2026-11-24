@@ -35,6 +35,9 @@ env:
     - SMTP_USERNAME
     - SMTP_PASSWORD
     - NBATO_MAIL_FROM
+    - NBATO_BACKUP_BUCKET
+    - NBATO_BACKUP_AWS_ACCESS_KEY_ID
+    - NBATO_BACKUP_AWS_SECRET_ACCESS_KEY
   clear:
     SOLID_QUEUE_IN_PUMA: true
     NBATO_URL: https://n-bato.smalruby.app

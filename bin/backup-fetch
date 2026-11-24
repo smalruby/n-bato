@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# S3 にある本番のバックアップを手元に取り出す(戻せるかを確かめるため)。
+#
+#   NBATO_SECRETS_DIR=... bin/backup-fetch DIR [KEY]
+#
+# KEY を省くと、いちばん新しいもの(n-bato/daily/ の最後)。DIR は空か、まだ無い場所にする。
+# 取り出したら: bin/rails "backup:verify[DIR]"
+# 鍵は $NBATO_SECRETS_DIR/aws-backup.env(バックアップ専用の IAM ユーザー)。
+set -euo pipefail
+
+dir=${1:?取り出す場所を指定してください}
+key=${2:-}
+env_file="${NBATO_SECRETS_DIR:?NBATO_SECRETS_DIR を指定してください}/aws-backup.env"
+
+if [ -e "$dir" ] && [ -n "$(ls -A "$dir")" ]; then
+  echo "$dir は空ではありません" >&2
+  exit 1
+fi
+
+read_env() { sed -n "s/^$1=//p" "$env_file"; }
+bucket=$(read_env NBATO_BACKUP_BUCKET)
+export AWS_ACCESS_KEY_ID=$(read_env NBATO_BACKUP_AWS_ACCESS_KEY_ID)
+export AWS_SECRET_ACCESS_KEY=$(read_env NBATO_BACKUP_AWS_SECRET_ACCESS_KEY)
+export AWS_REGION=ap-northeast-1
+unset AWS_PROFILE AWS_SESSION_TOKEN
+
+if [ -z "$key" ]; then
+  key=$(aws s3api list-objects-v2 --bucket "$bucket" --prefix n-bato/daily/ \
+    --query 'sort_by(Contents, &Key)[-1].Key' --output text)
+  [ "$key" != "None" ] || { echo "バックアップがありません" >&2; exit 1; }
+fi
+
+mkdir -p "$dir"
+chmod 700 "$dir"
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+aws s3api get-object --bucket "$bucket" --key "$key" "$tmp" > /dev/null
+tar -xzf "$tmp" -C "$dir"
+echo "取り出した: $key -> $dir"

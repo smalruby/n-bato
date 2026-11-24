@@ -77,3 +77,6 @@ gem "csv"
 
 # パスキー(WebAuthn、見直し第14回)
 gem "webauthn", "~> 3.5"
+
+# 毎晩のバックアップを S3 に送る(Backup::Upload)
+gem "aws-sdk-s3", "~> 1.245", require: false
