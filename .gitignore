@@ -51,3 +51,6 @@
 
 # テストのカバレッジの結果
 /coverage/
+
+# 並べて作業するときの git worktree(Agent が作る)
+/.claude/worktrees/
