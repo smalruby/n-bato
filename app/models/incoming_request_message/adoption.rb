@@ -8,11 +8,13 @@ class IncomingRequestMessage::Adoption < ApplicationRecord
   belongs_to :message, class_name: "IncomingRequestMessage", inverse_of: :adoption
   belongs_to :adopted_by, class_name: "User", optional: true
 
+  ALREADY = "この案はもう決めてあります".freeze
+
   def self.model_name_label = "AI の案を決めた"
 
   # やることを作った数と直した数を [作ったもの, 直したもの] で返す
   def self.adopt!(message, by: Current.user, at: Time.current)
-    raise ArgumentError, "この案はもう決めてあります" if message.applied?
+    raise ArgumentError, ALREADY if message.applied?
     raise ArgumentError, "AI の案ではありません" if message.user?
 
     request = message.incoming_request
@@ -36,6 +38,9 @@ class IncomingRequestMessage::Adoption < ApplicationRecord
         [ created, updated ]
       end
     end
+  rescue ActiveRecord::RecordNotUnique
+    # 二度押しで、もう一方が先に決めた(古い記録を読んでいた)。作ったやることもセーブポイントごと取り消してある
+    raise ArgumentError, ALREADY
   end
 
   def self.create_todos(request, list)

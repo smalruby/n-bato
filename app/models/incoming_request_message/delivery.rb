@@ -7,6 +7,8 @@ class IncomingRequestMessage::Delivery < ApplicationRecord
 
   belongs_to :message, class_name: "IncomingRequestMessage", inverse_of: :delivery
 
+  ALREADY = "この発言はもう AI に送ってあります".freeze
+
   def self.model_name_label = "依頼の対話を AI に送った"
 
   # reply: AI の答え(返事 reply と、やることの案)。AI の発言として残す。
@@ -14,10 +16,13 @@ class IncomingRequestMessage::Delivery < ApplicationRecord
     raise ArgumentError, "送る前の下書きではありません" unless message.draft?
 
     Audit.operation do
-      transaction do
+      transaction(requires_new: true) do
         create!(message:, masked_body:, send_attachments:, delivered_at: at)
         IncomingRequestMessage.write!(message.incoming_request, role: "assistant", body: reply.fetch("reply"), proposal: reply)
       end
     end
+  rescue ActiveRecord::RecordNotUnique
+    # 二度押しで、もう一方が先に送った(古い記録を読んでいた)。AI の返事もセーブポイントごと取り消してある
+    raise ArgumentError, ALREADY
   end
 end

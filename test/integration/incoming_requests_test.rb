@@ -118,6 +118,27 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
     assert_empty ModelVerification.mismatches
   end
 
+  test "Q1: AI に送るを二度押ししても 404 にせず、もう送ってあると伝える(AI を二度呼ばない)" do
+    post incoming_requests_path, params: { body: "架空の依頼" }
+    req = IncomingRequest.last
+    draft = req.messages.drafts.last
+    with_ai(REPLY) { post incoming_request_message_delivery_path(req, draft) }
+    with_ai(:error) { post incoming_request_message_delivery_path(req, draft) }
+    assert_redirected_to incoming_request_path(req, anchor: "thread-end")
+    assert_equal "この発言はもう AI に送ってあります", flash[:alert]
+    assert_equal 1, req.messages.where(role: "assistant").count
+  end
+
+  test "Q2: 同じ状態にしたときは「元に戻せます」と言わない" do
+    todo = Todo.create!(title: "架空のやること")
+    post todo_status_changes_path(todo), params: { status: "doing" }
+    assert_match "元に戻せます", flash[:notice]
+    assert_no_difference -> { AuditOperation.count } do
+      post todo_status_changes_path(todo), params: { status: "doing" }
+    end
+    assert_equal "「架空のやること」はもう作業中です", flash[:notice]
+  end
+
   test "状態の分からない変化は受け付けない" do
     todo = Todo.create!(title: "架空のやること")
     post todo_status_changes_path(todo), params: { status: "nope" }

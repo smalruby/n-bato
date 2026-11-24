@@ -163,6 +163,37 @@ class TodoEventsTest < ActiveSupport::TestCase
     assert_equal({ undo: 0, redo: 1 }, Audit.counts(@user, "todos"))
   end
 
+  # 二度押し(ほぼ同時に 2 回押して、2 回目が古い記録を読んでいる)。一意の制約に当たっても 500 にせず、済んでいることを伝える
+  test "Q1: 解決の二度押しは、もう解決にしてあると伝え、何も残さない" do
+    Todo::StatusChange.change!(@todo, status: "done")
+    stale = IncomingRequest.find(@req.id)
+    IncomingRequest::Settlement.settle!(@req)
+    error = ApplicationRecord.transaction { assert_raises(ArgumentError) { IncomingRequest::Settlement.settle!(stale) } }
+    assert_equal "もう解決にしてあります", error.message
+    assert_equal 1, IncomingRequest::Settlement.where(incoming_request: @req).count
+    assert_empty ModelVerification.mismatches
+  end
+
+  test "Q1: この案で決めるの二度押しは、もう決めてあると伝え、やることを二重に作らない" do
+    msg = IncomingRequestMessage.write!(@req, role: "assistant", body: "案", proposal: { "todos_new" => [ { "title" => "新しいやること" } ] })
+    stale = IncomingRequestMessage.find(msg.id).tap(&:adoption)
+    IncomingRequestMessage::Adoption.adopt!(msg)
+    error = ApplicationRecord.transaction { assert_raises(ArgumentError) { IncomingRequestMessage::Adoption.adopt!(stale) } }
+    assert_equal "この案はもう決めてあります", error.message
+    assert_equal 1, @req.todos.where(title: "新しいやること").count
+  end
+
+  test "Q1: AI に送るの二度押しは、もう送ってあると伝え、AI の返事を二重に残さない" do
+    draft = IncomingRequestMessage.write!(@req, role: "user", body: "下書き")
+    stale = IncomingRequestMessage.find(draft.id).tap(&:delivery)
+    IncomingRequestMessage::Delivery.deliver!(draft, masked_body: "伏せた", send_attachments: false, reply: { "reply" => "返事" })
+    error = ApplicationRecord.transaction do
+      assert_raises(ArgumentError) { IncomingRequestMessage::Delivery.deliver!(stale, masked_body: "伏せた", send_attachments: false, reply: { "reply" => "返事" }) }
+    end
+    assert_equal "この発言はもう AI に送ってあります", error.message
+    assert_equal 1, @req.messages.where(role: "assistant").count
+  end
+
   test "照合: 列を直接書き換えると食い違いが出る" do
     Todo::StatusChange.change!(@todo, status: "wait", waiting_on: "返事")
     @todo.update_columns(status: "done")

@@ -17,12 +17,15 @@ class IncomingRequest::Settlement < ApplicationRecord
     raise ArgumentError, "まだ済んでいないやることがあります" unless request.all_done? || force
 
     Audit.operation do
-      transaction do
+      transaction(requires_new: true) do
         request.apply_state!(status: "resolved", resolved_on: on)
         settlement = create!(incoming_request: request, settled_by: by, settled_on: on)
         Audit.label!("依頼「#{request.title}」を解決にした")
         settlement
       end
     end
+  rescue ActiveRecord::RecordNotUnique
+    # 二度押しで、もう一方が先に解決にした(古い記録を読んでいた)。セーブポイントごと取り消してある
+    raise ArgumentError, "もう解決にしてあります"
   end
 end
