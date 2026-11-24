@@ -128,6 +128,7 @@ class RegistrationsTest < ActionDispatch::IntegrationTest
     assert filing.reload.withdrawn?
     post registration_filing_completion_path(filing), params: { on: "2026-12-01" }
     assert_match "終わった", flash[:alert]
+    assert_pdf document_registration_filing_path(filing, doc: "cover", format: :pdf)
   end
 
   test "住所・氏名の変更だけの申請は、互選書がいらない" do

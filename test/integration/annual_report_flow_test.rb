@@ -54,6 +54,7 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
     FilingDestination::Confirmation.confirm!(d, by: users(:one))
     get document_annual_report_path(2024, "letter")
     assert_match "（あて先）テスト市長　山田　太郎", response.body
+    assert_pdf pack_annual_report_path(2024, format: :pdf)
   end
 
   test "事業報告書の無い年度へ切り替えると一覧へ戻る" do

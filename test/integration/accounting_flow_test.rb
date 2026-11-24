@@ -104,5 +104,6 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
     post balance_checks_path, params: { balance_check: { account_id: Account.find_by!(code: 106).id, checked_on: "2025-03-31", actual_amount: 3003 } }
     follow_redirect!
     assert_match "帳簿と一致しました", response.body
+    assert_pdf fiscal_year_ledgers_path(2024, format: :pdf)
   end
 end

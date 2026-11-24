@@ -87,4 +87,14 @@ end
 
 class ActionDispatch::IntegrationTest
   include SignInHelper
+
+  # PDF(ヘッドレス Chrome で作る)を出せることを確かめる。Chrome が無い機械では skip(テストの最後で呼ぶ)
+  def assert_pdf(path)
+    get path
+    assert_response :success
+    assert_equal "application/pdf", response.media_type
+    assert response.body.start_with?("%PDF")
+  rescue Ferrum::BinaryNotFoundError
+    skip "Chrome がありません"
+  end
 end

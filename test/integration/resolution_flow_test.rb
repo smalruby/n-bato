@@ -63,6 +63,7 @@ class ResolutionFlowTest < ActionDispatch::IntegrationTest
       reg = Registration.find_by!(cause_on: Date.new(2026, 12, 7), note: "役員A（理事長）の就任・重任")
       assert_equal Date.new(2026, 12, 21), reg.due_on
     end
+    assert_pdf document_resolution_path(Resolution.find_by!(body: "general_meeting"), "minutes", format: :pdf)
   end
 
   test "読めない氏名はエラー" do

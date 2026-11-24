@@ -35,13 +35,11 @@ class FilingsController < ApplicationController
   def respond
     respond_to do |format|
       format.html { render :documents }
-      # :nocov: PDF はヘッドレス Chrome で作る(機械に依存するので、テストでは HTML を確かめる。PdfRenderer は計算書類の画面のテストで通す)
       format.pdf do
         @pdf = true
         send_data PdfRenderer.render(render_to_string(:documents, formats: [ :html ])),
                   filename: "#{@fiscal_year.year}-#{@docs.one? ? @docs.first : 'pack'}.pdf", type: "application/pdf", disposition: "inline"
       end
-      # :nocov:
     end
   end
 end
