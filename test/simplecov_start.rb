@@ -8,7 +8,15 @@
 # 並列のテスト(parallelize)は、rails のプロファイルの merge_subprocesses で、フォークした子ごとに測ってまとめる
 # (子の結果は Minitest (subprocess: N) の名前で残る。parallelize_setup・teardown での手当ては要らない)。
 # 100% を下回ると失敗にする(終了コードが 0 でなくなる)。一部のファイルだけ流すときは COVERAGE を付けない。
+#
+# 測る前に、前の回の結果(coverage/.resultset.json)を消す。残っていると、並列の子の古い結果がまとめに足され、
+# 一部しか流していないのに 100% と出る。消すのは測り始める親のプロセスだけ(並列の子は boot.rb を読み直さない)。
+# テストから bin/rails を子のプロセスで起こすときは、子に COVERAGE を渡さない({ "COVERAGE" => nil }。
+# 渡すと子も測り、この結果を消して書き直してしまう。test/integration/demo_environment_test.rb)。
+require "fileutils"
 require "simplecov"
+
+FileUtils.rm_f(File.expand_path("../coverage/.resultset.json", __dir__))
 
 SimpleCov.start "rails" do
   skip %w[/test/ /config/ /db/ /vendor/ /lib/tasks/ /app/views/ /app/javascript/ /app/assets/]
