@@ -3,7 +3,8 @@
 #
 #   bin/pw-check URL [URL ...] [--screenshot [PATH]] [--width 390] [--height 900] [--full]
 #
-#   - ログインの画面に回されたら、ai@example.com と tmp/demo_password(か NBATO_DEMO_PASSWORD)でログインしてから開き直す
+#   - ログインの画面に回されたら、ai@example.com と tmp/demo_password(か NBATO_DEMO_PASSWORD)でログインしてから開き直す。
+#     ただし手元(localhost・127.0.0.1・::1)のときだけ。ほかのホストにはデモのパスワードを送らない
 #   - 状態コード・題・ブラウザのエラー(console.error・JavaScript の例外)・横にはみ出しているかを出す
 #   - --screenshot: 画面の写しを PATH(省くと tmp/screenshots/pw-check-<時刻>-<n>.png)に保存する。--full はページ全体
 #   - エラーがあれば終了コード 1
@@ -12,9 +13,11 @@
 require "bundler/setup"
 require "playwright"
 require "fileutils"
+require "uri"
 
 ROOT = File.expand_path("..", __dir__)
 VERSION = File.read(File.join(ROOT, ".playwright-version")).strip
+LOCAL_HOSTS = %w[localhost 127.0.0.1 [::1] ::1].freeze
 
 urls = []
 shot = nil
@@ -53,6 +56,9 @@ Playwright.create(playwright_cli_executable_path: "npx -y playwright@#{VERSION}"
       errors.clear
       response = page.goto(url)
       if page.url.include?("/session/new") && !url.include?("/session/new")
+        unless LOCAL_HOSTS.include?(URI(page.url).host)
+          abort "ログインに回されました(#{page.url})。デモのパスワードで自動でログインするのは localhost・127.0.0.1 だけです"
+        end
         abort "ログインに回されましたが、パスワードがありません(tmp/demo_password か NBATO_DEMO_PASSWORD)" if password.empty?
         page.fill("input[name=email_address]", email)
         page.fill("input[name=password]", password)
