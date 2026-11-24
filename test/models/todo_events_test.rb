@@ -272,4 +272,47 @@ class TodoEventsTest < ActiveSupport::TestCase
     empty = IncomingRequest.create!
     assert empty.discardable?
   end
+
+  test "決まりで済み: 年度を締めたら(締めるまでは済みにしない)" do
+    @todo.update!(done_rule: "year_closed")
+    period = FiscalPeriod.find_or_create_by!(year: 2024)
+    assert_not period.closed?
+    assert_not @todo.auto_done_reason
+    period.update_columns(closed_on: Date.new(2026, 11, 24))
+    assert_equal "2024年度を締めた記録で済みにした", @todo.auto_done_reason
+    Todo.refresh_auto!
+    assert_equal [ "done", "auto" ], [ @todo.reload.status, @todo.done_by ]
+    assert_nil @todo.auto_done_reason, "済んだものは調べない"
+  end
+
+  test "「開く」で移る画面は、どれも n-bato の画面のパス(画面なしは nil)" do
+    helpers = Rails.application.routes.url_helpers
+    Todo::TARGETS.each do |key, (label, _)|
+      todo = Todo.new(target: key)
+      assert_equal label, todo.target_label
+      key.empty? ? assert_nil(todo.target_path(helpers)) : assert_match(%r{\A/}, todo.target_path(helpers), key)
+    end
+  end
+
+  test "添付も送るときは、画像と PDF を base64 で AI に渡す(送らないときは文だけ)" do
+    png = file_fixture("receipt.png")
+    files = [ Rack::Test::UploadedFile.new(png, "image/png"),
+              Rack::Test::UploadedFile.new(StringIO.new("%PDF-1.4 架空"), "application/pdf", original_filename: "a.pdf") ]
+    draft = IncomingRequestMessage.write!(@req, role: "user", body: "添付つきの下書き", files:)
+    client = Class.new(FakeClient) do
+      attr_reader :content
+
+      def complete_json(content:, **) = (@content = content) && super
+    end.new({ "reply" => "見ました" })
+    Requests::Organizer.new(@req, client:).call(draft, masked_body: "伏せた文", send_attachments: true)
+
+    image, document = client.content.drop(1)
+    assert_equal [ "image", "image/png", Base64.strict_encode64(png.binread) ], [ image[:type], image[:source][:media_type], image[:source][:data] ]
+    assert_equal [ "document", "application/pdf" ], [ document[:type], document[:source][:media_type] ]
+    assert_equal "%PDF-1.4 架空".b, Base64.strict_decode64(document[:source][:data])
+
+    other = IncomingRequestMessage.write!(@req, role: "user", body: "文だけ", files: [ Rack::Test::UploadedFile.new(png, "image/png") ])
+    Requests::Organizer.new(@req, client:).call(other, masked_body: "伏せた文", send_attachments: false)
+    assert_equal [ "text" ], client.content.map { it[:type] }
+  end
 end

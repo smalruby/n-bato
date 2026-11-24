@@ -44,8 +44,7 @@ module Bookkeeper
     end
 
     # Web 検索(サーバーツール web_search_20260209)を使って調べ、JSON Schema の形で答えを受け取る(提出先の調べもの。docs/adr/0028)。
-    # 外部連携なので、実際の呼び出しは人と一緒に確かめてから使い始める。自動テストでは偽のクライアントを使う。
-    # :nocov:
+    # 外部連携なので、実際の呼び出しは人と一緒に確かめてから使い始める。自動テストでは偽の API(FakeClaudeApi)で確かめる。
     def search_json(system:, prompt:, schema:, max_tokens: 16_000, max_uses: 8)
       raise NotConfigured, "ANTHROPIC_API_KEY が設定されていません" unless self.class.configured?
 
@@ -72,7 +71,6 @@ module Bookkeeper
     rescue JSON::ParserError => e
       raise Error, "AI の回答を JSON として読めません: #{e.message}"
     end
-    # :nocov:
 
     private
 
