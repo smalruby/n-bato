@@ -28,6 +28,13 @@ class ModelNamesTest < ActiveSupport::TestCase
     end
   end
 
+  test "操作履歴に残るモデルは、どれも models.ja.yml に名前がある(英語の名前を履歴に出さない)" do
+    Rails.application.eager_load!
+    missing = ApplicationRecord.descendants.reject(&:abstract_class?).select(&:audited)
+      .reject { I18n.exists?("activerecord.models.#{it.model_name.i18n_key}", :ja) }.map(&:name)
+    assert_empty missing
+  end
+
   test "model_name_label は無い" do
     Rails.application.eager_load!
     assert_empty ApplicationRecord.descendants.select { it.respond_to?(:model_name_label) }.map(&:name)

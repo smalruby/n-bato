@@ -16,10 +16,19 @@ ja:
       incoming_request_message/delivery: 依頼の対話を AI に送った
       incoming_request_message/adoption: AI の案を決めた
       journal_entry: 仕訳
+      journal_entry/cancellation: 仕訳の取消
+      fiscal_period: 年度
+      organization: 法人
+      organization_year: 法人の年度ごとの記録
+      passkey: パスキー
+      member_application: 入会申込
       opening_balance: 期首残高
       balance_check: 残高の照合
       voucher: 証憑
       journal_proposal: 仕訳の提案
+      journal_proposal/approval: 提案の承認(記帳)
+      journal_proposal/rejection: 提案の却下
+      journal_proposal/withdrawal: 提案の取り下げ
       annual_report: 事業報告
       program_activity: 事業の実施
       person: 人
