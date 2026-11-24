@@ -97,11 +97,22 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: Run tests
+      # カバレッジも測る。バックエンドが 100% を下回ると失敗する(test/simplecov_start.rb、docs/adr/0025)
+      - name: Run tests (with coverage)
         env:
           RAILS_ENV: test
+          COVERAGE: "1"
           # REDIS_URL: redis://localhost:6379/0
         run: bin/rails db:test:prepare test
+
+      - name: Keep the coverage report when tests fail
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: coverage
+          path: ${{ github.workspace }}/coverage
+          include-hidden-files: true
+          if-no-files-found: ignore
 
       - name: Verify current states against events (docs/adr/0005)
         env:

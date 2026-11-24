@@ -19,9 +19,16 @@ class PdfRenderer
     # 10 秒を超え、ProcessTimeoutError になる。そろえて 60 秒にする(ふだんは 1 秒ほど。上限なので、遅いときに待つだけ)。
     TIMEOUT = 60
 
+    class << self
+      # Ferrum::Browser の代わり。自動テストでは偽物を入れて、Chrome への頼み方だけを確かめる(本物の Chrome は立ち上げない)
+      attr_writer :browser_class
+
+      def browser_class = @browser_class || Ferrum::Browser
+    end
+
     def self.render(html)
-      browser = Ferrum::Browser.new(headless: true, timeout: TIMEOUT, process_timeout: TIMEOUT, protocol_timeout: TIMEOUT,
-                                    browser_options: { "no-sandbox" => nil })
+      browser = browser_class.new(headless: true, timeout: TIMEOUT, process_timeout: TIMEOUT, protocol_timeout: TIMEOUT,
+                                  browser_options: { "no-sandbox" => nil })
       page = browser.create_page
       page.content = html
       page.network.wait_for_idle(timeout: 5) rescue nil

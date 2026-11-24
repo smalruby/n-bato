@@ -129,6 +129,30 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
     assert_equal 1, req.messages.where(role: "assistant").count
   end
 
+  # AI を待つ間に、もう一方の押下が先に送り終えた(押したときは下書きだった)
+  class RacingClient
+    def initialize(draft) = @draft = draft
+
+    def complete_json(**)
+      IncomingRequestMessage::Delivery.deliver!(IncomingRequestMessage.find(@draft.id), masked_body: "先に送った", send_attachments: false, reply: REPLY)
+      REPLY
+    end
+  end
+
+  test "Q1: AI を待つ間にもう一方が送り終えていたら、もう送ってあると伝え、返事を二重に残さない" do
+    post incoming_requests_path, params: { body: "架空の依頼" }
+    req = IncomingRequest.last
+    draft = req.messages.drafts.last
+    with_ai(REPLY) do
+      Bookkeeper::Client.define_singleton_method(:new) { |*| RacingClient.new(draft) }
+      post incoming_request_message_delivery_path(req, draft)
+    end
+    assert_redirected_to incoming_request_path(req, anchor: "thread-end")
+    assert_equal IncomingRequestMessage::Delivery::ALREADY, flash[:alert]
+    assert_equal [ "先に送った", 1 ], [ draft.reload.delivery.masked_body, req.messages.where(role: "assistant").count ]
+    assert_empty ModelVerification.mismatches
+  end
+
   test "Q2: 同じ状態にしたときは「元に戻せます」と言わない" do
     todo = Todo.create!(title: "架空のやること")
     post todo_status_changes_path(todo), params: { status: "doing" }

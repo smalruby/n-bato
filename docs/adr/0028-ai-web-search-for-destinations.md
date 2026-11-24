@@ -28,7 +28,7 @@ decision-makers: 理事長(ユーザー)・Claude
 採用:「AI に調べてもらう」。`FilingDestinationSearch`(長いイベント。いまの状態は status)が `Bookkeeper::Client#search_json` で Web 検索つきの答え(JSON Schema)を受け取り、出どころの URL がある窓口だけを「AI の案」(origin = ai)として提出先に足す。人が出どころのページを見て「確認済み」にするまで、書類には使わない(ADR-0027)。調べている間は「待つ表示」(15 秒ごとに読み込み直す)。
 
 * 鍵(ANTHROPIC_API_KEY)が無ければ、ボタンを出さずに手で入れてもらう。
-* 自動テストは偽のクライアントで行い、実際の呼び出しは人と一緒に確かめてから使い始める(`search_json` は :nocov:)。
+* 自動テストは偽のクライアントで行い、実際の呼び出しは人と一緒に確かめてから使い始める(`search_json` も、偽の API(FakeClaudeApi)で Web 検索の続き・エラーまで自動テストで確かめる。issue #6)。
 
 ## 結果
 
