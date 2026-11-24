@@ -30,8 +30,8 @@ class Consent < ApplicationRecord
     return unless (applied = resolution.items.count(&:applied?)).positive?
 
     BlockedReason.new(title: "この同意は取り消せません",
-                      reason: "取り消すと決議が成立しなくなり、反映した記録と食い違うので、記録に反映した議案のある決議の同意は取り消せません。",
-                      what: "記録に反映した議案が #{applied} 件あります", link_label: "議案を見る", link_target: "#items")
+      reason: "取り消すと決議が成立しなくなり、反映した記録と食い違うので、記録に反映した議案のある決議の同意は取り消せません。",
+      what: "記録に反映した議案が #{applied} 件あります", link_label: "議案を見る", link_target: "#items")
   end
 
   # 同意を記録する。書けなければ ActiveRecord::RecordInvalid(もう同意を記録してある・日付が無いなど)。

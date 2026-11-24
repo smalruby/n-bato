@@ -101,12 +101,12 @@ class ProcedureStep < ApplicationRecord
   def complete_blocked_reason
     if wait_items.any? { !checked?(it) }
       return BlockedReason.new(title: "まだ済みにできません", reason: "返事を待つ手順は、返事がそろってから済みにします。",
-                               what: "返事がそろったのは #{wait_items.count { checked?(it) }} / #{wait_items.size} です", link_label: "返事を待つものを見る", link_target: "#waits",
-                               alternative: "代わりに: 返事が来たら「返事を待つもの」にチェックを入れてください。")
+        what: "返事がそろったのは #{wait_items.count { checked?(it) }} / #{wait_items.size} です", link_label: "返事を待つものを見る", link_target: "#waits",
+        alternative: "代わりに: 返事が来たら「返事を待つもの」にチェックを入れてください。")
     end
     if definition.effect && run.annual_report.nil?
       return BlockedReason.new(title: "まだ済みにできません", reason: "この手順は事業報告に日付を記録するので、先に事業報告が要ります。",
-                               what: "#{run.period}年度の事業報告がまだありません", alternative: "代わりに: 事業報告・提出の画面で、この年度の事業報告を作ってください。")
+        what: "#{run.period}年度の事業報告がまだありません", alternative: "代わりに: 事業報告・提出の画面で、この年度の事業報告を作ってください。")
     end
     close_year_blocked_reason if definition.effect == "close_year"
   end
@@ -118,11 +118,11 @@ class ProcedureStep < ApplicationRecord
   def reopen_blocked_reason
     if self[:status] == "done" && definition.final?
       BlockedReason.new(title: "この手順は取り消せません", reason: "提出・届出・登記・年度の締めなどを記録した手順は、元に戻せない操作なので、済みを取り消せません。",
-                        what: "#{completed_on&.strftime('%Y/%m/%d')} に済みにしました(#{definition.final_label || definition.title})",
-                        alternative: REOPEN_INSTEAD[definition.effect])
+        what: "#{completed_on&.strftime("%Y/%m/%d")} に済みにしました(#{definition.final_label || definition.title})",
+        alternative: REOPEN_INSTEAD[definition.effect])
     elsif self[:status] == "open" && status == "done"
       BlockedReason.new(title: "この手順は取り消せません", reason: "ほかの記録(事業報告の日付・年度の締め)から済んだと分かった手順なので、ここでは取り消せません。",
-                        alternative: REOPEN_INSTEAD[definition.done_when || definition.effect])
+        alternative: REOPEN_INSTEAD[definition.done_when || definition.effect])
     end
   end
 
@@ -151,12 +151,12 @@ class ProcedureStep < ApplicationRecord
     end
     unless run.annual_report&.submitted_on
       return BlockedReason.new(title: "まだ締められません", reason: "年度を締めるのは、事業報告書等を所轄庁に提出したあとです。", what: "提出した日がまだ記録されていません",
-                               alternative: "代わりに: 先に「提出した日を記録する」の手順を済ませてください。")
+        alternative: "代わりに: 先に「提出した日を記録する」の手順を済ませてください。")
     end
     return unless period.previous && !period.previous.closed?
 
     BlockedReason.new(title: "まだ締められません", reason: "年度は古い順に締めます。", what: "#{period.previous.label}をまだ締めていません",
-                      alternative: "代わりに: 先に#{period.previous.label}を締めてください。")
+      alternative: "代わりに: 先に#{period.previous.label}を締めてください。")
   end
 
   # 保存する状態は、状態の変化からだけ書く(作るときは open)。元に戻す・やり直すは検証を通さずに書くので止めない。

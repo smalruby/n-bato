@@ -56,7 +56,7 @@ class ResolutionItem < ApplicationRecord
     return unless applied?
 
     BlockedReason.new(title: "この議案は消せません", reason: "役員の任期・登記・事業報告の記録に効いているので、記録に反映した議案は消せません。",
-                      what: "#{I18n.l(applied_on)} に記録に反映しました")
+      what: "#{I18n.l(applied_on)} に記録に反映しました")
   end
 
   def applicable? = resolution.established? && !applied? && kind != "general"

@@ -9,20 +9,20 @@ class DisabledActionsTest < ActionDispatch::IntegrationTest
     @chair = Person.create!(name: "役員A")
     @member = Person.create!(name: "会員B")
     OfficerTerm.create!(person: @chair, role: "chair", starts_on: Date.current - 30, ends_on: Date.current + 300)
-    [ @chair, @member ].each { Membership.create!(person: it, fiscal_year: FiscalYear.current.year, kind: "regular") }
+    [@chair, @member].each { Membership.create!(person: it, fiscal_year: FiscalYear.current.year, kind: "regular") }
     @resolution = Resolution.create!(body: "general_meeting", voting_method: "written", title: "書面決議", proposed_on: Date.current, proposer: @chair,
-                                     items_attributes: [ { position: 0, kind: "officer_election", title: "第1号議案", appointments_text: "" } ])
+      items_attributes: [{position: 0, kind: "officer_election", title: "第1号議案", appointments_text: ""}])
   end
 
   # 灰色のボタンの aria-describedby が、説明(.nb-tip)の id を指す
   def assert_disabled_action(label)
     button = css_select(".nb-disabled-action button[aria-disabled=true]").find { it.text.strip == label }
     assert button, "灰色の「#{label}」がある"
-    tip = css_select("##{button['aria-describedby']}").first
+    tip = css_select("##{button["aria-describedby"]}").first
     assert tip, "説明がつながっている"
     assert tip.key?("hidden"), "説明は閉じてある"
-    trigger = css_select(".nb-info-tip[aria-controls='#{button['aria-describedby']}']").first
-    assert_equal [ "使えない理由", "false" ], [ trigger["aria-label"], trigger["aria-expanded"] ]
+    trigger = css_select(".nb-info-tip[aria-controls='#{button["aria-describedby"]}']").first
+    assert_equal ["使えない理由", "false"], [trigger["aria-label"], trigger["aria-expanded"]]
     tip
   end
 
@@ -54,7 +54,7 @@ class DisabledActionsTest < ActionDispatch::IntegrationTest
   end
 
   test "決議: 反映した議案は、編集の画面で「この議案を削除」が灰色。同意の取り消しも灰色" do
-    [ @chair, @member ].each { Consent.record!(@resolution, person: it, consented_on: Date.current) }
+    [@chair, @member].each { Consent.record!(@resolution, person: it, consented_on: Date.current) }
     ResolutionItem::Application.apply!(@resolution.items.first)
     get resolution_path(@resolution)
     tip = assert_disabled_action("取り消す")
@@ -65,7 +65,7 @@ class DisabledActionsTest < ActionDispatch::IntegrationTest
     get edit_resolution_path(@resolution)
     box = css_select("input[type=checkbox][disabled]").find { it["aria-describedby"] }
     assert box
-    tip = css_select("##{box['aria-describedby']}").first
+    tip = css_select("##{box["aria-describedby"]}").first
     assert_match "この議案は消せません", tip.text
     assert_select ".nb-info .nb-info-tip"
   end

@@ -39,7 +39,7 @@ class ProcedureStep::StatusChange < ApplicationRecord
 
         # final の手順を済みにしたのは元に戻せない操作(提出した日など)。そのあとは対象外にも取り消しにもしない
         if step[:status] == "done" && step.definition.final?
-          raise ArgumentError, status == "open" ? step.reopen_blocked_reason.message : "この手順は済みにしたので、もう変えられません"
+          raise ArgumentError, (status == "open") ? step.reopen_blocked_reason.message : "この手順は済みにしたので、もう変えられません"
         end
         # 対象外にできるのは、定義(config/procedures)で optional の手順だけ(画面にもその手順だけボタンを出す)
         raise ArgumentError, "この手順は対象外にできません" if status == "skipped" && !step.definition.optional?

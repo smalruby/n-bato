@@ -67,11 +67,11 @@ class Resolution < ApplicationRecord
     if (total = all_consents.count).positive?
       cancelled = all_consents.where(id: Consent::Cancellation.select(:consent_id)).count
       BlockedReason.new(title: "この決議は消せません", reason: "書面決議の記録として残すため、同意を記録した決議は消せません(同意の記録は、取り消しても残ります)。",
-                        what: "同意の記録が #{total} 件あります#{"(取り消した #{cancelled} 件を含む)" if cancelled.positive?}",
-                        link_label: "同意の記録を見る(#{total} 件)", link_target: "#consents", alternative: EDIT_INSTEAD)
+        what: "同意の記録が #{total} 件あります#{"(取り消した #{cancelled} 件を含む)" if cancelled.positive?}",
+        link_label: "同意の記録を見る(#{total} 件)", link_target: "#consents", alternative: EDIT_INSTEAD)
     elsif (applied = items.count(&:applied?)).positive?
       BlockedReason.new(title: "この決議は消せません", reason: "役員の任期・登記・事業報告の記録に効いているので、記録に反映した議案のある決議は消せません。",
-                        what: "記録に反映した議案が #{applied} 件あります", link_label: "議案を見る", link_target: "#items", alternative: EDIT_INSTEAD)
+        what: "記録に反映した議案が #{applied} 件あります", link_label: "議案を見る", link_target: "#items", alternative: EDIT_INSTEAD)
     end
   end
 

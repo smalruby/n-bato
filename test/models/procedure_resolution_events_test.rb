@@ -59,7 +59,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     assert_equal "この手順は済みにしたので、もう変えられません", error.message
     error = assert_raises(ArgumentError) { change!("submit", "open") }
     assert_match "この手順は取り消せません。2026/06/28 に済みにしました(提出した日を記録する)", error.message
-    assert_equal [ "done", Date.new(2026, 6, 28) ], [ @run.step("submit")[:status], @report.reload.submitted_on ]
+    assert_equal ["done", Date.new(2026, 6, 28)], [@run.step("submit")[:status], @report.reload.submitted_on]
 
     error = assert_raises(ArgumentError) { change!("audit", "skipped") }
     assert_equal "この手順は対象外にできません", error.message
@@ -343,7 +343,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     item = resolution.items.create!(kind: "officer_election", title: "選任", payload: {"appointments" => []})
     ResolutionItem::Application.apply!(item)
     assert_not resolution.reload.destroy
-    assert_equal [ resolution.destroy_blocked_reason.message ], resolution.errors.full_messages
+    assert_equal [resolution.destroy_blocked_reason.message], resolution.errors.full_messages
     assert_match "記録に反映した議案が 1 件あります", resolution.errors.full_messages.sole
   end
 

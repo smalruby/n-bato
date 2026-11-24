@@ -55,7 +55,7 @@ class FiscalPeriod < ApplicationRecord
     return unless closed? && (nxt = self.class.for(year + 1))&.closed?
 
     BlockedReason.new(title: "この年度の締めは解けません", reason: "締めは新しい年度から解きます(次の年度の期首の残高が、この年度の締めから決まるため)。",
-                      what: "#{nxt.label}が締めてあります", alternative: "代わりに: 先に#{nxt.label}の締めを解いてください。")
+      what: "#{nxt.label}が締めてあります", alternative: "代わりに: 先に#{nxt.label}の締めを解いてください。")
   end
 
   # 会計王へ新規分を書き出せないときの理由(BlockedReason)。書き出せるなら nil。
@@ -63,7 +63,7 @@ class FiscalPeriod < ApplicationRecord
     return unless provisional?
 
     BlockedReason.new(title: "まだ書き出せません", reason: "会計王へ書き出せるのは、前の年度を締めたあとです(締める前の仕訳は仮のため)。",
-                      what: "#{previous.label}をまだ締めていません", alternative: "代わりに: 手続き「事業報告書等の提出」で#{previous.label}を締めてください。")
+      what: "#{previous.label}をまだ締めていません", alternative: "代わりに: 手続き「事業報告書等の提出」で#{previous.label}を締めてください。")
   end
 
   # 締めを解く(理由を書く。変更の記録に残る)

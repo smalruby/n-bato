@@ -11,7 +11,7 @@ BlockedReason = Data.define(:title, :reason, :what, :link_label, :link_target, :
   def initialize(title:, reason:, what: nil, link_label: nil, link_target: nil, alternative: nil) = super
 
   # 1 つの文にしたもの(エラーの文・運用のスクリプト・画面の上の知らせ)
-  def message = [ "#{title}。", what&.then { "#{it}。" }, reason, alternative ].compact.join
+  def message = ["#{title}。", what&.then { "#{it}。" }, reason, alternative].compact.join
   alias_method :to_s, :message
 
   def link? = link_label.present? && link_target.present?

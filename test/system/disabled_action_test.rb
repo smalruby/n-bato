@@ -11,7 +11,7 @@ class DisabledActionTest < ApplicationSystemTestCase
     @info = @wrap.find(".nb-info-tip")
   end
 
-  def tip = find("##{@button['aria-describedby']}", visible: :all)
+  def tip = find("##{@button["aria-describedby"]}", visible: :all)
 
   test "カーソルを当てると説明が出て、離すと消える。灰色のボタンを押しても消えない" do
     assert_not tip.visible?

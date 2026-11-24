@@ -24,8 +24,8 @@ class Voucher < ApplicationRecord
     return unless (count = journal_proposals.count).positive?
 
     BlockedReason.new(title: "この証憑は消せません", reason: "AI の提案は記録として残すので、提案のある証憑は消せません。",
-                      what: "AI の仕訳の提案が #{count} 件あります", link_label: "提案を見る", link_target: "#proposals",
-                      alternative: ("代わりに: 記帳しないときは「記帳しない」を押してください。" unless status.in?(%w[booked rejected])))
+      what: "AI の仕訳の提案が #{count} 件あります", link_label: "提案を見る", link_target: "#proposals",
+      alternative: ("代わりに: 記帳しないときは「記帳しない」を押してください。" unless status.in?(%w[booked rejected])))
   end
 
   # 証憑は長いイベント(docs/data-model.md)。いまの状態(status)を書き換えてよいのは、詳細のイベントの作る入口だけ。
