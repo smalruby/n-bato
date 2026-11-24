@@ -22,6 +22,17 @@
 .nb-nav .nb-nav-group { padding: var(--space-4) var(--space-4) var(--space-1); font-size: 11px; color: var(--ink-muted); }
 .nb-main { overflow: auto; }
 .nb-main.is-sheet { overflow: hidden; }
+/* 狭い幅(スマホ、720px まで)。暫定の最低限(2026-11-24。docs/design-system/README.md「狭い幅」)。
+   読めることだけを守る: 1 列にして本文を先に、目次はその下、右ペインは出さない。広い表は表だけを横に送る。 */
+@media (max-width: 720px) {
+  .nb-shell, .nb-shell.has-side { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; height: auto; min-height: 100vh; }
+  .nb-bar { flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: var(--space-2) var(--space-4); }
+  .nb-bar > * { white-space: nowrap; }
+  .nb-main, .nb-main.is-sheet { order: 1; overflow: visible; }
+  .nb-nav { order: 2; border-right: 0; border-top: 1px solid var(--grid-line-strong); }
+  .nb-side { display: none; }
+  .nb-page { overflow-x: auto; }
+}
 .nb-page { padding: var(--space-4) var(--space-5); }
 .nb-flash { margin: 0 0 var(--space-4); padding: var(--space-2) var(--space-4); border-left: 3px solid var(--saved); background: var(--saved-fill); font-size: 12px; }
 .nb-flash--alert { border-color: var(--error); background: var(--error-fill); color: var(--error); }
