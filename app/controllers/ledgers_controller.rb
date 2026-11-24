@@ -29,11 +29,13 @@ class LedgersController < ApplicationController
   def respond(template)
     respond_to do |format|
       format.html { render template }
+      # :nocov: PDF はヘッドレス Chrome で作る(機械に依存するので、テストでは HTML を確かめる。PdfRenderer は計算書類の画面のテストで通す)
       format.pdf do
         @pdf = true
         send_data PdfRenderer.render(render_to_string(template, formats: [ :html ])),
                   filename: "#{@fiscal_year.year}-ledger.pdf", type: "application/pdf", disposition: "inline"
       end
+      # :nocov:
     end
   end
 end

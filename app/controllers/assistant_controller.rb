@@ -26,6 +26,8 @@ class AssistantController < ApplicationController
   rescue ActiveSupport::MessageVerifier::InvalidSignature
     render json: { ok: false, message: "操作の案が正しくありません。もう一度聞いてください" }, status: :unprocessable_entity
   rescue ArgumentError, ActiveRecord::RecordInvalid, Bookkeeper::Client::Error => e
+    # :nocov: 守りのため。いまの案(journal_from_receipt)では、AI のエラーは ProposalGenerator が証憑に残し、ここまで来ない
     render json: { ok: false, message: e.message }, status: :unprocessable_entity
+    # :nocov:
   end
 end

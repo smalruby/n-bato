@@ -23,4 +23,21 @@ class PasswordsTest < ActionDispatch::IntegrationTest
     assert_no_enqueued_emails { post passwords_path, params: { email_address: "nobody@example.com" } }
     assert_redirected_to new_session_path
   end
+
+  test "確かめのパスワードが違う・リンクが無効なら決め直さない" do
+    user = users(:one)
+    token = user.password_reset_token
+    put password_path(token), params: { password: "new-pass-123", password_confirmation: "other-pass-123" }
+    assert_redirected_to edit_password_path(token)
+    assert_equal "パスワードが一致しません", flash[:alert]
+
+    get edit_password_path("無効なリンク")
+    assert_redirected_to new_password_path
+  end
+
+  test "パスワードが違えばログインしない" do
+    post session_path, params: { email_address: users(:one).email_address, password: "wrong" }
+    assert_redirected_to new_session_path
+    assert_equal "メールアドレスかパスワードが違います", flash[:alert]
+  end
 end

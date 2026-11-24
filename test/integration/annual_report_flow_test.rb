@@ -80,4 +80,20 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
     assert_equal "前年度の成果", draft.achievements
     assert_equal 3, draft.program_activities.size
   end
+
+  test "編集の画面・保存できなければ戻す・書類一式を HTML で出す" do
+    post annual_reports_path, params: { annual_report: { fiscal_year: "", achievements: "x" } }
+    assert_response :unprocessable_entity
+
+    AnnualReport.draft_for(2024).save!
+    AnnualReport.draft_for(2025).save!
+    get edit_annual_report_path(2024)
+    assert_response :success
+    patch annual_report_path(2024), params: { annual_report: { fiscal_year: 2025 } }
+    assert_response :unprocessable_entity
+
+    get pack_annual_report_path(2024)
+    assert_response :success
+    assert_match "事業報告書等一式", response.body
+  end
 end

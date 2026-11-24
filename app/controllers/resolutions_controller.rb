@@ -50,11 +50,13 @@ class ResolutionsController < ApplicationController
     @organization = Organization.current
     respond_to do |format|
       format.html { render "resolutions/document", layout: "print" }
+      # :nocov: PDF はヘッドレス Chrome で作る(機械に依存するので、テストでは HTML を確かめる。PdfRenderer は計算書類の画面のテストで通す)
       format.pdf do
         @pdf = true
         html = render_to_string("resolutions/document", layout: "print", formats: [ :html ])
         send_data PdfRenderer.render(html), filename: "resolution-#{@resolution.id}-#{@doc}.pdf", type: "application/pdf", disposition: "inline"
       end
+      # :nocov:
     end
   end
 
