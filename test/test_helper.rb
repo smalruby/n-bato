@@ -10,6 +10,9 @@ end
 require_relative "../config/environment"
 require "rails/test_help"
 
+# 自動テストでは Chrome を立ち上げない。PDF は偽物で作り、渡した HTML を確かめる(app/models/pdf_renderer.rb)
+PdfRenderer.engine = PdfRenderer::Fake
+
 module ActiveSupport
   class TestCase
     # Run tests in parallel with specified workers
@@ -21,6 +24,8 @@ module ActiveSupport
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
+
+    setup { PdfRenderer::Fake.reset! }
 
     # Add more helper methods to be used by all tests here...
   end

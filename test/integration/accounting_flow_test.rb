@@ -88,9 +88,9 @@ class AccountingFlowTest < ActionDispatch::IntegrationTest
     sign_in
     get fiscal_year_statement_path(2024, "balance_sheet", format: :pdf)
     assert_response :success
+    assert_equal "application/pdf", response.media_type
     assert response.body.start_with?("%PDF")
-  rescue Ferrum::BinaryNotFoundError
-    skip "Chrome がありません"
+    assert_match "貸借対照表", PdfRenderer::Fake.last_html # 印刷用の HTML を PDF にした
   end
 
   test "総勘定元帳と残高照合" do
