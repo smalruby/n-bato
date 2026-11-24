@@ -20,8 +20,6 @@ class RegistrationFiling < ApplicationRecord
 
   scope :recent, -> { order(id: :desc) }
 
-  def self.model_name_label = "登記の申請"
-
   def status_label = STATUSES[status]
   def drafting? = status == "drafting"
   def withdrawn? = status == "withdrawn"

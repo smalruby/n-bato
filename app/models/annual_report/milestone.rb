@@ -21,7 +21,6 @@ class AnnualReport::Milestone < ApplicationRecord
 
   validates :kind, inclusion: {in: KINDS.keys}
 
-  def self.model_name_label = "事業報告の節目"
   def self.column_for(kind) = KINDS.fetch(kind).first
   def self.kind_for(column) = KINDS.find { |_, (col, _)| col == column.to_s }&.first
   def self.audit_state_owner(change) = AnnualReport.find_by(id: change.value("annual_report_id"))

@@ -15,7 +15,6 @@ class ProcedureStep::StatusChange < ApplicationRecord
 
   validates :status, inclusion: {in: STATUSES.keys}
 
-  def self.model_name_label = "手順の状態の変化"
   def self.audit_state_owner(change) = ProcedureStep.find_by(id: change.value("procedure_step_id"))
 
   def audit_fiscal_year = procedure_step&.procedure_run&.period
@@ -38,7 +37,9 @@ class ProcedureStep::StatusChange < ApplicationRecord
         next nil if step[:status] == status
 
         # final の手順を済みにしたのは元に戻せない操作(提出した日など)。そのあとは対象外にも取り消しにもしない
-        raise ArgumentError, "この手順は済みにしたので、もう変えられません" if step[:status] == "done" && step.definition.final?
+        if step[:status] == "done" && step.definition.final?
+          raise ArgumentError, (status == "open") ? step.reopen_blocked_reason.message : "この手順は済みにしたので、もう変えられません"
+        end
         # 対象外にできるのは、定義(config/procedures)で optional の手順だけ(画面にもその手順だけボタンを出す)
         raise ArgumentError, "この手順は対象外にできません" if status == "skipped" && !step.definition.optional?
 

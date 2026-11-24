@@ -1,7 +1,5 @@
 <% url = journal_entry_path(e, format: :json) %>
-<% readonly_reason = if e.imported? then "会計王から取り込んだ仕訳です。会計王で直して、取り込み直してください。"
-                    elsif e.cancelled? then "取り消した仕訳です(帳簿には数えません)。"
-                    else "AI の提案を承認して記帳した仕訳です。直すときは「取り消す」を使ってください(証憑の画面に、正しい提案がもう一度出ます)。" end %>
+<% readonly_reason = e.edit_blocked_reason&.message %>
 <tr id="<%= dom_id(e) %>" data-amount="<%= e.cancelled? ? 0 : e.amount %>" class="<%= 'is-cancelled' if e.cancelled? %>"
     <%= tag.attributes(data: { readonly_reason: }) unless e.editable? %>>
   <% if e.editable? %>

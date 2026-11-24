@@ -11,16 +11,17 @@ class Resolution < ApplicationRecord
   before_destroy :keep_events, prepend: true
   has_many :items, -> { order(:position, :id) }, class_name: "ResolutionItem", dependent: :destroy
   # 取り消していない同意(成立に数えるもの)。取り消したものも含めるときは all_consents
-  has_many :consents, -> { active }, class_name: "Consent"
+  # inverse_of: 画面で同意ごとに理由(Consent#cancel_blocked_reason)を出すとき、決議と議案を読み直さないため
+  has_many :consents, -> { active }, class_name: "Consent", inverse_of: :resolution
   has_many :all_consents, class_name: "Consent", dependent: :restrict_with_error
   accepts_nested_attributes_for :items, allow_destroy: true, reject_if: ->(a) { a["title"].blank? }
 
   validates :body, inclusion: {in: BODIES.keys}
   validates :voting_method, inclusion: {in: METHODS.keys}
   validates :title, :proposed_on, presence: true
-  validate { errors.add(:base, "記録に反映した議案は消せません") if items.any? { it.marked_for_destruction? && it.applied? } }
+  validate { items.select(&:marked_for_destruction?).filter_map(&:destroy_blocked_reason).uniq.each { errors.add(:base, it.message) } }
 
-  def self.model_name_label = "決議"
+  EDIT_INSTEAD = "代わりに: 件名・提案日・議案の中身は「編集」で直せます。"
 
   scope :recent, -> { order(proposed_on: :desc, id: :desc) }
 
@@ -61,6 +62,19 @@ class Resolution < ApplicationRecord
     list
   end
 
+  # 消せないときの理由(BlockedReason)。消せるなら nil。画面の (i) と、消そうとして止めたときのエラーの文で使う。
+  def destroy_blocked_reason
+    if (total = all_consents.count).positive?
+      cancelled = all_consents.where(id: Consent::Cancellation.select(:consent_id)).count
+      BlockedReason.new(title: "この決議は消せません", reason: "書面決議の記録として残すため、同意を記録した決議は消せません(同意の記録は、取り消しても残ります)。",
+        what: "同意の記録が #{total} 件あります#{"(取り消した #{cancelled} 件を含む)" if cancelled.positive?}",
+        link_label: "同意の記録を見る(#{total} 件)", link_target: "#consents", alternative: EDIT_INSTEAD)
+    elsif (applied = items.count(&:applied?)).positive?
+      BlockedReason.new(title: "この決議は消せません", reason: "役員の任期・登記・事業報告の記録に効いているので、記録に反映した議案のある決議は消せません。",
+        what: "記録に反映した議案が #{applied} 件あります", link_label: "議案を見る", link_target: "#items", alternative: EDIT_INSTEAD)
+    end
+  end
+
   def article_reference
     refs = (Organization.current.settings || {})["written_resolution_articles"] || {}
     refs[body].presence || "定款"
@@ -69,11 +83,9 @@ class Resolution < ApplicationRecord
   private
 
   def keep_events
-    if all_consents.exists?
-      errors.add(:base, "同意を記録した決議は消せません(同意の記録は、取り消しても残ります)")
-    elsif items.any?(&:applied?)
-      errors.add(:base, "記録に反映した議案のある決議は消せません")
-    end
-    throw :abort if errors.any?
+    return unless (blocked = destroy_blocked_reason)
+
+    errors.add(:base, blocked.message)
+    throw :abort
   end
 end

@@ -46,8 +46,8 @@
 - 一覧の `index` は、絞り込みのクエリを覚える(`remember_list_url`)。詳しい画面にはパンくず(`crumbs`)を付ける(ADR-0033)。
 - 監査の役割は閲覧だけ。`ApplicationController#read_only_for_auditor` が GET 以外を止める。止めないコントローラーは `READ_ONLY_ALLOWED` に足す。
 - 締めた年度を変えるときは理由を書いてもらう(`ClosedYearGuard#closed_year_reason_ok?`、モデルでは `Audit.reason!`・`FiscalPeriod.changed_after_close!`)。
-- **7 つの外のアクション(開発QAボード 第8回 8-1)**: 新しく足すのは禁止(レビューで Must)。いま残っているもの(`vouchers#propose`・`reject`、`registration_filings#include`・`exclude`、`fiscal_periods#start_next`・`reopen`、`people#apply_to_years`・`accounts#apply_to_years`、`undo#undo`・`redo`、`assistant#perform`、`passkeys` の `*_options`・`verify*` など)は、その業務をイミュータブルデータモデルに移すときに一緒に直す。モデルを移し終えた入会(`member_applications#approve`・`reject`)は、すぐ直す(#36)。
-- **操作履歴の名前を付ける場所(開発QAボード 第8回 8-4)**: `Audit.label!`・`Audit.final!` は入口(モデル)で呼ぶ。rake や AI から同じ出来事を起こしても、同じ名前が付くようにするため(ADR-0004)。いまコントローラーで付けているところ(`journal_entries`・`people`・`accounts`・`member_applications`・`fiscal_periods`・`procedure_steps`・`filing_destinations`・`passkeys` など)は、その業務を移すときに入口へ移す。新しくコントローラーで付けるのは、レビューで Must。
+- **7 つの外のアクション(開発QAボード 第8回 8-1)**: 新しく足すのは禁止(レビューで Must)。いま残っているもの(`vouchers#propose`・`reject`、`registration_filings#include`・`exclude`、`fiscal_periods#start_next`・`reopen`、`people#apply_to_years`・`accounts#apply_to_years`、`undo#undo`・`redo`、`assistant#perform`、`passkeys` の `*_options`・`verify*` など)は、その業務をイミュータブルデータモデルに移すときに一緒に直す。モデルを移し終えた入会は、`member_applications/approval`・`rejection` の create に直した(#36)。
+- **操作履歴の名前を付ける場所(開発QAボード 第8回 8-4)**: `Audit.label!`・`Audit.final!` は入口(モデル)で呼ぶ。rake や AI から同じ出来事を起こしても、同じ名前が付くようにするため(ADR-0004)。いまコントローラーで付けているところ(`journal_entries`・`people`・`accounts`・`fiscal_periods`・`procedure_steps`・`filing_destinations`・`passkeys` など)は、その業務を移すときに入口へ移す。新しくコントローラーで付けるのは、レビューで Must。
 
 **要確認**
 
@@ -60,7 +60,7 @@
 - **保存ボタンを置かない。** 入力欄は `data-controller="autosave"` の中に置き、`data-url` に PATCH(JSON)の送り先を書く。コントローラーは `include AutosaveResponse` と `respond_to { format.json { autosave_response(record) } }`(`app/controllers/concerns/autosave_response.rb`)。
   - **例外: 作る画面(new)(開発QAボード 第8回 8-2)**: 必須の項目がそろうまで行を作れないので、送るボタンを残してよい。文字は動詞にする(「作る」「登録する」。「保存」としない)。直す画面(edit)は自動保存にする。いま保存ボタンの残る画面(`organizations/edit`・`journal_entries/_form`・`people/_form`・`accounts/edit`・`vouchers/_form`・`annual_reports/_form`・`resolutions/_form`・`registration_filings/show`)は、見直し票で画面ごとに合意を取ってから移す(#39)。
 - 動きは Stimulus のコントローラー(`app/javascript/controllers/*_controller.js`、名前はハイフンつき: `confirm-twice`・`row-detail`・`year-switch`)。JavaScript は importmap(ビルドしない)。
-- **元に戻せない操作と消す操作のボタンは `confirm-twice`**(2 回押し、ダイアログを出さない。`data-armed-label="もう一度押すと…(元に戻せません)"`)。危ないボタンは `nb-btn nb-btn--danger`。ブラウザのダイアログ(`turbo_confirm`・`data-confirm`)は使わない(開発QAボード 第8回 8-3)。いま残る 3 つ(`journal_entries/show`・`vouchers/show`・`siwake_imports/show`)は #37 で替える。
+- **元に戻せない操作と消す操作のボタンは `confirm-twice`**(2 回押し、ダイアログを出さない。`data-armed-label="もう一度押すと…(元に戻せません)"`)。危ないボタンは `nb-btn nb-btn--danger`。ブラウザのダイアログ(`turbo_confirm`・`data-confirm`)は使わない(開発QAボード 第8回 8-3)。残っていた 3 つ(`journal_entries/show`・`vouchers/show`・`siwake_imports/show`)は #37 で替えた。結合テストでは `assert_confirm_twice` で確かめる。
 - **画面の書き換え(開発QAボード 第8回 8-8)**: いまは、出来事は送ったあと別の画面に移る(PRG)、入力は自動保存の JSON。画面の一部だけを書き換える必要のある画面ができたら Turbo Stream を使う(ジョブの進み具合の知らせ #23 の Action Cable で使う見込み。ADR-0008)。
 - PDF と外のサイトへのリンクは別のタブ(`new_tab_link_to`、文字の後ろに「↗」)。帳票は `layouts/print`(明朝・全角数字・黒一色)、PDF は `PdfRenderer`。
 - アイコンは `icon(role)`(`app/helpers/icon_helper.rb`、Lucide。ADR-0017)。
@@ -99,7 +99,7 @@
 - 日付は画面では `2026/11/20`、帳票では和暦の全角(`Wareki`)。
 - 製品名は英字で `n-bato`、Ruby で `NBato`、画面では `<ruby>N<rt>エヌ</rt></ruby>ばと`。
 - 書面決議のモデルは、コントローラーでは `::Resolution` と書く(Rails の helper のモジュールとぶつかるため)。
-- **モデルの日本語の名前は `config/locales/models.ja.yml`**(操作履歴の表示に使う。`model_name.human`)。クラスメソッド `self.model_name_label` には書かない(開発QAボード 第8回 8-6)。いま `model_name_label` に書いているもの(`PersonYear`・`RegistrationFiling` など)は #38 で移し、`model_name_label` を無くす。
+- **モデルの日本語の名前は `config/locales/models.ja.yml`**(操作履歴の表示に使う。`model_name.human`)。クラスメソッド `self.model_name_label` には書かない(開発QAボード 第8回 8-6)。`model_name_label` は #38 で無くした。操作履歴に残るモデルを足したら、名前を `models.ja.yml` に足す(台帳 `docs/data-model.md` の日本語の名前に合わせる。`test/models/model_names_test.rb` が確かめる)。
 
 ## 7. Ruby の書き方
 

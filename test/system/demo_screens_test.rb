@@ -62,6 +62,20 @@ class DemoScreensTest < ApplicationSystemTestCase
     assert_equal "寄付(架空)", account.reload.group_name
   end
 
+  test "仕訳の削除は 2 回押し(ダイアログを出さない。開発QAボード 第8回 8-3)" do
+    sign_in_as_ai
+    entry = JournalEntry.order(:id).find { it.editable? && !FiscalPeriod.for(it.fiscal_year)&.closed? } # 締めた年度は理由が要るので外す
+    visit journal_entry_path(entry)
+
+    click_on "削除"
+    assert_button "もう一度押すと、この仕訳を削除します"
+    assert JournalEntry.exists?(entry.id)
+
+    click_on "もう一度押すと、この仕訳を削除します"
+    assert_no_current_path journal_entry_path(entry)
+    assert_not JournalEntry.exists?(entry.id)
+  end
+
   test "他の年度に切り替えると、その年度の札と帯が出る" do
     sign_in_as_ai
     visit fiscal_years_path

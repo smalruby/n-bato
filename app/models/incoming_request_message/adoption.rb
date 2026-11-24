@@ -11,8 +11,6 @@ class IncomingRequestMessage::Adoption < ApplicationRecord
 
   ALREADY = "この案はもう決めてあります".freeze
 
-  def self.model_name_label = "AI の案を決めた"
-
   # やることを作った数と直した数を [作ったもの, 直したもの] で返す
   def self.adopt!(message, by: Current.user, at: Time.current)
     raise ArgumentError, ALREADY if message.applied?

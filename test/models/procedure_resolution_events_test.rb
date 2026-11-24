@@ -48,16 +48,17 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     AnnualReport::Milestone.record!(AnnualReport.find_by!(fiscal_year: 2026), "submitted", on: Date.new(2027, 6, 1))
     ProcedureStep::StatusChange.change!(run.step("submit"), status: "done")
     error = assert_raises(ArgumentError) { ProcedureStep::StatusChange.change!(run.step("submit"), status: "open") }
-    assert_equal "この手順は済みにしたので、もう変えられません", error.message
+    assert_equal run.step("submit").reopen_blocked_reason.message, error.message
+    assert_match "この手順は取り消せません", error.message
     assert_raises(ArgumentError) { change!("close_books", "unknown") }
   end
 
   test "final の手順は、済みにしたらもう状態を変えない。対象外にできるのは optional の手順だけ" do
     change!("submit", "done", on: Date.new(2026, 6, 28))
-    %w[skipped open].each do |status|
-      error = assert_raises(ArgumentError) { change!("submit", status) }
-      assert_equal "この手順は済みにしたので、もう変えられません", error.message
-    end
+    error = assert_raises(ArgumentError) { change!("submit", "skipped") }
+    assert_equal "この手順は済みにしたので、もう変えられません", error.message
+    error = assert_raises(ArgumentError) { change!("submit", "open") }
+    assert_match "この手順は取り消せません。2026/06/28 に済みにしました(提出した日を記録する)", error.message
     assert_equal ["done", Date.new(2026, 6, 28)], [@run.step("submit")[:status], @report.reload.submitted_on]
 
     error = assert_raises(ArgumentError) { change!("audit", "skipped") }
@@ -102,7 +103,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     ProcedureStep::StatusChange.change!(step, status: "open")
     ProcedureStep::StatusChange.change!(step.reload, status: "done", on: Date.new(2026, 4, 10))
     error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "procedure:#{@run.id}") }
-    assert_match "手続きの手順(##{step.id})のstatus", error.message
+    assert_match "手順(##{step.id})のstatus", error.message # 操作履歴の表示(models.ja.yml の procedure_step)と同じ名前(#38)
     assert_equal "done", step.reload[:status]
     assert_empty ModelVerification.mismatches
   end
@@ -249,6 +250,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     assert_empty ModelVerification.mismatches
 
     error = assert_raises(ActiveRecord::RecordNotDestroyed) { resolution.destroy! }
+    assert_match "この決議は消せません。同意の記録が 3 件あります(取り消した 1 件を含む)", error.record.errors.full_messages.join
     assert_match "同意を記録した決議は消せません", error.record.errors.full_messages.join
   end
 
@@ -281,7 +283,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
 
     consent = resolution.consents.sole
     error = assert_raises(ArgumentError) { Consent::Cancellation.cancel!(consent, by: @user) }
-    assert_equal "記録に反映した議案があるので、同意の記録は取り消せません", error.message
+    assert_match "この同意は取り消せません。記録に反映した議案が 1 件あります", error.message
 
     error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "consents") }
     assert_match "成立していない", error.message
@@ -341,7 +343,8 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     item = resolution.items.create!(kind: "officer_election", title: "選任", payload: {"appointments" => []})
     ResolutionItem::Application.apply!(item)
     assert_not resolution.reload.destroy
-    assert_equal ["記録に反映した議案のある決議は消せません"], resolution.errors.full_messages
+    assert_equal [resolution.destroy_blocked_reason.message], resolution.errors.full_messages
+    assert_match "記録に反映した議案が 1 件あります", resolution.errors.full_messages.sole
   end
 
   test "議案の反映が途中で失敗したら、外のトランザクションの中でも途中までの変更を残さない" do

@@ -8,8 +8,6 @@ class RegistrationFiling::Completion < ApplicationRecord
   belongs_to :registration_filing
   belongs_to :recorded_by, class_name: "User", optional: true
 
-  def self.model_name_label = "登記の完了"
-
   def self.complete!(filing, completed_on:, by: nil)
     raise ArgumentError, "申請していないか、もう終わった申請です" unless %w[submitted accepted correcting].include?(filing.status)
 

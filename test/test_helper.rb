@@ -92,6 +92,14 @@ end
 class ActionDispatch::IntegrationTest
   include SignInHelper
 
+  # 消す・元に戻せない操作のボタンが、ブラウザのダイアログではなく 2 回押し(confirm-twice)であること(開発QAボード 第8回 8-3)
+  def assert_confirm_twice(action, armed_label)
+    assert_select "form[action='#{action}'][data-controller='confirm-twice'][data-action='submit->confirm-twice#check']" do
+      assert_select "button.nb-btn--danger[data-confirm-twice-target='button'][data-armed-label='#{armed_label}']"
+    end
+    assert_select "[data-turbo-confirm], [data-confirm]", false
+  end
+
   # PDF(ヘッドレス Chrome で作る)を出せることを確かめる。Chrome が無い機械では skip(テストの最後で呼ぶ)
   def assert_pdf(path)
     get path

@@ -54,7 +54,10 @@ class VoucherEventsFlowTest < ActionDispatch::IntegrationTest
     assert_no_difference -> { Voucher.count } do
       delete voucher_path(@voucher)
     end
-    assert_match "削除できません", flash[:alert]
+    assert_match "この証憑は消せません。AI の仕訳の提案が 1 件あります", flash[:alert]
+    get voucher_path(@voucher)
+    assert_select ".nb-disabled-action button[aria-disabled=true]", text: "削除"
+    assert_select ".nb-tip a[href='#proposals']", text: "提案を見る"
     other = Voucher.create!(kind: "memo", description: "メモ")
     assert_difference -> { Voucher.count }, -1 do
       delete voucher_path(other)
@@ -68,7 +71,11 @@ class VoucherEventsFlowTest < ActionDispatch::IntegrationTest
     assert_no_difference -> { JournalEntry.count } do
       delete journal_entry_path(entry)
     end
-    assert_match "消せません", flash[:alert]
+    assert_match "この仕訳は直せません", flash[:alert]
+    assert_match "削除もできません", flash[:alert]
+    get journal_entry_path(entry)
+    assert_select ".nb-disabled-action button[aria-disabled=true]", text: "削除"
+    assert_select ".nb-tip a[href='#{voucher_path(@voucher)}']", text: "証憑を見る"
   end
 
   test "証憑と違う年度の提案: 科目の選択肢は提案の年度のもので、提案の科目が選ばれている(先頭の現金にならない)" do

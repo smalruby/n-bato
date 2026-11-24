@@ -21,7 +21,7 @@
   <% if a.received? && !Current.user&.auditor? %>
     <section class="nb-proposal">
       <b>入会を認める</b>
-      <%= form_with url: approve_member_application_path(a), class: "flex flex-wrap gap-2 items-center", style: "margin-top:6px" do %>
+      <%= form_with url: member_application_approval_path(a), class: "flex flex-wrap gap-2 items-center", style: "margin-top:6px" do %>
         <label>年度 <%= number_field_tag :fiscal_year, a.default_year, class: "nb-input", style: "width:90px" %></label>
         <label>入会日 <%= date_field_tag :joined_on, Date.current, class: "nb-input", style: "width:150px" %></label>
         <% if @same.any? %>
@@ -32,7 +32,7 @@
       <p class="text-xs" style="color:var(--ink-muted);margin:4px 0 0">人の記録と、その年度の正会員の資格ができます。元に戻せない操作です。<%= "同じ氏名の人が登録されています。同じ人なら、資格を足してください(二重に作らない)。" if @same.any? %></p>
     </section>
     <section>
-      <%= form_with url: reject_member_application_path(a), class: "flex flex-wrap gap-2 items-center", data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do %>
+      <%= form_with url: member_application_rejection_path(a), class: "flex flex-wrap gap-2 items-center", data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do %>
         <input name="reason" class="nb-input" placeholder="認めない理由(必ず書く)" data-no-reason-default style="flex:1;min-width:240px" required>
         <button class="nb-btn nb-btn--danger">認めない</button>
       <% end %>

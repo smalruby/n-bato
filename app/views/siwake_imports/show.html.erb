@@ -11,6 +11,6 @@
   </dl>
   <div class="mt-4 flex gap-2">
     <%= link_to "一覧へ", siwake_imports_path, class: "btn-secondary" %>
-    <%= button_to "取り込みを取り消す", @import, method: :delete, class: "btn-danger", form: { data: { turbo_confirm: "この取り込みで登録した仕訳をすべて削除します。よろしいですか？" } } %>
+    <%= button_to "取り込みを取り消す", @import, method: :delete, class: "nb-btn nb-btn--danger", form: { data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } }, data: { confirm_twice_target: "button", armed_label: "もう一度押すと、この取り込みで登録した仕訳をすべて削除します" } %>
   </div>
 </div>

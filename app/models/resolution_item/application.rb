@@ -9,8 +9,6 @@ class ResolutionItem::Application < ApplicationRecord
   belongs_to :resolution_item
   belongs_to :applied_by, class_name: "User", optional: true
 
-  def self.model_name_label = "議案の反映"
-
   def audit_fiscal_year = resolution_item&.resolution&.then { FiscalYear.for(it.proposed_on).year }
 
   def self.apply!(item, by: Current.user, on: Date.current)

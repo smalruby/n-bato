@@ -97,7 +97,8 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
   test "前の年度を締める前の年度は仮と出し、会計王へは書き出させない" do
     get journal_entries_path(year: 2025)
     assert_select ".nb-year-band", text: /2024年度\(令和6年度\)をまだ締めていません/
-    assert_select "button[disabled]", text: "新規分を SIWAKE で書き出す"
+    assert_select ".nb-disabled-action button[aria-disabled=true]", text: "新規分を SIWAKE で書き出す"
+    assert_select ".nb-tip", text: /まだ書き出せません.*2024年度\(令和6年度\)をまだ締めていません/
   end
 
   test "表のいちばん下の行から仕訳を足すと、行の ID と年度の表の場所を返す" do
