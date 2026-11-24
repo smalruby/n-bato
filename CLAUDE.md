@@ -30,6 +30,9 @@ bin/rails 'data:load[data/records.yml]'                 # 会員・役員・事�
 EMAIL=... PASSWORD=... NAME=... bin/rails users:create
 bin/rails server -p 3100 -d            # 開発サーバ(画面の確認は Playwright でスクリーンショット)
 RAILS_MASTER_KEY=$(cat config/master.key) docker compose up -d --build   # 手元の Docker(http://localhost:3200)
+NBATO_SECRETS_DIR=... bin/kamal deploy                 # 本番(https://n-bato.smalruby.app、Lightsail)。秘密の置き場所は CLAUDE.local.md
+NBATO_SECRETS_DIR=... bin/prod-runner script.rb        # 手元の Ruby のファイルを本番の rails runner で実行(運用のセッション用)
+(cd infra && npx cdk diff)                             # 本番の AWS の部品(NBatoStack)。deploy は人に確かめてから
 ```
 
 ## Claude Code が経理担当をするとき

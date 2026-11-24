@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# 手元の Ruby のファイルを、本番(Kamal で動いているコンテナ)の bin/rails runner で実行する。
+# 運用のセッションが、本番のデータを操作するときに使う(.claude/rules/session-roles.md)。
+#
+#   NBATO_SECRETS_DIR=<秘密の置き場所> bin/prod-runner path/to/script.rb
+#
+# ファイルは base64 にして送るので、引用符や改行を気にしなくてよい。
+set -euo pipefail
+file="${1:?使い方: bin/prod-runner path/to/script.rb}"
+: "${NBATO_SECRETS_DIR:?NBATO_SECRETS_DIR に秘密の置き場所を入れてください}"
+[ -f "$file" ] || { echo "$file がありません" >&2; exit 1; }
+cd "$(dirname "$0")/.."
+b64=$(base64 < "$file" | tr -d '\n')
+exec bin/kamal app exec --reuse --quiet "bin/rails runner 'require \"base64\"; eval(Base64.decode64(\"$b64\"), TOPLEVEL_BINDING, \"$(basename "$file")\")'"
