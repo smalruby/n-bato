@@ -58,17 +58,14 @@
      export GH_TOKEN=$(cat ~/.private/n-bato-dev.pat)
      R=smalruby/n-bato
      # production: main だけ、承認者なし
-     gh api -X PUT "repos/$R/environments/production" --input - <<'JSON'
-     {"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}
-     JSON
+     gh api -X PUT "repos/$R/environments/production" --input - \
+       <<<'{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
      gh api -X POST "repos/$R/environments/production/deployment-branch-policies" -f name=main -f type=branch
 
      # production-infra: main だけ、承認者は理事長(<ログイン> は理事長の GitHub のログイン名)
      REVIEWER_ID=$(gh api "users/<ログイン>" --jq .id)
-     gh api -X PUT "repos/$R/environments/production-infra" --input - <<JSON
-     {"reviewers":[{"type":"User","id":${REVIEWER_ID}}],"prevent_self_review":false,
-      "deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}
-     JSON
+     gh api -X PUT "repos/$R/environments/production-infra" --input - \
+       <<<"{\"reviewers\":[{\"type\":\"User\",\"id\":${REVIEWER_ID}}],\"prevent_self_review\":false,\"deployment_branch_policy\":{\"protected_branches\":false,\"custom_branch_policies\":true}}"
      gh api -X POST "repos/$R/environments/production-infra/deployment-branch-policies" -f name=main -f type=branch
 
      # 確かめる(承認者があるのは production-infra だけ、どちらも main だけ)
@@ -77,7 +74,7 @@
      gh api "repos/$R/environments/production-infra/deployment-branch-policies" --jq '[.branch_policies[].name]'
      ```
    - `prevent_self_review` は `false` にする。Deploy Infra は main へのマージで起き、マージした人(AI が理事長のトークンで操作したときも理事長)が「起こした人」になるため。`true` にすると、理事長が承認できなくなる。
-   - 承認は理事長が GitHub の画面で行う。AI は、トークンで承認できても承認しない(下の「AWS の部品を変える」)。
+   - 承認は理事長が GitHub の画面で行う。AI は承認しない(下の「AWS の部品を変える」)。AI が使う n-bato のトークンは理事長のものなので、**Deployments の書き込みの権限を付けない**(付けると、承認の API を AI が呼べてしまい、承認者の設定が決まりだけになる)。トークンの権限を絞るときも、これを外したままにする。
 3. **Actions だけの SSH の鍵を作って、サーバーに登録する(本番の操作)**
    ```bash
    # 作る(Mac の秘密の置き場所に。パスフレーズなし、Actions が使うため)
