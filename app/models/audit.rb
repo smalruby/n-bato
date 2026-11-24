@@ -148,6 +148,10 @@ module Audit
     end
   end
 
+  # 元に戻す・やり直すで、記録の形が合わないとき(表の形が変わる前の操作など)。500 にせず Conflict にする。
+  # StatementInvalid は NOT NULL・外部キー・一意の制約に反したとき(docs/adr/0034)。
+  REVERT_ERRORS = [ ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound, ActiveRecord::StatementInvalid ].freeze
+
   def revert(change)
     klass = change.auditable_class
     case change.event
@@ -162,7 +166,7 @@ module Audit
     when "destroy"
       write(klass.new, change.snapshot)
     end
-  rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound => e
+  rescue *REVERT_ERRORS => e
     raise Conflict, "#{change.model_label}を元に戻せませんでした(#{e.message})"
   end
 
@@ -178,7 +182,7 @@ module Audit
     when "destroy"
       klass.find_by(id: change.auditable_id)&.destroy!
     end
-  rescue ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound => e
+  rescue *REVERT_ERRORS => e
     raise Conflict, "#{change.model_label}をやり直せませんでした(#{e.message})"
   end
 

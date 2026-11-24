@@ -40,16 +40,16 @@ decision-makers: Claude(理事長の確かめ待ち)
   * 入口(change!・settle!・deliver!・adopt!)は、操作の外(rake・運用のスクリプト)で呼ばれても、列とイベントを 1 つの操作にまとめる(片方だけ元に戻ると食い違うため)。
   * 決まりで済みにする(`Todo.refresh_auto!`)は画面を開いたとき(GET)に動く。何件でも 1 つの操作にし、範囲は `todos_auto` にする。やることの画面の「元に戻す」では戻さない(戻しても、次に開いたときにまた済みになるため)。
 * **コントローラー**(ADR-0008): `POST /todos/:id/status_changes`、`GET /todos/:id`(開く。もとの open)、`POST /incoming_requests/:id/settlement`・`cover_letter`、`POST …/messages/:id/delivery`・`adoption`。元に戻すの範囲(audit_scope)は、もとのコントローラーの名前のまま。
-* **移し方**: マイグレーションで、いまの列からイベントを作る(未着手でないやることに 1 つ、解決した依頼に 1 つ、送った・決めた発言に 1 つずつ)。済みで日時の無いやること・解決した日の無い依頼は、更新した日時で埋める。これまでの操作のうち、やること・依頼・発言を書き換えたものは、元に戻すとイベントと食い違うので、元に戻せない操作にした。発言の sent_at・applied_at・masked_body・send_attachments・updated_at の列は、イベントへ移して消した(created_at は written_at に名前を変えた)。
+* **移し方**: マイグレーションで、いまの列からイベントを作る(未着手でないやることに 1 つ、解決した依頼に 1 つ、送った・決めた発言に 1 つずつ)。済みで日時の無いやること・解決した日の無い依頼は、更新した日時(日付は日本時間)で埋める。これまでの操作のうち、やること・依頼・発言に触れたもの(作成・変更・削除のどれでも)は、元に戻す・やり直すとイベントと食い違うか失敗する(移す前の発言には written_at が無い)ので、元に戻せない操作にした。それでも形の合わない操作が残っていたら、元に戻す・やり直すは Conflict で止める(500 にしない)。発言の sent_at・applied_at・masked_body・send_attachments・updated_at の列は、イベントへ移して消した(created_at は written_at に名前を変えた)。
 
 ### 結果
 
 * 良い: 誰がいつやることの状態を変えたか、決まりで変わったかが残る。送った伏せた文と、決めた案が出来事として残る。独自のアクションが無くなった。
-* 悪い: 運用のスクリプトの書き方が変わる(状態を変えるとき・解決にするとき)。対応は運用との連絡帳(notes/ops-dev、git 管理外)に「旧 → 新」で書いた。移す前の、やることを書き換えた操作は元に戻せなくなる。
+* 悪い: 運用のスクリプトの書き方が変わる(状態を変えるとき・解決にするとき)。対応は運用との連絡帳(notes/ops-dev、git 管理外)に「旧 → 新」で書いた。移す前の、やること・依頼・発言に触れた操作は元に戻せなくなる。
 
 ### 確かめ方
 
-`test/models/todo_events_test.rb`、`test/integration/incoming_requests_test.rb`、`test/integration/todos_test.rb`、`test/models/event_rules_test.rb`、`bin/rails model:verify`。
+`test/models/todo_events_test.rb`、`test/migrations/create_todo_and_request_events_test.rb`、`test/integration/incoming_requests_test.rb`、`test/integration/todos_test.rb`、`test/models/event_rules_test.rb`、`bin/rails model:verify`。
 
 ## 補足
 

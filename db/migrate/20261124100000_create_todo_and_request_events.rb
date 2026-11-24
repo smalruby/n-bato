@@ -8,8 +8,8 @@
 #   「AI に送った」(sent_at・masked_body・send_attachments)は IncomingRequestMessage::Delivery、
 #   「この案で決める」(applied_at)は IncomingRequestMessage::Adoption に分ける。
 # - いまある行の値から、イベントを作る(backfill)。値は消さずに移す。
-# - これまでの操作のうち、状態を書き換えたもの(やること・依頼の変更、発言の変更)は、元に戻すと
-#   イベントと食い違うので、元に戻せない操作にする(会計を移したときと同じ。docs/adr/0003)。
+# - これまでの操作のうち、やること・依頼・発言に触れたもの(作成・変更・削除)は、元に戻す・やり直すと
+#   イベントと食い違うか失敗するので、元に戻せない操作にする(会計を移したときと同じ。docs/adr/0003)。
 class CreateTodoAndRequestEvents < ActiveRecord::Migration[8.1]
   def up
     create_table :todo_status_changes do |t|
@@ -51,7 +51,8 @@ class CreateTodoAndRequestEvents < ActiveRecord::Migration[8.1]
     SQL
 
     # 依頼: 解決したものに「解決にした」を作る。解決した日の無いものは、更新した日で埋める。
-    execute "UPDATE incoming_requests SET resolved_on = date(updated_at) WHERE status = 'resolved' AND resolved_on IS NULL"
+    # updated_at は UTC で入っているので、日本時間(+9 時間。夏時間は無い)の日付にする
+    execute "UPDATE incoming_requests SET resolved_on = date(updated_at, '+9 hours') WHERE status = 'resolved' AND resolved_on IS NULL"
     execute <<~SQL
       INSERT INTO incoming_request_settlements (incoming_request_id, settled_on)
       SELECT id, resolved_on FROM incoming_requests WHERE status = 'resolved'
@@ -67,11 +68,16 @@ class CreateTodoAndRequestEvents < ActiveRecord::Migration[8.1]
       SELECT id, applied_at FROM incoming_request_messages WHERE applied_at IS NOT NULL
     SQL
 
+    # これまでの操作のうち、やること・依頼・発言に触れたものは、作成・変更・削除のどれでも元に戻せない操作にする。
+    # - 変更: 元に戻すと、いまの状態の列がイベントと食い違う。
+    # - 作成・削除: やり直す・元に戻すで、移す前の形の行(状態の列だけを持つやること・解決した依頼、written_at の無い発言)が
+    #   イベントなしに戻る。発言は written_at が NOT NULL なので、書けずに失敗する。
+    # 変化の中身(changeset)は暗号化してあり SQL では読めないので、記録の種類だけで決める。
     execute <<~SQL
       UPDATE audit_operations SET kind = 'final'
       WHERE kind = 'do' AND id IN (
         SELECT audit_operation_id FROM audit_changes
-        WHERE event = 'update' AND auditable_type IN ('Todo', 'IncomingRequest', 'IncomingRequestMessage')
+        WHERE auditable_type IN ('Todo', 'IncomingRequest', 'IncomingRequestMessage')
       )
     SQL
 
@@ -83,6 +89,11 @@ class CreateTodoAndRequestEvents < ActiveRecord::Migration[8.1]
     remove_column :incoming_request_messages, :send_attachments
   end
 
+  # 戻さないもの:
+  # - up で元に戻せない操作(final)にした、これまでの操作。どれを final にしたかは残していない。
+  # - up のあとにできた操作の変化(AuditChange)のうち、Todo::StatusChange・IncomingRequest::Settlement・
+  #   IncomingRequestMessage::Delivery・Adoption のもの。表を消すので、その操作を元に戻す・やり直すと Conflict になる。
+  # - up で埋めた done_at・resolved_on(済みで日時の無いやること・解決した日の無い依頼)。
   def down
     add_column :incoming_request_messages, :send_attachments, :boolean, default: false, null: false
     add_column :incoming_request_messages, :masked_body, :text, default: "", null: false

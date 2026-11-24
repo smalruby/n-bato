@@ -113,6 +113,25 @@ class TodoEventsTest < ActiveSupport::TestCase
     assert_empty ModelVerification.mismatches
   end
 
+  # 移す前の操作(マイグレーションで元に戻せない操作にし損ねたもの)は、元に戻す・やり直すで 500 にせず、Conflict にする
+  test "B2: 移す前の発言の作成(written_at が記録に無い)をやり直すと Conflict" do
+    op = AuditOperation.create!(user: @user, scope: "incoming_request_messages", kind: "do", state: "undone", redoable: true)
+    op.audit_changes.create!(auditable_type: "IncomingRequestMessage", auditable_id: 9_999, event: "create",
+                             changeset: { "incoming_request_id" => [ nil, @req.id ], "role" => [ nil, "user" ], "body" => [ nil, "古い下書き" ], "masked_body" => [ nil, "" ] })
+    assert_raises(Audit::Conflict) { Audit.redo!(@user, "incoming_request_messages") }
+    assert_not IncomingRequestMessage.exists?(9_999)
+    assert_equal [ "undone", true ], op.reload.values_at(:state, :redoable)
+  end
+
+  test "B2: 移す前の下書きを消した操作(snapshot に written_at が無い)を元に戻すと Conflict" do
+    op = AuditOperation.create!(user: @user, scope: "incoming_request_messages", kind: "do", state: "active")
+    snap = { "id" => 9_999, "incoming_request_id" => @req.id, "role" => "user", "body" => "消した下書き", "masked_body" => "", "sent_at" => nil,
+             "created_at" => "2026-11-20T10:00:00+09:00", "updated_at" => "2026-11-20T10:00:00+09:00" }
+    op.audit_changes.create!(auditable_type: "IncomingRequestMessage", auditable_id: 9_999, event: "destroy", changeset: snap.compact.transform_values { [ it, nil ] }, snapshot: snap)
+    assert_raises(Audit::Conflict) { Audit.undo!(@user, "incoming_request_messages") }
+    assert_equal "active", op.reload.state
+  end
+
   test "照合: 列を直接書き換えると食い違いが出る" do
     Todo::StatusChange.change!(@todo, status: "wait", waiting_on: "返事")
     @todo.update_columns(status: "done")
