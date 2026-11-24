@@ -64,8 +64,21 @@ Rails.application.configure do
   config.action_mailer.default_url_options = { host: nbato_url.host, protocol: nbato_url.scheme,
                                                port: ([ 80, 443 ].include?(nbato_url.port) ? nil : nbato_url.port) }.compact
   # NBATO_MAIL_DELIVERY=local_mailbox なら外に送らず storage/mails に残す(手元の Docker 用。bin/rails mail:latest で見る)。
-  # 本番の送り方(SMTP など)は、ドメインを用意するときに人と確かめてから決める。
-  config.action_mailer.delivery_method = :local_mailbox if ENV["NBATO_MAIL_DELIVERY"] == "local_mailbox"
+  # 本番は Amazon SES を SMTP で使う(デプロイの相談 第2回)。SMTP_* は Kamal の秘密から渡す。
+  if ENV["NBATO_MAIL_DELIVERY"] == "local_mailbox"
+    config.action_mailer.delivery_method = :local_mailbox
+  elsif ENV["SMTP_ADDRESS"].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.raise_delivery_errors = true
+    config.action_mailer.smtp_settings = {
+      address: ENV["SMTP_ADDRESS"],
+      port: 587,
+      user_name: ENV["SMTP_USERNAME"],
+      password: ENV["SMTP_PASSWORD"],
+      authentication: :login,
+      enable_starttls: true
+    }
+  end
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via rails credentials:edit.
   # config.action_mailer.smtp_settings = {
