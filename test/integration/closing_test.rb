@@ -20,15 +20,15 @@ class ClosingTest < ActionDispatch::IntegrationTest
     get procedure_path(@run, step: "close_year")
     assert_match "提出した日を先に記録してください", response.body
 
-    @report.update!(submitted_on: Date.new(2026, 11, 24))
-    post complete_procedure_step_path(@run, "close_year"), params: { completed_on: "2026-11-25" }
+    AnnualReport::Milestone.record!(@report, "submitted", on: Date.new(2026, 11, 24))
+    post procedure_step_status_changes_path(@run, "close_year"), params: { status: "done", completed_on: "2026-11-25" }
     assert FiscalPeriod.for(2024).reload.closed?
     assert_equal 3000, OpeningBalance.find_by!(fiscal_year: 2025, account: Account.for_year(2025, 100)).amount
     assert_not FiscalPeriod.for(2025).provisional?
   end
 
   test "締めた年度を直したら、再提出の手順が出る" do
-    @report.update!(submitted_on: Date.new(2026, 11, 24))
+    AnnualReport::Milestone.record!(@report, "submitted", on: Date.new(2026, 11, 24))
     FiscalPeriod.for(2024).close!
     assert_equal "skipped", @run.step("resubmit").status
 

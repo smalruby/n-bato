@@ -67,9 +67,9 @@ class SlackNoticeTest < ActiveSupport::TestCase
     run = ProcedureRun.create!(kind: "annual_report", period: 2025)
     SlackNotice::Activity.new.run!
     Audit.operation(user: users(:one), scope: "t") { FiscalPeriod.create!(year: 2027) }
-    Audit.operation(user: users(:one), scope: "t") { run.step("audit").complete! }
-    Audit.operation(user: users(:one), scope: "t") { run.step("close_books").complete! }
-    Audit.operation(user: users(:one), scope: "t") { AnnualReport.find_by(fiscal_year: 2025).update!(submitted_on: Date.new(2026, 6, 20)) }
+    Audit.operation(user: users(:one), scope: "t") { ProcedureStep::StatusChange.change!(run.step("audit"), status: "done") }
+    Audit.operation(user: users(:one), scope: "t") { ProcedureStep::StatusChange.change!(run.step("close_books"), status: "done") }
+    Audit.operation(user: users(:one), scope: "t") { AnnualReport::Milestone.record!(AnnualReport.find_by(fiscal_year: 2025), "submitted", on: Date.new(2026, 6, 20)) }
     SlackNotice::Activity.new.run!
     assert @sent.any? { it.include?("2027年度を始めました") }
     assert @sent.any? { it.include?("監事の監査が済みました") }

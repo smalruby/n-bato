@@ -29,7 +29,7 @@
       <div class="text-sm whitespace-pre-wrap"><%= item.content %></div>
       <% if item.appointments.any? %><div class="text-sm text-stone-600">選任: <%= item.appointments_text.gsub("\n", "、") %></div><% end %>
       <% if item.applicable? %>
-        <%= button_to "記録に反映する", apply_item_resolution_path(@resolution, item_id: item.id), class: "btn mt-2" %>
+        <%= button_to "記録に反映する", resolution_item_application_path(@resolution, item), class: "btn mt-2" %>
       <% elsif item.applied_on %>
         <div class="text-sm text-emerald-700">記録に反映済み（<%= l item.applied_on %>）</div>
       <% end %>
@@ -49,13 +49,13 @@
           <td><%= person.name %></td>
           <% if c %>
             <td><%= l c.consented_on %></td><td><%= c.via_label %></td>
-            <td><%= button_to "取り消す", resolution_consent_path(@resolution, c), method: :delete, class: "btn-danger" %></td>
+            <td><%= button_to "取り消す", resolution_consent_cancellation_path(@resolution, c), class: "btn-danger" %></td>
           <% else %>
             <td colspan="3">
-              <%= form_with model: Consent.new(consented_on: Date.current), url: resolution_consents_path(@resolution), class: "flex gap-2 items-center" do |f| %>
+              <%= form_with scope: :consent, url: resolution_consents_path(@resolution), class: "flex gap-2 items-center" do |f| %>
                 <%= f.hidden_field :person_id, value: person.id %>
-                <%= f.date_field :consented_on, class: "rounded border border-stone-300 px-2 py-1 text-sm" %>
-                <%= f.select :via, Consent::VIAS.invert, {}, class: "rounded border border-stone-300 px-2 py-1 text-sm" %>
+                <%= f.date_field :consented_on, value: Date.current, class: "rounded border border-stone-300 px-2 py-1 text-sm" %>
+                <%= f.select :via, Consent::VIAS.invert, { selected: "paper" }, class: "rounded border border-stone-300 px-2 py-1 text-sm" %>
                 <%= f.submit "同意を記録", class: "btn" %>
               <% end %>
             </td>

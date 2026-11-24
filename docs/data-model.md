@@ -22,12 +22,14 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | 英名 | 和名 | 分類 | 単一性(何が 1 つか) | 同一性(同じと言えるとき) | カテゴリ | 日時の列 | 移行 |
 |---|---|---|---|---|---|---|---|
 | Account | 科目 | R | 年度ごとの科目 1 つ | 年度と科目コードが同じ | 会計王の科目(資産〜法人税等) | — | 待 |
-| AnnualReport | 事業報告書の提出 | LE | 1 年度の事業報告書等 | 年度が同じ | 所轄庁に出す年に一度の報告 | 承認・提出・公告の日付(詳細のイベントへ分ける) | 待 |
+| AnnualReport | 事業報告書の提出 | LE | 1 年度の事業報告書等 | 年度が同じ | 所轄庁に出す年に一度の報告。いまの状態(approved_on・submitted_on・bs_published_on・resubmit_needed_on・resubmitted_on)は節目の種類ごとの最後の記録から決まり、直接は書き換えない(docs/adr/0038) | letter_date(提出書の日付)は中身の日付 | 済 |
+| AnnualReport::Milestone | 事業報告の節目 | E | 1 回の日付の記録 | — | 総会で承認した・提出した・公告した・出し直しが要る(決まりで。automatic)・出し直した。dated_on が空なら日付を消した。事業報告の画面・手順・決議の反映から記録する | recorded_at(中身の日付: dated_on) | 済 |
 | ArticleVersion | 定款の版 | R | 総会で決めた 1 つの版 | 版の番号が同じ | 定款(全文) | decided_on(決めた日。版を作る出来事の日付) | 待 |
 | AuditChange | 変更の記録 | システム | 1 つの記録の 1 回の変化 | — | 操作履歴 | — | — |
 | AuditOperation | 操作 | システム | 1 回のリクエストの操作 | — | 操作履歴(元に戻す・やり直す) | — | — |
 | BalanceCheck | 残高の確認 | E | ある日の 1 科目の確認 | — | 通帳・現金と帳簿の照合 | checked_on | 待 |
-| Consent | 同意 | E | 1 人の 1 つの決議への同意 | — | 書面決議の同意 | consented_on | 待 |
+| Consent | 同意 | E | 1 人の 1 つの決議への同意 | 決議と人が同じ(取り消していないものは 1 つ) | 書面決議の同意。取り消しても消さない(docs/adr/0038) | consented_on | 済 |
+| Consent::Cancellation | 同意の取消 | E | 1 つの同意の取消 | 同意が同じ(1 つに 1 つ) | 打ち間違いのときは取り消して記録し直す。取り消した同意は成立に数えない | cancelled_at | 済 |
 | Department | 部門 | R | 年度ごとの部門 1 つ | 年度と部門コードが同じ | 事業①〜⑨・管理 | — | 待 |
 | FiscalPeriod | 年度 | R | 4/1〜3/31 の 1 年 | 開始年が同じ | 事業年度 | 締めた日(「年度を締める」イベントへ分ける) | 待 |
 | IncomingRequest | 依頼 | LE | 外から届いた 1 つの依頼 | — | メール・郵便などの依頼。いまの状態(status・resolved_on)は「解決にした」から決まる(docs/adr/0034) | received_on(届いた日)・due_on(期限)は中身の日付 | 済 |
@@ -58,9 +60,10 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | Person::NameChange | 氏名の変更 | E | 1 人の 1 回の改姓・改名 | — | 氏名が変わった。変わる前の氏名・旧氏の併記を持つ。代表権のある理事なら登記の事由を作る | changed_on | 済 |
 | Person::ChangeCancellation | 住所・氏名の出来事の取消 | E | 1 つの出来事の取消 | 出来事が同じ(1 つに 1 つ) | 打ち間違いのとき。いちばん新しい出来事だけ。理由は必須 | cancelled_at | 済 |
 | PersonYear | 人の年度ごとの記録 | R | 1 人の 1 年度のメール・電話・メモ(世代) | 人と年度が同じ | 年度ごとの連絡先。氏名・住所は持たない(docs/adr/0029) | — | 済 |
-| ProcedureRun | 手続き | LE | 1 年度の 1 つの年に一度の手続き | 手続きの種類と年度が同じ | 事業報告・役員の改選など | — | 待 |
-| ProcedureStep | 手続きの手順の記録 | E | 1 つの手続きの 1 つの手順 | 手続きと手順の種類が同じ | 済み・対象外・確かめたこと | completed_on | 待 |
-| ProgramActivity | 事業の実施内容 | R | 1 年度の 1 事業の実施内容 | 事業報告書と部門が同じ | 事業報告書の事業ごとの記載 | — | 待 |
+| ProcedureRun | 手続き | LE | 1 年度の 1 つの年に一度の手続き | 手続きの種類と年度が同じ | 事業報告・役員の改選など。始めるのは start!。いまの状態(済んだ数・次にやること)は手順から毎回決まる(docs/adr/0038) | — | 済 |
+| ProcedureStep | 手続きの手順の記録 | LE | 1 つの手続きの 1 つの手順 | 手続きと手順の種類が同じ | 確かめたこと・メモは作業の中身(ふつうに直してよい)。保存する状態(status・completed_on)は最後の状態の変化から決まり、直接は書き換えない(docs/adr/0038) | — | 済 |
+| ProcedureStep::StatusChange | 手順の状態の変化 | E | 1 回の状態の変化 | — | 済みにした(済んだ日)・対象外にした(理由)・済みを取り消した。final の手順を済みにするのは元に戻せない。ほかは元に戻せる | changed_at(中身の日付: completed_on) | 済 |
+| ProgramActivity | 事業の実施内容 | R | 1 年度の 1 事業の実施内容 | 事業報告書と部門が同じ | 事業報告書の事業ごとの記載。事業報告の中身なので、ふつうに直してよい(ADR-0006。docs/adr/0038) | — | 済 |
 | ProgramProfile | 事業の主な活動 | R | 1 つの事業の主な活動 | 部門コードが同じ | 定款の事業(年度によらない) | — | 待 |
 | Registration | 登記の事由 | LE | 1 つの登記の事由から登記まで | 任期・住所の変更・氏名の変更が同じ | 理事の重任・就任・住所の変更・氏名の変更。どの申請に入れたかと、登記した日(いまの状態。申請の完了で決まる)を持つ(docs/adr/0031) | cause_on(原因の日)・due_on(期限。日が不明なら空) | 済 |
 | RegistrationFiling | 登記の申請 | LE | 法務局への 1 回の申請 | — | 登記の事由をまとめて申請する。いまの状態は詳細のイベントから(docs/adr/0031) | — | 済 |
@@ -69,8 +72,9 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | RegistrationFiling::Correction | 登記の申請の補正 | E | 1 回の補正の求め | — | 法務局から求められたこと | noticed_on | 済 |
 | RegistrationFiling::Completion | 登記の完了 | E | 1 つの申請の完了 | 申請が同じ(1 つに 1 つ) | 登記の事由を登記したにし、待っていたやることを作業中に戻す | completed_on | 済 |
 | RegistrationFiling::Withdrawal | 登記の申請の取下げ | E | 1 つの申請の取下げ | 申請が同じ(1 つに 1 つ) | 理由は必須。登記の事由は新しい申請に入れ直せる | withdrawn_on | 済 |
-| Resolution | 決議 | LE | 1 つの総会・理事会の決議 | — | 総会・理事会(書面決議を含む) | 提案した日・開いた日 | 待 |
-| ResolutionItem | 決議の議案 | E | 1 つの議案 | — | 役員の選任・事業報告の承認など | applied_on(記録へ反映した日) | 待 |
+| Resolution | 決議 | LE | 1 つの総会・理事会の決議 | — | 総会・理事会(書面決議を含む)。成立した日は取り消していない同意から毎回決まる。同意を記録した・議案を反映した決議は消せない(docs/adr/0038) | proposed_on(提案した日)・held_on(開いた日)は中身の日付 | 済 |
+| ResolutionItem | 決議の議案 | R | 1 つの議案 | — | 役員の選任・事業報告の承認など。決議の中身。反映した議案は消せない | — | 済 |
+| ResolutionItem::Application | 議案の反映 | E | 1 つの議案の反映 | 議案が同じ(1 つに 1 つ) | 成立した決議の内容を記録(役員の任期・登記の事由・事業報告の承認)へ反映した。元に戻せない操作 | applied_on | 済 |
 | Session | ログインのセッション | システム | 1 回のログイン | — | ログイン | verified_at(本人を確かめ直した日時) | — |
 | SiwakeImport | 仕訳の取り込み | E | 1 回の会計王のファイルの取り込み | — | 会計王の SIWAKE ファイル | exported_at(ファイルを書き出した日時) | 待 |
 | SlackPost | Slack への送信 | E | 1 回の送信 | — | 期限のリマインド・記録の知らせ | posted_at | 待 |
@@ -106,6 +110,11 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | はじめに(最初の起動のウィザード) | Organization・FilingDestination | 法人が無いときホームから移る |
 | 定款と事業 | ArticleVersion・ProgramProfile | |
 | ログインのしかた | Passkey | |
+| 手続き(この手順を済みにする・対象外にする・済みを取り消す) | ProcedureStep::StatusChange.change! | final の手順は元に戻せない。ほかは元に戻せる。同じ状態なら何もしない |
+| 手続きを始める | ProcedureRun.start! | もう始めてあれば、その手続き |
+| 事業報告の 総会で承認した日・提出した日・公告した日 | AnnualReport::Milestone.record! | 手順を済みにしたとき・決議の反映でも記録する。締めた年度を直すと「出し直しが要る」(automatic) |
+| 同意を記録・取り消す | Consent.record!・Consent::Cancellation.cancel! | 取り消しても同意の記録は残る。成立に数えるのは Resolution#consents(取り消していないもの) |
+| 記録に反映する(決議の議案) | ResolutionItem::Application.apply! | 元に戻せない操作 |
 | 住所が変わった・氏名が変わった | Person::AddressChange.record!・Person::NameChange.record! | 元に戻せない操作。打ち間違いは Person::ChangeCancellation.cancel!(いちばん新しい出来事だけ) |
 | 住所・氏名の移り変わり | Person#history | 名簿・届出書・登記は Person#address_on・display_name_on(その日の値) |
 | 入会を認める・認めない | MemberApplication::Approval.approve!・MemberApplication::Rejection.reject! | 元に戻せない操作(ADR-0007) |
@@ -182,3 +191,25 @@ erDiagram
 - やることのいまの状態: 最後の状態の変化(changed_at・id の順)の状態。変化が無ければ未着手。待ちなら待つもの、済みなら済んだ日時・ひとこと・自動かどうかも、その変化から。照合は `bin/rails model:verify`。
 - 依頼のいまの状態: 「解決にした」があれば解決(解決した日はその日付)、無ければ進行中。
 - 状態の変化・解決・案の決定は、ふつうの操作なので元に戻せる(元に戻すと、そのイベントも消える。docs/adr/0034)。
+
+## 手続き・決議・提出の ER 図
+
+```mermaid
+erDiagram
+  ProcedureRun ||--o{ ProcedureStep : "手順"
+  ProcedureStep ||--o{ "ProcedureStep::StatusChange" : "済みにした・対象外・取り消した"
+  ProcedureRun ||--o| AnnualReport : "事業報告(同じ年度)"
+  AnnualReport ||--o{ "AnnualReport::Milestone" : "承認・提出・公告・出し直し"
+  AnnualReport ||--o{ ProgramActivity : "事業ごとの実施内容"
+  Resolution ||--o{ ResolutionItem : "議案"
+  Resolution ||--o{ Consent : "同意"
+  Consent ||--o| "Consent::Cancellation" : "取り消す"
+  ResolutionItem ||--o| "ResolutionItem::Application" : "記録に反映した"
+  "ResolutionItem::Application" }o--o{ OfficerTerm : "役員の選任・互選"
+  "ResolutionItem::Application" }o--o| "AnnualReport::Milestone" : "事業報告の承認"
+  "ProcedureStep::StatusChange" }o--o| "AnnualReport::Milestone" : "提出・公告・出し直し"
+```
+
+- 手順の保存する状態: 最後の状態の変化(id の順)の状態と済んだ日。変化が無ければ open。画面の状態(未着手・進行中・待ち・期限切れ・記録から済み)は、これと確かめたこと・事業報告の日付から毎回計算する。照合は `bin/rails model:verify`。
+- 事業報告のいまの状態: 節目の種類ごとに、最後の記録(id の順)の日付。照合は `bin/rails model:verify`。
+- 決議の成立: 書面決議は、議決権を持つ全員の取り消していない同意がそろった日。取り消していない同意は 1 人 1 つ(model:verify でも確かめる)。

@@ -81,7 +81,7 @@ class TodosTest < ActionDispatch::IntegrationTest
     post todo_status_changes_path(t), params: { status: "done", done_note: "出した" }
     assert t.reload.done?
     post todo_status_changes_path(t), params: { status: "todo" }
-    AnnualReport.create!(fiscal_year: 2024, submitted_on: Date.new(2026, 11, 24)) rescue skip("事業報告書を作れない")
+    create_annual_report!(2024, submitted_on: Date.new(2026, 11, 24)) rescue skip("事業報告書を作れない")
     Todo.refresh_auto!
     assert t.reload.done?
     assert_equal "auto", t.done_by
@@ -89,7 +89,7 @@ class TodosTest < ActionDispatch::IntegrationTest
 
   test "B1: 一覧を開いて自動で済みになっても、やることの画面の元に戻すでは戻らず、食い違わない" do
     t = Todo.create!(title: "提出する", fiscal_year: 2024, kind: "window", done_rule: "annual_report_submitted")
-    AnnualReport.create!(fiscal_year: 2024, submitted_on: Date.new(2026, 11, 24))
+    create_annual_report!(2024, submitted_on: Date.new(2026, 11, 24))
     assert_difference -> { AuditOperation.count }, 1 do
       get todos_path
     end

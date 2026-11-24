@@ -12,16 +12,16 @@ class ProceduresHelperTest < ActionView::TestCase
     step.check!("通帳を記帳した")
     assert_match %r{\A1/\d+ 確認\z}, step_meta(step)
 
-    step.complete!(on: Date.new(2026, 4, 10))
+    ProcedureStep::StatusChange.change!(step, status: "done", on: Date.new(2026, 4, 10))
     assert_equal "済み 2026/04/10", step_meta(step)
 
     skipped = @run.step("corporate_tax")
-    skipped.skip!("")
+    ProcedureStep::StatusChange.change!(skipped, status: "skipped")
     assert_equal "対象外", step_meta(skipped)
   end
 
   test "記録から済みと分かる手順と、返事を待つ手順" do
-    AnnualReport.create!(fiscal_year: 2025, submitted_on: Date.new(2026, 6, 1))
+    create_annual_report!(2025, submitted_on: Date.new(2026, 6, 1))
     assert_equal "済み(記録から)", step_meta(ProcedureRun.find(@run.id).step("submit"))
 
     election = ProcedureRun.create!(kind: "officer_election", period: 2026)
@@ -43,7 +43,9 @@ class ProceduresHelperTest < ActionView::TestCase
     end
     travel_to Date.new(2026, 7, 2) { assert_match "2 日超過", due_badge(@run) }
 
-    @run.steps.each { it.update!(status: "skipped") }
+    create_annual_report!(2025)
+    FiscalPeriod.create!(year: 2025)
+    @run.steps.each { ProcedureStep::StatusChange.change!(it, status: it.definition.optional? ? "skipped" : "done") }
     assert_match "済み", due_badge(ProcedureRun.find(@run.id))
   end
 

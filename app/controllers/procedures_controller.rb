@@ -17,7 +17,7 @@ class ProceduresController < ApplicationController
   end
 
   def create
-    run = ProcedureRun.find_or_create_by!(kind: params.require(:kind), period: Integer(params.require(:period)))
+    run = ProcedureRun.start!(kind: params.require(:kind), period: Integer(params.require(:period)))
     redirect_to procedure_path(run)
   end
 

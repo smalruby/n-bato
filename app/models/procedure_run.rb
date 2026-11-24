@@ -1,6 +1,22 @@
 # 年に一度の手続き 1 回分。手順(ProcedureStep)の進み具合を持つ。
+# 長いイベント(docs/adr/0038)。始めるのは ProcedureRun.start!。いまの状態(済んだ数・次にやること)は手順から毎回決まる(列には持たない)。
 class ProcedureRun < ApplicationRecord
-  has_many :procedure_steps, dependent: :destroy
+  has_many :procedure_steps, dependent: :restrict_with_error
+
+  def self.model_name_label = "手続き"
+
+  # 手続きを始める。もう始めてあれば、その手続きを返す(二度押しでも同じ)。
+  def self.start!(kind:, period:)
+    find_by(kind:, period:) || Audit.operation do
+      transaction(requires_new: true) do
+        run = create!(kind:, period:)
+        Audit.label!("手続きを始めた: #{run.name}(#{run.period_label})")
+        run
+      end
+    end
+  rescue ActiveRecord::RecordNotUnique
+    where(kind:, period:).take!
+  end
 
   validates :kind, inclusion: { in: -> { ProcedureDefinition.all.keys } }
   validates :period, presence: true, uniqueness: { scope: :kind }

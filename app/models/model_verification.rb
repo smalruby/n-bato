@@ -6,7 +6,32 @@ module ModelVerification
   # 食い違いの一覧(文字列)。空なら一致。
   def mismatches
     voucher_mismatches + member_application_mismatches + registration_filing_mismatches + registration_mismatches + person_history_mismatches +
-      todo_mismatches + incoming_request_mismatches
+      todo_mismatches + incoming_request_mismatches + procedure_step_mismatches + annual_report_mismatches + consent_mismatches
+  end
+
+  # 手続きの手順: 保存する状態と済んだ日が、最後の状態の変化と同じか(docs/adr/0038)
+  def procedure_step_mismatches
+    ProcedureStep.includes(:status_changes).filter_map do |s|
+      next if s.state_mismatches.empty?
+
+      want = s.derived_state
+      "手順 ##{s.id}: いまの状態 #{s[:status]}・#{s.completed_on.inspect} / イベントから #{want['status']}・#{want['completed_on'].inspect}"
+    end
+  end
+
+  # 事業報告: 承認・提出・公告・出し直しの日付が、節目の種類ごとの最後の記録と同じか
+  def annual_report_mismatches
+    AnnualReport.includes(:milestones).filter_map do |r|
+      diff = r.state_mismatches
+      "事業報告 #{r.fiscal_year}年度: #{diff.join('・')} が節目の記録と違う" if diff.any?
+    end
+  end
+
+  # 同意: 取り消していない同意は、1 つの決議に 1 人 1 つ(一意の索引の代わり)
+  def consent_mismatches
+    Consent.active.group(:resolution_id, :person_id).having("COUNT(*) > 1").count.map do |(resolution_id, person_id), n|
+      "決議 ##{resolution_id}: 人 ##{person_id} の取り消していない同意が #{n} つある"
+    end
   end
 
   # やること: 状態・待つもの・済みの日時とひとことが、最後の状態の変化と同じか(docs/adr/0034)

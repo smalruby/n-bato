@@ -72,7 +72,10 @@ class FiscalPeriod < ApplicationRecord
     end
   end
 
-  # 締めた年度のデータを直したら、提出済みの事業報告に「再提出が要る」と印を付ける
+  # 締めた年度のデータを直したら、提出済みの事業報告に「再提出が要る」と印を付ける(決まりで付ける節目。docs/adr/0038)。
+  # 印は直した操作とは別の操作にし、範囲も分ける(AnnualReport::AUTO_SCOPE。Todo.refresh_auto! と同じ)。
+  # 同じ操作に入れると、別の範囲の直した操作を元に戻したときに、まだ残っている直しの分の印まで外れるため。
+  # 残った印は害が無い(出し直すか、人が確かめて済ませる)。
   def self.changed_after_close!(years)
     Array(years).uniq.each do |y|
       next unless self.for(y)&.closed?
@@ -80,7 +83,11 @@ class FiscalPeriod < ApplicationRecord
       report = AnnualReport.find_by(fiscal_year: y)
       next unless report&.submitted_on
 
-      report.update!(resubmit_needed_on: Date.current) if report.resubmit_needed_on.nil? || (report.resubmitted_on && report.resubmitted_on >= report.resubmit_needed_on)
+      if report.resubmit_needed_on.nil? || (report.resubmitted_on && report.resubmitted_on >= report.resubmit_needed_on)
+        Audit.separate_operation(scope: AnnualReport::AUTO_SCOPE, label: "決まりで、#{y}年度の事業報告に「出し直しが要る」を付けた") do
+          AnnualReport::Milestone.record!(report, "resubmit_needed", on: Date.current, automatic: true)
+        end
+      end
     end
   end
 

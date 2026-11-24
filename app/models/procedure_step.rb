@@ -1,14 +1,46 @@
 # 手続きの中の 1 つの手順の記録。状態は 6 つ(docs/design-system の Stepper):
 #   todo 未着手 / current 進行中 / waiting 待ち / done 済み / overdue 期限切れ / skipped 対象外
 # 保存するのは done・skipped と、確かめたこと(checks)・メモ。ほかは計算で決める。
+# 長いイベント(docs/adr/0038)。済みにした・対象外にした・済みを取り消したは詳細のイベント ProcedureStep::StatusChange。
+# 保存する状態(列の status・completed_on)は「いまの状態」で、ProcedureStep::StatusChange.change! だけが書き換える(照合は model:verify)。
+# 確かめたこと(checks)・メモは作業の中身で、ふつうに直してよい(操作履歴に残る。ADR-0006)。
 class ProcedureStep < ApplicationRecord
   STATUS_LABELS = { "todo" => "未着手", "current" => "進行中", "waiting" => "待ち", "done" => "済み", "overdue" => "期限切れ", "skipped" => "対象外" }.freeze
+  STORED_STATUSES = %w[open done skipped].freeze
+  STATE_COLUMNS = %w[status completed_on].freeze
 
   belongs_to :procedure_run
+  has_many :status_changes, -> { order(:id) }, class_name: "ProcedureStep::StatusChange", dependent: :restrict_with_error
 
   validates :key, presence: true, uniqueness: { scope: :procedure_run_id }
-  validate { errors.add(:status, :inclusion) unless self[:status].in?(%w[open done skipped]) } # 保存する値(status メソッドは計算した状態)
+  validate { errors.add(:status, :inclusion) unless self[:status].in?(STORED_STATUSES) } # 保存する値(status メソッドは計算した状態)
   validate { errors.add(:key, "が手続きの定義にありません") if procedure_run && definition.nil? }
+  validate :state_written_by_status_change
+
+  def self.model_name_label = "手続きの手順"
+
+  # 元に戻す・やり直すのあとに、状態を確かめる手順(Audit.check_states!)
+  def self.audit_state_owner(change) = find_by(id: change.auditable_id)
+
+  # 保存する状態は、最後の変化(id の順)から決まる。変化が無ければ open(docs/adr/0005)
+  def self.state_for(change)
+    { "status" => change&.status || "open", "completed_on" => change&.status.in?(%w[done skipped]) ? change.completed_on : nil }
+  end
+
+  def derived_state = ProcedureStep.state_for(status_changes.max_by(&:id))
+
+  def state_mismatches
+    want = derived_state
+    STATE_COLUMNS.reject { Audit.dump(self[it]).to_s == Audit.dump(want[it]).to_s }
+  end
+
+  # いまの状態の列を書き換える。呼ぶのは ProcedureStep::StatusChange.change! だけ。まだ保存していない手順なら作る。
+  def apply_state!(state)
+    @applying_state = true
+    update!(state)
+  ensure
+    @applying_state = false
+  end
 
   def definition = procedure_run.definition.step(key)
   def run = procedure_run
@@ -77,21 +109,6 @@ class ProcedureStep < ApplicationRecord
     nil
   end
 
-  # 手順を済みにする。effect がある手順は、事業報告の日付も記録する。
-  def complete!(on: Date.current)
-    transaction do
-      self.status = "done"
-      self.completed_on = on
-      save!
-      case definition.effect
-      when "submitted" then run.annual_report.update!(submitted_on: on)
-      when "bs_published" then run.annual_report.update!(bs_published_on: on)
-      when "close_year" then FiscalPeriod.for(run.period).close!(by: Current.user, on:)
-      when "resubmitted" then run.annual_report.update!(resubmitted_on: on)
-      end
-    end
-  end
-
   # 出る条件のある手順(再提出など)が、いま当てはまるか
   def applicable?
     case definition.only_when
@@ -100,11 +117,16 @@ class ProcedureStep < ApplicationRecord
     end
   end
 
-  def reopen!
-    update!(status: "open", completed_on: nil)
-  end
+  private
 
-  def skip!(reason)
-    update!(status: "skipped", completed_on: Date.current, note: reason.presence || note)
+  # 保存する状態は、状態の変化からだけ書く(作るときは open)。元に戻す・やり直すは検証を通さずに書くので止めない。
+  def state_written_by_status_change
+    return if @applying_state
+
+    if new_record?
+      errors.add(:base, "手順は open で作ってください(済みにするときは ProcedureStep::StatusChange.change!)") unless self[:status] == "open" && completed_on.nil?
+    elsif (changed = STATE_COLUMNS & changed_attribute_names_to_save).any?
+      errors.add(:base, "#{changed.join('・')} は直接書き換えません。ProcedureStep::StatusChange.change!(手順, status: …) を使ってください")
+    end
   end
 end

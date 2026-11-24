@@ -33,23 +33,28 @@ class ProcedureStepTest < ActiveSupport::TestCase
     assert_not step.checked?("通帳を記帳した")
     assert step.applicable?, "出る条件の無い手順はいつも当てはまる"
 
-    step.complete!
+    ProcedureStep::StatusChange.change!(step, status: "done")
     assert_equal "done", step.reload.status
-    step.reopen!
+    ProcedureStep::StatusChange.change!(step, status: "open")
     assert_nil step.reload.completed_on
     assert_not_equal "done", step.status
 
-    step.skip!("今年は対象外")
-    assert_equal [ "skipped", "今年は対象外" ], [ step.reload.status, step.note ]
-    step.skip!("")
-    assert_equal "今年は対象外", step.reload.note, "理由が空なら前のメモを残す"
+    assert_equal %w[done open], step.status_changes.map(&:status)
+
+    tax = run.step("corporate_tax") # 対象外にできるのは、定義で optional の手順だけ
+    ProcedureStep::StatusChange.change!(tax, status: "skipped", reason: "今年は対象外")
+    assert_equal [ "skipped", "今年は対象外" ], [ tax.reload.status, tax.note ]
+    ProcedureStep::StatusChange.change!(tax, status: "open")
+    ProcedureStep::StatusChange.change!(tax, status: "skipped", reason: "")
+    assert_equal "今年は対象外", tax.reload.note, "理由が空なら前のメモを残す"
+    assert_equal %w[skipped open skipped], tax.status_changes.map(&:status)
   end
 
   test "公告・再提出の手順を済みにすると、事業報告に日付が入る" do
-    report = AnnualReport.create!(fiscal_year: 2025, submitted_on: Date.new(2026, 6, 1), resubmit_needed_on: Date.new(2026, 7, 1))
+    report = create_annual_report!(2025, submitted_on: Date.new(2026, 6, 1), resubmit_needed_on: Date.new(2026, 7, 1))
     run = ProcedureRun.create!(kind: "annual_report", period: 2025)
-    run.step("publish_bs").complete!(on: Date.new(2026, 6, 10))
-    run.step("resubmit").complete!(on: Date.new(2026, 7, 5))
+    ProcedureStep::StatusChange.change!(run.step("publish_bs"), status: "done", on: Date.new(2026, 6, 10))
+    ProcedureStep::StatusChange.change!(run.step("resubmit"), status: "done", on: Date.new(2026, 7, 5))
     report.reload
     assert_equal Date.new(2026, 6, 10), report.bs_published_on
     assert_equal Date.new(2026, 7, 5), report.resubmitted_on

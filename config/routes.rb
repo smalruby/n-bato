@@ -14,13 +14,10 @@ Rails.application.routes.draw do
   end
   get "year/:year" => "working_years#switch", as: :year_switch, constraints: { year: /\d{4}/ }
 
+  # 手続き。手順の済みにする・対象外にする・済みを取り消すは、状態の変化を「作る」で表す(docs/adr/0008・0038)
   resources :procedures, only: %i[index show create] do
     resources :steps, only: %i[update], controller: "procedure_steps", param: :key do
-      member do
-        post :complete
-        post :reopen
-        post :skip
-      end
+      resources :status_changes, only: :create, module: :procedure_steps
     end
   end
   resource :session
@@ -61,10 +58,15 @@ Rails.application.routes.draw do
       resource :adoption, only: :create, module: :incoming_request_messages
     end
   end
+  # 決議。同意の取消・議案の反映は、それぞれ「作る」で表す(docs/adr/0008・0038)
   resources :resolutions do
-    resources :consents, only: %i[create destroy]
+    resources :consents, only: :create do
+      resource :cancellation, only: :create, module: :consents
+    end
+    resources :items, only: [], controller: "resolution_items" do
+      resource :application, only: :create, module: :resolution_items
+    end
     get "documents/:doc", to: "resolutions#document", as: :document, on: :member
-    post "items/:item_id/apply", to: "resolutions#apply_item", as: :apply_item, on: :member
   end
   resources :registrations, only: %i[index]
   # 登記の申請(見直し第20回、docs/adr/0031)
