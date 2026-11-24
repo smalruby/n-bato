@@ -50,11 +50,26 @@ class FiscalPeriod < ApplicationRecord
     end
   end
 
+  # 締めを解けないときの理由(BlockedReason)。解ける・締めていないなら nil。
+  def reopen_blocked_reason
+    return unless closed? && (nxt = self.class.for(year + 1))&.closed?
+
+    BlockedReason.new(title: "この年度の締めは解けません", reason: "締めは新しい年度から解きます(次の年度の期首の残高が、この年度の締めから決まるため)。",
+                      what: "#{nxt.label}が締めてあります", alternative: "代わりに: 先に#{nxt.label}の締めを解いてください。")
+  end
+
+  # 会計王へ新規分を書き出せないときの理由(BlockedReason)。書き出せるなら nil。
+  def siwake_export_blocked_reason
+    return unless provisional?
+
+    BlockedReason.new(title: "まだ書き出せません", reason: "会計王へ書き出せるのは、前の年度を締めたあとです(締める前の仕訳は仮のため)。",
+                      what: "#{previous.label}をまだ締めていません", alternative: "代わりに: 手続き「事業報告書等の提出」で#{previous.label}を締めてください。")
+  end
+
   # 締めを解く(理由を書く。変更の記録に残る)
   def reopen!(reason:)
     raise ArgumentError, "理由を書いてください" if reason.to_s.strip.empty?
-    nxt = self.class.for(year + 1)
-    raise ArgumentError, "#{nxt.label}が締めてあるので解けません(新しい年度から解きます)" if nxt&.closed?
+    raise ArgumentError, reopen_blocked_reason.message if reopen_blocked_reason
 
     Audit.reason!(reason)
     update!(closed_on: nil, closed_by: nil, closed_at: nil)

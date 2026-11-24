@@ -3,7 +3,9 @@
   <div class="card mb-4" style="display:grid;gap:6px">
     <div><b>この年度の状態: <%= period.state_label %></b>
       <% if period.closed? %>(<%= l period.closed_on %><%= " #{period.closed_by.name}" if period.closed_by&.name.present? %>に締めた)<% end %></div>
-    <% if period.closed? %>
+    <% if period.closed? && (blocked = period.reopen_blocked_reason) %>
+      <div><%= disabled_action "締めを解く", blocked %></div>
+    <% elsif period.closed? %>
       <%= form_with url: reopen_fiscal_period_path(period.year), style: "display:flex;flex-wrap:wrap;gap:4px;align-items:center",
             data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do |f| %>
         <input type="text" name="reason" required data-no-reason-default placeholder="締めを解く理由" aria-label="締めを解く理由" class="nb-input" style="width:240px;border-color:var(--grid-line-strong)">

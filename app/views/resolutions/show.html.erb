@@ -2,7 +2,17 @@
 <% crumbs [ "決議", resolutions_path ], @resolution.title %>
 <div class="flex items-center justify-between mb-4">
   <h1 class="page-title mb-0"><%= @resolution.title %></h1>
-  <%= link_to "編集", edit_resolution_path(@resolution), class: "btn-secondary" %>
+  <div class="flex gap-2 items-center">
+    <%= link_to "編集", edit_resolution_path(@resolution), class: "btn-secondary" %>
+    <%# 同意を記録した・議案を反映した決議は消せない。灰色のボタンと (i) で理由を出す(デザインシステム DisabledAction) %>
+    <% if (blocked = @resolution.destroy_blocked_reason) %>
+      <%= disabled_action "削除", blocked %>
+    <% else %>
+      <%= button_to "削除", resolution_path(@resolution), method: :delete, class: "nb-btn nb-btn--danger",
+            form: { style: "display:inline", data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } },
+            data: { confirm_twice_target: "button", armed_label: "もう一度押すと消します" } %>
+    <% end %>
+  </div>
 </div>
 <div class="grid md:grid-cols-3 gap-4 mb-6">
   <div class="card"><div class="text-sm text-stone-500">機関・方法</div><div><%= @resolution.body_label %>・<%= @resolution.method_label %></div></div>
@@ -21,7 +31,7 @@
   </div>
 </div>
 
-<div class="card mb-6">
+<div class="card mb-6" id="items">
   <h2 class="section-title mt-0">議案</h2>
   <% @resolution.items.each do |item| %>
     <div class="border-t border-stone-200 py-2">
@@ -38,7 +48,7 @@
 </div>
 
 <% if @resolution.written? %>
-  <div class="card">
+  <div class="card" id="consents">
     <h2 class="section-title mt-0">同意（<%= @resolution.consents.size %> / <%= @voters.size %>）</h2>
     <p class="text-sm text-stone-600 mb-2"><%= @resolution.body == "general_meeting" ? "#{FiscalYear.for(@resolution.proposed_on).label}の正会員" : "提案日に在任の理事" %>全員の同意で成立します（<%= @resolution.article_reference %>）。</p>
     <table class="data-table">
@@ -49,7 +59,7 @@
           <td><%= person.name %></td>
           <% if c %>
             <td><%= l c.consented_on %></td><td><%= c.via_label %></td>
-            <td><%= button_to "取り消す", resolution_consent_cancellation_path(@resolution, c), class: "btn-danger" %></td>
+            <td><% if (blocked = c.cancel_blocked_reason) %><%= disabled_action "取り消す", blocked %><% else %><%= button_to "取り消す", resolution_consent_cancellation_path(@resolution, c), class: "btn-danger" %><% end %></td>
           <% else %>
             <td colspan="3">
               <%= form_with scope: :consent, url: resolution_consents_path(@resolution), class: "flex gap-2 items-center" do |f| %>
@@ -63,6 +73,13 @@
         </tr>
       <% end %>
     </table>
+    <% cancelled = @resolution.all_consents.includes(:person, :cancellation).select(&:cancelled?) %>
+    <% if cancelled.any? %>
+      <p class="text-sm text-stone-600 mt-2">取り消した同意の記録(成立には数えません):
+        <% cancelled.each do |c| %>
+          <span class="whitespace-nowrap"><span class="nb-cancelled-tag">取消</span><%= c.person.name %> <%= l c.consented_on %>(<%= c.via_label %>)・<%= c.cancellation.cancelled_at.strftime("%Y/%m/%d") %> に取り消した</span>
+        <% end %></p>
+    <% end %>
     <% if @voters.empty? %><p class="text-red-700 text-sm mt-2">議決権を持つ人がいません。会員・役員の記録を確認してください。</p><% end %>
   </div>
 <% end %>

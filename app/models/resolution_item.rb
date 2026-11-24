@@ -51,5 +51,13 @@ class ResolutionItem < ApplicationRecord
   # 記録に反映した日(ResolutionItem::Application。移す前は列だった)
   def applied_on = application&.applied_on
 
+  # 消せないときの理由(BlockedReason)。消せるなら nil。決議の編集の画面の「この議案を削除」と、決議を保存するときの検証で使う。
+  def destroy_blocked_reason
+    return unless applied?
+
+    BlockedReason.new(title: "この議案は消せません", reason: "役員の任期・登記・事業報告の記録に効いているので、記録に反映した議案は消せません。",
+                      what: "#{I18n.l(applied_on)} に記録に反映しました")
+  end
+
   def applicable? = resolution.established? && !applied? && kind != "general"
 end

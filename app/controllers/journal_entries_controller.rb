@@ -129,12 +129,9 @@ class JournalEntriesController < ApplicationController
   end
 
   def require_editable
-    return if @entry.editable?
+    return unless (blocked = @entry.edit_blocked_reason)
 
-    message = if @entry.imported? then "会計王から取り込んだ仕訳は変更できません（会計王で直して取り込み直してください）"
-    elsif @entry.cancelled? then "取り消した仕訳は変更できません"
-    else "AI の提案を承認して記帳した仕訳は書き換えられず、消せません。直すときは「取り消す」を使ってください"
-    end
+    message = blocked.message
     respond_to do |format|
       format.json { render json: {ok: false, message:}, status: :forbidden }
       format.html { redirect_to @entry, alert: message }

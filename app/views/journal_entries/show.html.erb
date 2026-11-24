@@ -14,7 +14,10 @@
   </dl>
   <div class="mt-4 flex gap-2">
     <%= link_to "一覧へ", journal_entries_path(year: @entry.fiscal_year), class: "btn-secondary" %>
-    <% if @entry.editable? %>
+    <% if (blocked = @entry.edit_blocked_reason) %>
+      <%= disabled_action "編集", blocked %>
+      <%= disabled_action "削除", blocked %>
+    <% else %>
       <%= link_to "編集", edit_journal_entry_path(@entry), class: "btn" %>
       <%= button_to "削除", @entry, method: :delete, class: "btn-danger", form: { data: { turbo_confirm: "削除しますか？" } } %>
     <% end %>
