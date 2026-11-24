@@ -111,7 +111,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     run = ProcedureRun.start!(kind: "officer_election", period: 2026)
     assert_equal run, ProcedureRun.start!(kind: "officer_election", period: 2026)
     # 二度押しで、もう一方が先に作った(一意の索引で止まる)ときも、作ってあった手続きを返す
-    overriding(ProcedureRun, :find_by, ->(*, **) {}) do
+    overriding(ProcedureRun, :find_by, ->(*, **) { }) do
       overriding(ProcedureRun, :create!, ->(*, **) { raise ActiveRecord::RecordNotUnique, "UNIQUE constraint failed" }) do
         assert_equal run, ProcedureRun.start!(kind: "officer_election", period: 2026)
       end
@@ -132,7 +132,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
   test "二度押しで、まだ無かった手順の記録を作る競り合いになっても 500 にしない(一意の索引)" do
     ProcedureStep::StatusChange.change!(@run.step("close_books"), status: "done")
     late = ProcedureRun.find(@run.id).procedure_steps.build(key: "close_books")
-    overriding(ProcedureStep, :find_by, ->(*) {}) do
+    overriding(ProcedureStep, :find_by, ->(*) { }) do
       late.define_singleton_method(:valid?) { |*| true }
       error = assert_raises(ArgumentError) { ProcedureStep::StatusChange.change!(late, status: "skipped") }
       assert_equal "もう対象外にしてあります", error.message
