@@ -172,22 +172,37 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     assert_match "事業報告 2025年度: approved_on", ModelVerification.mismatches.join
   end
 
-  test "締めた年度を直すと、決まりで「出し直しが要る」を付ける。直したのを元に戻すと印も外れる" do
+  test "締めた年度を直すと、決まりで「出し直しが要る」を付ける。印は別の操作(範囲 annual_reports_auto)で、直したのを元に戻しても残る" do
     AnnualReport::Milestone.record!(@report, "submitted", on: Date.new(2026, 6, 1))
     FiscalPeriod.create!(year: 2025, closed_on: Date.new(2026, 6, 2))
     Audit.operation(user: @user, scope: "journal_entries", label: "締めた年度を直した") do
       @report.update!(achievements: "直した")
       FiscalPeriod.changed_after_close!(2025)
+      @report.update!(achievements: "直した2") # 印を付けたあとも、外の操作は続く
     end
-    op = AuditOperation.last
-    assert_equal "締めた年度を直した", op.label, "決まりの節目は、包んだ操作の名前を変えない"
+    edit, mark = AuditOperation.order(:id).last(2).sort_by { it.scope == "journal_entries" ? 0 : 1 }
+    assert_equal [ "締めた年度を直した", "journal_entries", @user ], [ edit.label, edit.scope, edit.user ]
+    assert_equal %w[AnnualReport AnnualReport], edit.audit_changes.map(&:auditable_type)
+    assert_equal [ AnnualReport::AUTO_SCOPE, @user, "決まりで、2025年度の事業報告に「出し直しが要る」を付けた" ], [ mark.scope, mark.user, mark.label ]
     assert_equal Date.current, @report.reload.resubmit_needed_on
     milestone = @report.milestones.last
     assert milestone.automatic
     assert_nil milestone.recorded_by
 
     Audit.undo!(@user, "journal_entries")
-    assert_nil @report.reload.resubmit_needed_on
+    assert_equal [ Date.current, "" ], [ @report.reload.resubmit_needed_on, @report.achievements.to_s ]
+    assert_empty ModelVerification.mismatches
+  end
+
+  test "別の範囲の、締めた年度を直した操作を元に戻しても、出し直しの印は外れない" do
+    AnnualReport::Milestone.record!(@report, "submitted", on: Date.new(2026, 6, 1))
+    FiscalPeriod.create!(year: 2025, closed_on: Date.new(2026, 6, 2))
+    op("journal_entries") { Person.create!(name: "架空A"); FiscalPeriod.changed_after_close!(2025) }
+    op("accounts") { Person.create!(name: "架空B"); FiscalPeriod.changed_after_close!(2025) }
+    assert_equal 1, @report.milestones.where(kind: "resubmit_needed").count, "もう印があれば付け直さない"
+    Audit.undo!(@user, "journal_entries")
+    assert_equal Date.current, @report.reload.resubmit_needed_on
+    assert Person.exists?(name: "架空B")
     assert_empty ModelVerification.mismatches
   end
 

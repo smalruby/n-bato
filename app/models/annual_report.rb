@@ -8,6 +8,8 @@ class AnnualReport < ApplicationRecord
   STATE_COLUMNS = AnnualReport::Milestone::KINDS.values.map(&:first).freeze
   # 事業報告の画面で入れる日付(手続きの記録の欄)
   FORM_DATE_COLUMNS = %w[approved_on submitted_on bs_published_on].freeze
+  # 決まりで付ける「出し直しが要る」の操作の範囲(FiscalPeriod.changed_after_close!)。事業報告の画面の元に戻すでは戻さない
+  AUTO_SCOPE = "annual_reports_auto"
 
   has_many :program_activities, -> { order(:position, :department_id) }, dependent: :destroy
   has_many :milestones, -> { order(:id) }, class_name: "AnnualReport::Milestone", dependent: :restrict_with_error

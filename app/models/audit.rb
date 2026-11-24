@@ -32,6 +32,18 @@ module Audit
     end
   end
 
+  # いまの操作とは別の操作にする(決まりで付ける印など。範囲も分ける)。終わったら外の操作に戻り、外の操作はそのまま続く。
+  # user を渡さなければ、外の操作の人(無ければ Current.user)。
+  def separate_operation(scope:, label: nil, user: nil, &)
+    saved = [ Current.audit_operation, Current.audit_pending, Current.audit_in_block ]
+    user ||= saved[0]&.user || saved[1]&.dig(:user) || Current.user
+    Current.audit_operation = Current.audit_pending = nil
+    Current.audit_in_block = false
+    operation(user:, scope:, label:, &)
+  ensure
+    Current.audit_operation, Current.audit_pending, Current.audit_in_block = saved
+  end
+
   # いまの操作を「元に戻せない操作」にする(承認・提出日の記録・決議の反映・登記の記録)。
   def final!(label = nil)
     if Current.audit_operation
