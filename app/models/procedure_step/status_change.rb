@@ -20,7 +20,7 @@ class ProcedureStep::StatusChange < ApplicationRecord
   def audit_fiscal_year = procedure_step&.procedure_run&.period
 
   # status: done・skipped・open。on は済んだ日(done)。reason は対象外の理由(skipped。空なら前のメモを残す)。
-  # いまの保存する状態と同じなら何もしない(nil を返す)。取り消せない手順(final)は ArgumentError。
+  # いまの保存する状態と同じなら何もしない(nil を返す)。済みにした final の手順を変える・optional でない手順を対象外にするのは ArgumentError。
   # 返事がそろっているかなど(blocked_reason)は画面が確かめる(運用のスクリプトからは、これまでどおり確かめずに済みにできる)。
   def self.change!(step, status:, on: Date.current, reason: "", by: Current.user, at: Time.current)
     raise ArgumentError, "状態が分かりません" unless STATUSES.key?(status)
@@ -36,7 +36,10 @@ class ProcedureStep::StatusChange < ApplicationRecord
         end
         next nil if step[:status] == status
 
-        raise ArgumentError, "この手順は取り消せません" if status == "open" && step.definition.final?
+        # final の手順を済みにしたのは元に戻せない操作(提出した日など)。そのあとは対象外にも取り消しにもしない
+        raise ArgumentError, "この手順は済みにしたので、もう変えられません" if step[:status] == "done" && step.definition.final?
+        # 対象外にできるのは、定義(config/procedures)で optional の手順だけ(画面にもその手順だけボタンを出す)
+        raise ArgumentError, "この手順は対象外にできません" if status == "skipped" && !step.definition.optional?
 
         change = new(status:, completed_on: status == "open" ? nil : (status == "done" ? on : Date.current),
                      note: status == "skipped" ? reason.to_s.strip : "", changed_by: by, changed_at: at)

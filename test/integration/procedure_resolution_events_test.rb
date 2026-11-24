@@ -34,6 +34,21 @@ class ProcedureResolutionEventsFlowTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?] input[name=status][value=done]", procedure_step_status_changes_path(@run, "close_books")
   end
 
+  test "final の手順を済みにしたら、対象外・取り消しは画面の知らせで断る。optional でない手順は対象外にできない" do
+    create_annual_report!(2025)
+    post procedure_step_status_changes_path(@run, "submit"), params: { status: "done", completed_on: "2026-06-28" }
+    post procedure_step_status_changes_path(@run, "submit"), params: { status: "skipped", reason: "間違えた" }
+    assert_equal "この手順は済みにしたので、もう変えられません", flash[:alert]
+    post procedure_step_status_changes_path(@run, "submit"), params: { status: "done", completed_on: "2026-07-15" }
+    assert_match "もう済みにしてあります", flash[:notice]
+    assert_equal Date.new(2026, 6, 28), AnnualReport.find_by!(fiscal_year: 2025).submitted_on
+    assert_equal 1, ProcedureStep::StatusChange.count
+
+    post procedure_step_status_changes_path(@run, "audit"), params: { status: "skipped" }
+    assert_equal "この手順は対象外にできません", flash[:alert]
+    assert_equal "open", @run.step("audit")[:status]
+  end
+
   test "手続きを始めるを二度押ししても 1 つ" do
     2.times { post procedures_path, params: { kind: "officer_election", period: 2026 } }
     assert_equal 1, ProcedureRun.where(kind: "officer_election", period: 2026).count

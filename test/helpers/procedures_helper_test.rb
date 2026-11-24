@@ -43,7 +43,9 @@ class ProceduresHelperTest < ActionView::TestCase
     end
     travel_to Date.new(2026, 7, 2) { assert_match "2 日超過", due_badge(@run) }
 
-    @run.steps.each { ProcedureStep::StatusChange.change!(it, status: "skipped") }
+    create_annual_report!(2025)
+    FiscalPeriod.create!(year: 2025)
+    @run.steps.each { ProcedureStep::StatusChange.change!(it, status: it.definition.optional? ? "skipped" : "done") }
     assert_match "済み", due_badge(ProcedureRun.find(@run.id))
   end
 

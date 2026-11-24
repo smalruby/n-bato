@@ -48,8 +48,22 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     AnnualReport::Milestone.record!(AnnualReport.find_by!(fiscal_year: 2026), "submitted", on: Date.new(2027, 6, 1))
     ProcedureStep::StatusChange.change!(run.step("submit"), status: "done")
     error = assert_raises(ArgumentError) { ProcedureStep::StatusChange.change!(run.step("submit"), status: "open") }
-    assert_equal "この手順は取り消せません", error.message
+    assert_equal "この手順は済みにしたので、もう変えられません", error.message
     assert_raises(ArgumentError) { change!("close_books", "unknown") }
+  end
+
+  test "final の手順は、済みにしたらもう状態を変えない。対象外にできるのは optional の手順だけ" do
+    change!("submit", "done", on: Date.new(2026, 6, 28))
+    %w[skipped open].each do |status|
+      error = assert_raises(ArgumentError) { change!("submit", status) }
+      assert_equal "この手順は済みにしたので、もう変えられません", error.message
+    end
+    assert_equal [ "done", Date.new(2026, 6, 28) ], [ @run.step("submit")[:status], @report.reload.submitted_on ]
+
+    error = assert_raises(ArgumentError) { change!("audit", "skipped") }
+    assert_equal "この手順は対象外にできません", error.message
+    assert_equal "skipped", change!("corporate_tax", "skipped").status
+    assert_equal 2, ProcedureStep::StatusChange.count
   end
 
   test "操作の外で呼んでも、手順の列・イベント・効き目を 1 つの操作にする" do
@@ -134,8 +148,8 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     late = ProcedureRun.find(@run.id).procedure_steps.build(key: "close_books")
     overriding(ProcedureStep, :find_by, ->(*) { }) do
       late.define_singleton_method(:valid?) { |*| true }
-      error = assert_raises(ArgumentError) { ProcedureStep::StatusChange.change!(late, status: "skipped") }
-      assert_equal "もう対象外にしてあります", error.message
+      error = assert_raises(ArgumentError) { ProcedureStep::StatusChange.change!(late, status: "done") }
+      assert_equal "もう済みにしてあります", error.message
     end
     assert_equal 1, ProcedureStep::StatusChange.count
   end

@@ -39,12 +39,15 @@ class ProcedureStepTest < ActiveSupport::TestCase
     assert_nil step.reload.completed_on
     assert_not_equal "done", step.status
 
-    ProcedureStep::StatusChange.change!(step, status: "skipped", reason: "今年は対象外")
-    assert_equal [ "skipped", "今年は対象外" ], [ step.reload.status, step.note ]
-    ProcedureStep::StatusChange.change!(step, status: "open")
-    ProcedureStep::StatusChange.change!(step, status: "skipped", reason: "")
-    assert_equal "今年は対象外", step.reload.note, "理由が空なら前のメモを残す"
-    assert_equal %w[done open skipped open skipped], step.status_changes.map(&:status)
+    assert_equal %w[done open], step.status_changes.map(&:status)
+
+    tax = run.step("corporate_tax") # 対象外にできるのは、定義で optional の手順だけ
+    ProcedureStep::StatusChange.change!(tax, status: "skipped", reason: "今年は対象外")
+    assert_equal [ "skipped", "今年は対象外" ], [ tax.reload.status, tax.note ]
+    ProcedureStep::StatusChange.change!(tax, status: "open")
+    ProcedureStep::StatusChange.change!(tax, status: "skipped", reason: "")
+    assert_equal "今年は対象外", tax.reload.note, "理由が空なら前のメモを残す"
+    assert_equal %w[skipped open skipped], tax.status_changes.map(&:status)
   end
 
   test "公告・再提出の手順を済みにすると、事業報告に日付が入る" do
