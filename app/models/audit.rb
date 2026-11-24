@@ -17,7 +17,7 @@ module Audit
   # ブロックの中の変更を 1 つの操作にまとめる。kind: "final" は元に戻せない操作。
   # 操作は最初の変更が起きたときに作る(変更の無いリクエストでは作らない)。
   def operation(user: Current.user, scope: Current.audit_scope, kind: "do", label: nil)
-    return yield if Current.audit_in_block # 入れ子は外側の操作にまとめる
+    return nested_operation { yield } if Current.audit_in_block # 入れ子は外側の操作にまとめる
 
     begin
       Current.audit_in_block = true
@@ -30,6 +30,17 @@ module Audit
       Current.audit_pending = nil
       Current.audit_in_block = false
     end
+  end
+
+  # 入れ子の操作。入口のセーブポイントが巻き戻って、この中で作った操作の行が消えたら、それを指したままにしない
+  # (外の操作の続きの変更は、もう一度作る操作に残す)。
+  def nested_operation
+    before = Current.audit_operation
+    yield
+  rescue StandardError
+    op = Current.audit_operation
+    Current.audit_operation = nil if before.nil? && op && (op.id.nil? || !AuditOperation.exists?(op.id))
+    raise
   end
 
   # いまの操作とは別の操作にする(決まりで付ける印など。範囲も分ける)。終わったら外の操作に戻り、外の操作はそのまま続く。

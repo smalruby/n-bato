@@ -346,7 +346,10 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
                                     payload: { "appointments" => [ { "person_id" => a.id, "role" => "chair" }, { "person_id" => nobody.id, "role" => "vice_chair" } ] })
     op("resolutions") do
       assert_raises(ActiveRecord::RecordNotFound) { ResolutionItem::Application.apply!(item, by: @user) }
+      assert_nil Current.audit_operation, "セーブポイントごと消えた操作を指したままにしない"
+      resolution.update!(note: "失敗のあとの変更") # 同じ操作の続きは、新しく作る操作に残る
     end
+    assert_equal [ [ "Resolution", "do" ] ], AuditOperation.last.audit_changes.map { [ it.auditable_type, it.audit_operation.kind ] }
     assert_equal "director", OfficerTerm.find_by!(person: a).role
     assert_empty Registration.all
     assert_not item.reload.applied?
