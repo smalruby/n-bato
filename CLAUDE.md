@@ -46,7 +46,7 @@ NBATO_SECRETS_DIR=... bin/backup-fetch DIR            # 本番のバックアッ
 - 画面の確かめは `bin/demo` の環境で行う。DB は `storage/demo.sqlite3`(`NBATO_DEMO=1` で選ぶ)、添付は `storage/demo_files`。**実データの入った `storage/development.sqlite3` には触らない。**
 - 種は `db/demo/`(`seed.rb`、やることと依頼だけ `todos.rb`)。年度・科目と部門・仕訳(会計王の取り込み・手で入れた仕訳)・証憑と AI の提案・会員と役員・決議・登記の申請・手続き・入会申込・事業報告書・提出先・定款を、アプリの作る入口で入れる。日付はきょうから決める。ブラウザのテスト(`test/system/`)も同じ種を使う。
 - ログインは `ai@example.com`(架空の利用者、事務と監査の役割)。パスワードは `tmp/demo_password`(git 管理外。無ければ `bin/demo` が乱数で作る。`NBATO_DEMO_PASSWORD` でも決められる)。
-- この環境は credentials と Anthropic・Slack・バックアップの鍵を読まない(`config/environments/development.rb`、`bin/demo`)。架空のデータでも外へは送らない。
+- この環境(`NBATO_DEMO=1`)は credentials と Anthropic・Slack・バックアップの鍵の環境変数を読まない(`config/environments/development.rb` が外す。`bin/demo` を使わずに起動しても同じ)。架空のデータでも外へは送らない。cookie の署名の鍵も `tmp/demo_secret` で、実データの開発サーバ(:3000)とログインが混ざらない。
 - 名前・住所・連絡先は架空と分かる形だけにする(氏は 見本・架空・例示・仮名、住所は架空市、番号は 000 で始める、メールは example.com)。`config/check_private_allow.yml` は `db/demo/` の中の、この形(氏と名の組・架空市見本町の番地)だけ許している。新しい名を使うときは許可の一覧に足す。
 
 ## Claude Code が経理担当をするとき

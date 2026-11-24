@@ -72,6 +72,17 @@ Rails.application.configure do
   # 本番・手元の秘密(credentials)は読まない: 暗号化の鍵はこの環境だけの固定の値(架空のデータにしか使わない)にし、
   # Anthropic などの鍵も読まないので、架空のデータも外へは送らない。
   if ENV["NBATO_DEMO"].present?
+    # 外へ送る鍵の環境変数は、どう起動しても(bin/demo を使わなくても)ここで消す
+    %w[ANTHROPIC_API_KEY SLACK_BOT_TOKEN SLACK_CHANNEL_ID SLACK_OFFICERS_CHANNEL_ID
+       NBATO_BACKUP_BUCKET NBATO_BACKUP_AWS_ACCESS_KEY_ID NBATO_BACKUP_AWS_SECRET_ACCESS_KEY].each { ENV.delete(it) }
+    # cookie の署名の鍵を、実データの開発サーバ(tmp/local_secret.txt)と別にする。
+    # cookie はポートで分かれないので、同じ鍵だとデモのログインの cookie が :3000 でも通ってしまう
+    demo_secret = Rails.root.join("tmp/demo_secret")
+    unless demo_secret.exist? && demo_secret.read.strip.size >= 64
+      FileUtils.mkdir_p(demo_secret.dirname)
+      File.write(demo_secret, SecureRandom.hex(64), perm: 0o600)
+    end
+    config.secret_key_base = demo_secret.read.strip
     config.credentials.content_path = Rails.root.join("tmp/demo-no-credentials.yml.enc")
     config.credentials.key_path = Rails.root.join("tmp/demo-no-master.key")
     config.active_record.encryption.primary_key = "demo-primary-key-0123456789abcdef"

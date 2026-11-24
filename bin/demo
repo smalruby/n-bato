@@ -9,7 +9,8 @@
 #
 # DB は storage/demo.sqlite3、添付は storage/demo_files(実データの development.sqlite3 には触らない)。
 # ログイン: ai@example.com / パスワードは tmp/demo_password(git 管理外。無ければ乱数で作る。NBATO_DEMO_PASSWORD でも決められる)。
-# 外へは送らない: Anthropic・Slack・バックアップの鍵の環境変数を外して動かす(credentials も読まない。config/environments/development.rb)。
+# 外へは送らない: Anthropic・Slack・バックアップの鍵の環境変数と credentials は読まない(NBATO_DEMO=1 のとき config/environments/development.rb が外す)。
+# cookie の署名の鍵も実データの開発サーバと別(tmp/demo_secret)。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -30,8 +31,6 @@ for arg in "$@"; do
 done
 
 export NBATO_DEMO=1 RAILS_ENV=development
-unset ANTHROPIC_API_KEY SLACK_BOT_TOKEN SLACK_CHANNEL_ID SLACK_OFFICERS_CHANNEL_ID \
-  NBATO_BACKUP_BUCKET NBATO_BACKUP_AWS_ACCESS_KEY_ID NBATO_BACKUP_AWS_SECRET_ACCESS_KEY
 
 if [ "$reset" = 1 ]; then
   bin/rails demo:reset
