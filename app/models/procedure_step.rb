@@ -24,7 +24,8 @@ class ProcedureStep < ApplicationRecord
 
   # 保存する状態は、最後の変化(id の順)から決まる。変化が無ければ open(docs/adr/0005)
   def self.state_for(change)
-    {"status" => change&.status || "open", "completed_on" => change&.status.in?(%w[done skipped]) ? change.completed_on : nil}
+    status = change&.status || "open"
+    {"status" => status, "completed_on" => status.in?(%w[done skipped]) ? change.completed_on : nil}
   end
 
   def derived_state = ProcedureStep.state_for(status_changes.max_by(&:id))

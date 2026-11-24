@@ -42,12 +42,12 @@ class ProcedureStep::StatusChange < ApplicationRecord
         # 対象外にできるのは、定義(config/procedures)で optional の手順だけ(画面にもその手順だけボタンを出す)
         raise ArgumentError, "この手順は対象外にできません" if status == "skipped" && !step.definition.optional?
 
-        change = new(status:, completed_on: if status == "open"
-                                              nil
-                                            else
-                                              ((status == "done") ? on : Date.current)
-        end,
-          note: (status == "skipped") ? reason.to_s.strip : "", changed_by: by, changed_at: at)
+        completed_on = case status
+        when "open" then nil
+        when "done" then on
+        else Date.current
+        end
+        change = new(status:, completed_on:, note: (status == "skipped") ? reason.to_s.strip : "", changed_by: by, changed_at: at)
         attrs = ProcedureStep.state_for(change)
         attrs["note"] = change.note if status == "skipped" && change.note.present?
         # 手順を先に書く(元に戻すの表示が「状態 open → done」になるように)

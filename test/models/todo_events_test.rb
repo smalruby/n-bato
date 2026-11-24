@@ -313,6 +313,6 @@ class TodoEventsTest < ActiveSupport::TestCase
 
     other = IncomingRequestMessage.write!(@req, role: "user", body: "文だけ", files: [Rack::Test::UploadedFile.new(png, "image/png")])
     Requests::Organizer.new(@req, client:).call(other, masked_body: "伏せた文", send_attachments: false)
-    assert_equal ["text"], client.content.map { it[:type] }
+    assert_equal ["text"], client.content.pluck(:type)
   end
 end
