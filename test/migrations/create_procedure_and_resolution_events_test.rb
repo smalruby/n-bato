@@ -59,6 +59,7 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
     # 日本時間では 11/24 の 1:30(UTC では 11/23)
     no_day = step.("audit", "done", completed_on: nil, updated_at: "2026-11-23 16:30:00")
     skipped = step.("corporate_tax", "skipped", completed_on: "2026-05-01", note: "収益事業なし")
+    skipped_no_note = step.("publish_bs", "skipped", completed_on: "2026-05-01", note: nil)
     reopened = step.("board", "open", completed_on: "2026-05-02")
     odd = step.("print", "doing")
 
@@ -74,7 +75,8 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
     migrate(:up)
 
     changes = rows("SELECT procedure_step_id, status, completed_on, note FROM procedure_step_status_changes ORDER BY procedure_step_id").index_by { it["procedure_step_id"] }
-    assert_equal [ done, no_day, skipped ], changes.keys
+    assert_equal [ done, no_day, skipped, skipped_no_note ], changes.keys
+    assert_equal [ "skipped", "" ], changes[skipped_no_note].values_at("status", "note"), "メモが NULL の対象外は、理由を空にする"
     assert_equal [ "done", "2026-05-10", "" ], changes[done].values_at("status", "completed_on", "note")
     assert_equal [ "done", "2026-11-24" ], changes[no_day].values_at("status", "completed_on"), "済みで日付の無いものは、日本時間の更新した日"
     assert_equal [ "skipped", "2026-05-01", "収益事業なし" ], changes[skipped].values_at("status", "completed_on", "note")
@@ -148,5 +150,16 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
     migrate(:up)
     assert_equal 1, @conn.select_value("SELECT COUNT(*) FROM resolution_item_applications"), "移し直せる"
     assert_equal 1, @conn.select_value("SELECT COUNT(*) FROM annual_report_milestones")
+  end
+
+  test "down: 取り消していない同意が同じ人に 2 つあれば、何も変えずにわけを出して止める" do
+    r = resolution
+    migrate(:up)
+    2.times { insert(:consents, resolution_id: r, person_id: @person, consented_on: "2026-05-03", via: "paper") }
+    error = assert_raises(StandardError) { migrate(:down) }
+    assert_match "取り消していない同意が同じ人に 2 つ以上", error.message
+    assert_match "決議 ##{r}", error.message
+    assert @conn.table_exists?(:consent_cancellations), "何も変えていない"
+    assert_not @conn.column_exists?(:consents, :created_at)
   end
 end

@@ -93,7 +93,20 @@ class CreateProcedureAndResolutionEvents < ActiveRecord::Migration[8.1]
   # - up でそろえた手順の状態・日付(おかしな行)。
   # - 取り消した同意(Consent::Cancellation のある同意)は、移す前の形では「消した」ものなので、行ごと消す。
   # - up のあとにできた操作の変化のうち、新しいイベントの表のもの。表を消すので、その操作を元に戻す・やり直すと Conflict になる。
+  # 止めるもの:
+  # - 取り消していない同意が同じ人に 2 つ以上あるとき(元に戻すの食い違いなど)。移す前の一意の索引を戻せないので、
+  #   どれを残すかを人が決めて(取り消すか消すかして)から戻す。勝手には消さない。
   def down
+    duplicated = select_rows(<<~SQL)
+      SELECT resolution_id, person_id FROM consents WHERE id NOT IN (SELECT consent_id FROM consent_cancellations)
+      GROUP BY resolution_id, person_id HAVING COUNT(*) > 1 ORDER BY resolution_id, person_id
+    SQL
+    if duplicated.any?
+      raise ActiveRecord::IrreversibleMigration,
+            "取り消していない同意が同じ人に 2 つ以上あるので戻せません(#{duplicated.map { |r, p| "決議 ##{r}・人 ##{p}" }.join('、')})。" \
+            "どれを残すかを決めて、ほかを取り消してから戻してください"
+    end
+
     cancelled = select_values("SELECT consent_id FROM consent_cancellations")
     drop_table :consent_cancellations
     execute "DELETE FROM consents WHERE id IN (#{cancelled.map(&:to_i).join(', ')})" if cancelled.any?
