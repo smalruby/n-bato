@@ -19,6 +19,14 @@ class MemberApplicationEventsTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { MemberApplication::Approval.approve!(@a, fiscal_year: 2026, joined_on: Date.current) }
   end
 
+  test "操作履歴の名前は入口で付ける(rake や AI から起こしても同じ名前)" do
+    Audit.operation(user: @user, scope: "member_applications") { MemberApplication::Approval.approve!(@a, fiscal_year: 2026, joined_on: Date.current, by: @user) }
+    assert_equal ["申込　太郎さんの入会を認めた(2026年度の正会員)", "final"], AuditOperation.order(:id).last.then { [it.label, it.kind] }
+    b = MemberApplication.create!(name: "申込　次郎", applied_on: Date.current)
+    Audit.operation(user: @user, scope: "member_applications") { MemberApplication::Rejection.reject!(b, reason: "連絡がとれない", by: @user) }
+    assert_equal ["申込　次郎さんの入会申込を認めないことにした", "final"], AuditOperation.order(:id).last.then { [it.label, it.kind] }
+  end
+
   test "締めた年度には認められない" do
     FiscalPeriod.create!(year: 2025, closed_on: Date.current)
     assert_raises(ArgumentError) { MemberApplication::Approval.approve!(@a, fiscal_year: 2025, joined_on: Date.current) }

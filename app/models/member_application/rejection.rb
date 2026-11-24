@@ -18,7 +18,7 @@ class MemberApplication::Rejection < ApplicationRecord
     transaction do
       rejection = create!(member_application: application, rejecter: by, reason:, rejected_at: at)
       application.update!(status: "rejected", reason:, decided_on: at.to_date)
-      Audit.final!
+      Audit.final!("#{application.name}さんの入会申込を認めないことにした")
       rejection
     end
   end
