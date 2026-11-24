@@ -6,5 +6,6 @@ class OrganizationTest < ActiveSupport::TestCase
     record = org.year_record!(FiscalYear.current.year)
     assert_not record.update(name: "")
     assert_equal "テスト法人", org.reload.name
+    assert_includes record.errors.full_messages, "法人名を入力してください"
   end
 end

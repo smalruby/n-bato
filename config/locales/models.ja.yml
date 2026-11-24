@@ -65,6 +65,8 @@ ja:
         bs_published_on: 貸借対照表の公告日
         bs_publication_place: 公告の場所
       program_activity: { content: 事業内容, schedule: 日時・場所・従事者, beneficiaries: 受益対象者, report: 実施報告 }
+      organization: { name: 法人名, first_fiscal_year: 第 1 期の年度 }
+      organization_year: { name: 法人名 }
       person: { name: 氏名, name_kana: ふりがな, address: 住所, email: メール, phone: 電話, notes: メモ }
       membership: { fiscal_year: 年度, kind: 種別, joined_on: 入会日, fee_amount: 会費, fee_paid_on: 会費の納入日 }
       officer_term: { person_id: 人, role: 役職, starts_on: 就任日, ends_on: 任期の終わり, left_on: 退任日, remunerated: 報酬, appointed_by: 選任の経緯, notes: メモ }

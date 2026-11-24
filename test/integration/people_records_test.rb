@@ -61,7 +61,10 @@ class PeopleRecordsTest < ActionDispatch::IntegrationTest
     patch organization_path, params: { organization: { name: "" } }
     assert_response :unprocessable_entity
     assert flash[:alert].present?
-    assert_equal "テスト法人", Organization.first.name, "空の名前は保存しない"
+    org = Organization.first
+    assert_equal "テスト法人", org.name, "空の名前は保存しない(本体の列)"
+    assert_equal "テスト法人", org.at(2024).name, "空の名前は保存しない(操作している年度の記録)"
+    assert_equal "テスト法人", org.record_for(2023).name
     patch organization_path, params: { organization: { first_fiscal_year: "abc", name: "テスト法人" } }
     assert_response :redirect
   end
