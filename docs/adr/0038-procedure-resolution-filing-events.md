@@ -41,7 +41,7 @@ decision-makers: Claude(理事長の確かめ待ち)
 * **事業報告**(AnnualReport・LE): 節目は `AnnualReport::Milestone.record!(事業報告, 種類, on:, automatic:, by:)`(日時 recorded_at、日付 dated_on)。種類は approved・submitted・bs_published・resubmit_needed・resubmitted。
   * 事業報告の画面では日付の欄を自由に直せる・消せる(画面を変えない)。5 つに分けると「直す・消す」のたびに取消のイベントが要るので、変えたあとの日付を持つ 1 つのイベントにし、空なら「消した」とした。
   * いまの状態(approved_on・submitted_on・bs_published_on・resubmit_needed_on・resubmitted_on)は列のまま持ち、種類ごとの最後の記録から決まる。直接書き換えると検証で止まる。提出書の日付(letter_date)・公告の場所などは中身。
-  * 事業報告の画面は、日付の欄が変わっていたときだけ節目を記録する(同じ日付なら記録しない)。
+  * 事業報告の画面は、日付の欄が変わっていたときだけ節目を記録する(同じ日付なら記録しない)。比べるのは **画面を開いたときの日付**(隠した欄 `opened_dates`)。開いている間に手続き・決議の反映が日付を記録していても、欄を変えずに保存すれば消さない。開いたあとに変わった欄を直そうとしたら、何も保存せずに画面の知らせ(alert)で伝え、欄を新しい日付にする(PR #33 のレビュー。画面の見た目は変えていない)。
 * **決議**(Resolution・LE): 成立した日は、取り消していない同意から毎回決まる(列は持たない)。`resolution.consents` は取り消していない同意だけ、`all_consents` は取り消したものも。
   * **同意**(Consent・E。日付 consented_on): `Consent.record!`。取り消していない同意は 1 人 1 つ(検証。一意の索引は、取り消したあとに記録し直せるよう外し、`model:verify` で確かめる)。
   * **同意の取消**(Consent::Cancellation・E。日時 cancelled_at): `Consent::Cancellation.cancel!`。画面の「取り消す」はこれ。同意の記録は消さない。

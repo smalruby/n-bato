@@ -1,5 +1,7 @@
 <%= form_with model: annual_report, url: annual_report.persisted? ? annual_report_path(annual_report.fiscal_year) : annual_reports_path, class: "space-y-4" do |f| %>
   <%= f.hidden_field :fiscal_year %>
+  <%# 開いたときの日付(手続きの記録の欄)。開いている間に手続きが変えた日付を、上書きも消しもしないため(docs/adr/0038) %>
+  <% AnnualReport::FORM_DATE_COLUMNS.each do |column| %><%= hidden_field_tag "opened_dates[#{column}]", annual_report.opened_date(column).to_s, id: nil %><% end %>
   <div class="card">
     <h2 class="section-title mt-0">１　事業の成果</h2>
     <div class="field"><%= f.text_area :achievements, rows: 3 %></div>

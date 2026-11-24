@@ -207,12 +207,13 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
   end
 
   test "事業報告の画面の保存: 日付が変わった欄だけ記録し、保存できなければ記録しない" do
-    assert @report.save_with_dates("submitted_on" => "2026-06-01", "approved_on" => "", "bs_published_on" => nil)
+    assert @report.save_with_dates({ "submitted_on" => "2026-06-01", "approved_on" => "", "bs_published_on" => nil })
     assert_equal [ "submitted" ], @report.milestones.map(&:kind)
 
     other = AnnualReport.new(fiscal_year: 2025)
-    assert_not other.save_with_dates("submitted_on" => "2026-06-02")
+    assert_not other.save_with_dates({ "submitted_on" => "2026-06-02" })
     assert_equal "2026-06-02", other.submitted_on.to_s, "画面に戻すときは入れた日付を出す"
+    assert_nil other.opened_date("submitted_on"), "開いたときの日付は、入れた日付ではなく元の日付"
     assert_equal 1, AnnualReport::Milestone.count
   end
 

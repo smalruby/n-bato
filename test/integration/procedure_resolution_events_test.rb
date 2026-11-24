@@ -76,6 +76,37 @@ class ProcedureResolutionEventsFlowTest < ActionDispatch::IntegrationTest
     assert_empty ModelVerification.mismatches
   end
 
+  test "事業報告の画面: 開いたときの日付を送り、変えていない欄は記録しない。開いている間に手続きが変えた日付は上書きしない" do
+    report = create_annual_report!(2025)
+    get edit_annual_report_path(2025)
+    assert_select "input[type=hidden][name='opened_dates[submitted_on]'][value='']"
+    # 画面を開いている間に、手続きで提出した日を記録した
+    ProcedureStep::StatusChange.change!(@run.step("submit"), status: "done", on: Date.new(2026, 6, 28))
+
+    # 日付の欄を変えずに保存すると、手続きが記録した日付は消さない
+    patch annual_report_path(2025), params: { opened_dates: { submitted_on: "", approved_on: "", bs_published_on: "" },
+                                              annual_report: { submitted_on: "", approved_on: "", bs_published_on: "", achievements: "成果" } }
+    assert_equal "保存しました", flash[:notice]
+    assert_equal [ Date.new(2026, 6, 28), "成果" ], [ report.reload.submitted_on, report.achievements ]
+    assert_equal 1, report.milestones.count
+
+    # 開いたあとに変わった欄を直そうとすると、断って新しい日付を欄に出す(何も保存しない)
+    patch annual_report_path(2025), params: { opened_dates: { submitted_on: "", approved_on: "" },
+                                              annual_report: { submitted_on: "2026-07-01", approved_on: "2026-06-20", achievements: "成果2" } }
+    assert_response :unprocessable_entity
+    assert_select ".nb-flash--alert", /所轄庁への提出日は、この画面を開いたあとに別の操作で 2026\/06\/28 に変わっています/
+    assert_select "input[name='annual_report[submitted_on]'][value='2026-06-28']"
+    assert_select "input[type=hidden][name='opened_dates[submitted_on]'][value='2026-06-28']"
+    assert_select "input[name='annual_report[approved_on]'][value='2026-06-20']"
+    assert_select "input[type=hidden][name='opened_dates[approved_on]'][value='']"
+    assert_equal [ Date.new(2026, 6, 28), nil, "成果" ], [ report.reload.submitted_on, report.approved_on, report.achievements ]
+
+    # 開き直して(新しい日付を見て)から直すのは、ふつうに記録する
+    patch annual_report_path(2025), params: { opened_dates: { submitted_on: "2026-06-28" }, annual_report: { submitted_on: "2026-07-01" } }
+    assert_equal Date.new(2026, 7, 1), report.reload.submitted_on
+    assert_empty ModelVerification.mismatches
+  end
+
   test "同意を取り消しても記録は残り、記録し直せる。同意のある決議は消せない。反映の二度押しは伝える" do
     chair = Person.create!(name: "役員A")
     OfficerTerm.create!(person: chair, role: "chair", starts_on: Date.current - 30, ends_on: Date.current + 300)

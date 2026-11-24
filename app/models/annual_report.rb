@@ -43,9 +43,20 @@ class AnnualReport < ApplicationRecord
   end
 
   # 事業報告の画面の保存: 中身を保存し、日付の欄(dates。FORM_DATE_COLUMNS)が変わっていれば節目を記録する。
+  # opened: 画面を開いたときの日付(隠した欄 opened_dates)。渡したときは、開いたときから変えた欄だけ記録する。
+  # 開いている間に別の操作(手続き・決議の反映)が日付を変えていたら、上書きも消しもせず、何も保存しない(false)。
   # 保存できなければ false(画面に戻すときのために、入れた日付は記録に書かずに持っておく)。
-  def save_with_dates(dates)
+  def save_with_dates(dates, opened: nil)
     dates = dates.to_h.slice(*FORM_DATE_COLUMNS)
+    stored = FORM_DATE_COLUMNS.to_h { [ it, self[it] ] }
+    opened = opened&.to_h&.slice(*FORM_DATE_COLUMNS)&.transform_values { cast_date(it) }
+    dates = dates.reject { |column, on| opened&.key?(column) && cast_date(on) == opened[column] }
+    @opened_dates = stored.merge(opened || {})
+    if (stale = dates_changed_since_opened(dates, opened, stored)).any?
+      dates.except(*stale).each { |column, on| self[column] = on }
+      return false
+    end
+
     saved = transaction(requires_new: true) do
       next false unless save
 
@@ -55,6 +66,9 @@ class AnnualReport < ApplicationRecord
     dates.each { |column, on| self[column] = on } unless saved
     saved
   end
+
+  # 画面の隠した欄に出す、開いたときの日付(保存できずに画面に戻すときは、入れた日付ではなく開いたときの日付)
+  def opened_date(column) = (@opened_dates || {}).fetch(column) { self[column] }
 
   after_initialize do
     next unless new_record?
@@ -117,6 +131,23 @@ class AnnualReport < ApplicationRecord
   def due_on = Date.new(fiscal_year + 1, 6, 30)
 
   private
+
+  def cast_date(value) = ActiveModel::Type::Date.new.cast(value)
+
+  # 開いたときから変えた欄のうち、いまの日付が開いたときと違うもの。欄はいまの日付にして知らせる(入れた日付は捨てる)
+  def dates_changed_since_opened(dates, opened, stored)
+    return [] unless opened
+
+    stale = dates.keys.select { opened.key?(it) && stored[it] != opened[it] }
+    stale.each do |column|
+      on = stored[column]
+      name = AnnualReport::Milestone::KINDS.fetch(AnnualReport::Milestone.kind_for(column)).last
+      errors.add(:base, "#{name}は、この画面を開いたあとに別の操作で #{on ? on.strftime('%Y/%m/%d') : '空'} に変わっています。" \
+                        "欄を新しい日付にしたので、確かめてから保存し直してください")
+      @opened_dates[column] = on
+    end
+    stale
+  end
 
   def state_written_by_milestone
     return if @applying_state
