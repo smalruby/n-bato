@@ -76,3 +76,10 @@
   rules: [phone]
   files: [config/filing_destinations.example.yml, app/controllers/filing_samples_controller.rb]
   reason: 架空の電話番号(000 で始まる、実在しない番号)
+
+# --- 外部のパッケージの公開情報 ---
+- text: i@izs.me
+  rules: [email]
+  files: [infra/package-lock.json]
+  reason: npm のパッケージ glob の作者が deprecated の文に載せている連絡先(npm レジストリが返す文をそのまま記録したもの)
+  source: https://registry.npmjs.org/glob
