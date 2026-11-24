@@ -13,8 +13,14 @@ class DemoEnvironmentTest < ActiveSupport::TestCase
 
     assert_operator demo_secret.size, :>=, 64
     assert_equal Rails.root.join("tmp/demo_secret").read.strip, demo_secret
-    assert_not_equal Rails.application.secret_key_base, demo_secret # tmp/local_secret.txt(無ければここで作られる)
-    assert_not_equal Rails.root.join("tmp/local_secret.txt").read.strip, demo_secret
+    assert_not_equal Rails.application.secret_key_base, demo_secret
+    # 実データの開発サーバ(NBATO_DEMO なし)の鍵とも違う。別のプロセスで起動して読む(tmp/local_secret.txt は無ければここで作られる)
+    dev_out, dev_err, dev_status = Open3.capture3({ "RAILS_ENV" => "development" }, Rails.root.join("bin/rails").to_s, "runner",
+                                                  "print Rails.application.secret_key_base", chdir: Rails.root.to_s)
+    assert dev_status.success?, dev_err
+    dev_secret = dev_out.lines.map(&:chomp).last
+    assert_operator dev_secret.size, :>=, 64
+    assert_not_equal dev_secret, demo_secret
     assert_equal "nil", anthropic
     assert_equal "nil", slack
   end
