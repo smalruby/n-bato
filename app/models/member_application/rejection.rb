@@ -10,7 +10,7 @@ class MemberApplication::Rejection < ApplicationRecord
 
   def self.model_name_label = "入会を認めなかった"
 
-  def self.reject!(application, reason:, by: nil, at: Time.current)
+  def self.reject!(application, reason:, by:, at: Time.current)
     reason = reason.to_s.strip
     raise ArgumentError, "認めない理由を書いてください" if reason.empty?
     raise ArgumentError, "届いた申込ではありません" unless application.received?
