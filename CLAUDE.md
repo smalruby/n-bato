@@ -63,12 +63,12 @@ Claude Code が、アプリの代わりに仕訳を提案することもでき�
 - **UI・UX を変える順番(2026-11-20 ユーザー指定)**: ① 変更案を artifact で人間に見せ、選んでもらって合意を取る → ② `docs/design-system/` に書く → ③ 実装する。実装してから相談しない。デザインシステムに書いていない UI は作らない(画面ごとにばらばらになるのを防ぐため)。小さな不具合の修正(崩れ・誤字)はこの限りでない。
   - 見直し票とデザインシステムの原本(artifact)の場所は `CLAUDE.local.md`。
 
-- 原本は `docs/design-system/`(README・tokens.json・components.css)。色・寸法は `var(--…)` のトークンだけを使い、新しい画面は `nb-` の部品で作る。古い `.btn`・`.card`・`.data-table` は移行用にトークンで描き直してある。
+- 原本は `docs/design-system/`(README・tokens.json・components.css)。色・文字の大きさ・余白は `var(--…)` のトークンか `nb-` の部品だけで決め(並べ方の Tailwind のユーティリティ `flex`・`grid` などはよい。開発QAボード 第8回 8-7)、新しい画面は `nb-` の部品で作る。古い `.btn`・`.card`・`.data-table` は移行用にトークンで描き直してある(その画面は、触るときに `nb-` の部品へ移す)。
 - `tokens.json` か `components.css` を直したら `bin/rails design:tokens`(`app/assets/tailwind/nbato.css` を作り直す)。CSS は `bin/rails tailwindcss:build`(開発サーバーを `bin/rails s` だけで動かすと自動では作り直されない)。
-- **保存ボタンを置かない。** 入力欄は `data-controller="autosave"` の中に置き、`data-url` に PATCH(JSON)の送り先を書く。コントローラは `include AutosaveResponse` と `respond_to { format.json { autosave_response(record) } }`。
+- **保存ボタンを置かない。** 入力欄は `data-controller="autosave"` の中に置き、`data-url` に PATCH(JSON)の送り先を書く。コントローラは `include AutosaveResponse` と `respond_to { format.json { autosave_response(record) } }`。例外は作る画面(new)の送るボタンだけで、文字は動詞(「作る」「登録する」)にする(開発QAボード 第8回 8-2)。
 - **操作履歴は自動で残る**(`ApplicationRecord` の `Audited`)。リクエスト 1 回が 1 つの操作。履歴に出す文は `Audit.label!("…")`、元に戻せない操作(承認・提出・決議の反映・登記)は `Audit.final!("…")`。記録しない模型は `self.audited = false`。
 - **元に戻す・やり直す**を出す画面は、コントローラで `undoable_screen`。範囲は `audit_scope`(既定はコントローラ名)。右ペインに `history_panel`。
-- 元に戻せない操作のボタンは `confirm-twice`(2 回押し、ダイアログを出さない)。
+- 元に戻せない操作と消す操作のボタンは `confirm-twice`(2 回押し、ブラウザのダイアログを出さない。開発QAボード 第8回 8-3)。
 - 年に一度の手続きは `config/procedures/*.yml` に手順・説明・根拠の条文を書く(画面は ProceduresController)。条文は利用団体の定款(場所は `CLAUDE.local.md`)で確かめてから書く。推測で条文番号を書かない。
 - ダークモードは画面の移行が済むまで `data-theme="dark"` のときだけ。
 

@@ -1,6 +1,6 @@
 # コードの書き方(いまの実装から起こした決まり)
 
-いまのコードがそろってしている書き方を、決まりとして書き起こしたもの(2026-11-24)。新しい決まりは足していない。コードがそろっていないところは **要確認** と書き、人に決めてもらう(開発QAボード)。決まったら、ここを直す。
+いまのコードがそろってしている書き方を、決まりとして書き起こしたもの(2026-11-24)。コードがそろっていなかったところは開発QAボード 第8回(2026-11-25、Issue #28)で決めてもらい、その答えを決まりとして書いた(項目に「開発QAボード 第8回 8-N」と書いたもの)。まだ決まっていないところは **要確認** と書き、人に決めてもらう。決まったら、ここを直す。
 
 レビュー(スキル `nbato-review`)は、この文書と ADR・デザインシステムに照らして行う。迷ったら ADR(`docs/adr/`)が正。
 
@@ -19,6 +19,7 @@
   - クラスはリソースの名前空間に出来事の名詞: `JournalProposal::Approval`、`Person::AddressChange`、`RegistrationFiling::Submission`。
   - メソッドは出来事に合う英語の動詞 + `!`: `approve!`・`reject!`・`withdraw!`・`cancel!`・`submit!`・`confirm!`。合う動詞が無ければ `record!`(`Person::AddressChange.record!`・`RegistrationFiling::Correction.record!`)。
   - 引数の形: 1 つ目に対象(位置引数)、操作した人は `by:`、日時は `at: Time.current`(日付の出来事は `moved_on:` など列の名前)、ほかはキーワード(例 `JournalEntry::Cancellation.cancel!(entry, by:, reason:, at: Time.current)`)。
+  - **操作した人(開発QAボード 第8回 8-5)**: 新しいイベントの列は、出来事の名詞 + -er(`approver`・`rejecter`・`canceller`)。いまの列(`recorded_by`・`changed_by` など)は改名しない(マイグレーションと運用への連絡が要るため)。`by:` は、人が画面で行う出来事なら必須(`by:` と書き、既定の値を付けない)。AI や rake からも起きる出来事なら省ける(`by: nil`)。
   - 中身の順: ①確かめる(だめなら日本語の文で `raise ArgumentError`)→ ②`transaction do` → ③`create!` → ④関係するイベント・長いイベントのいまの状態 → ⑤操作履歴の名前(`Audit.label!` / `Audit.final!`)→ ⑥作ったイベントを返す。
   - クラスの先頭のコメントに、何の出来事か・日時の列・元に戻せるか・ADR を書く(例 `app/models/journal_entry/cancellation.rb`)。
 - **いまの状態は長いイベントだけが持つ**(ADR-0005)。詳細のイベントから決まる状態(`Voucher#derived_status`)は、入口の中(`advance_status!` など)だけで書き換え、`app/models/model_verification.rb` に照合を足す(`bin/rails model:verify`、CI でも流す)。リソースに状態の列を持たせない。
@@ -31,7 +32,6 @@
 
 **要確認**
 
-- 操作した人の列の名前がそろっていない: `approver`・`rejecter`・`canceller`(`JournalProposal::Approval`・`JournalEntry::Cancellation`)と `recorded_by`(`Person::AddressChange`)。入口の `by:` も、要るもの(`JournalProposal::Approval.approve!`)と省けるもの(`RegistrationFiling::Submission.submit!` の `by: nil`)がある。
 - 入口が 1 つのクラスに 2 つあるもの: `JournalProposal.propose!` と `repropose!`。`propose!` だけ対象をキーワード(`voucher:`)で受ける。
 - 台帳で「移行: 待」のモデル(`JournalEntry`・`Membership`・`ProcedureStep` など)は、まだこの決まりに沿っていない。直すのは移す順(ADR-0002 の補足)のとき。
 
@@ -46,11 +46,11 @@
 - 一覧の `index` は、絞り込みのクエリを覚える(`remember_list_url`)。詳しい画面にはパンくず(`crumbs`)を付ける(ADR-0033)。
 - 監査の役割は閲覧だけ。`ApplicationController#read_only_for_auditor` が GET 以外を止める。止めないコントローラーは `READ_ONLY_ALLOWED` に足す。
 - 締めた年度を変えるときは理由を書いてもらう(`ClosedYearGuard#closed_year_reason_ok?`、モデルでは `Audit.reason!`・`FiscalPeriod.changed_after_close!`)。
+- **7 つの外のアクション(開発QAボード 第8回 8-1)**: 新しく足すのは禁止(レビューで Must)。いま残っているもの(`vouchers#propose`・`reject`、`registration_filings#include`・`exclude`、`fiscal_periods#start_next`・`reopen`、`people#apply_to_years`・`accounts#apply_to_years`、`undo#undo`・`redo`、`assistant#perform`、`passkeys` の `*_options`・`verify*` など)は、その業務をイミュータブルデータモデルに移すときに一緒に直す。モデルを移し終えた入会(`member_applications#approve`・`reject`)は、すぐ直す(#36)。
+- **操作履歴の名前を付ける場所(開発QAボード 第8回 8-4)**: `Audit.label!`・`Audit.final!` は入口(モデル)で呼ぶ。rake や AI から同じ出来事を起こしても、同じ名前が付くようにするため(ADR-0004)。いまコントローラーで付けているところ(`journal_entries`・`people`・`accounts`・`member_applications`・`fiscal_periods`・`procedure_steps`・`filing_destinations`・`passkeys` など)は、その業務を移すときに入口へ移す。新しくコントローラーで付けるのは、レビューで Must。
 
 **要確認**
 
-- 7 つの外のアクションが、移す前の業務に残っている: `vouchers#propose`・`reject`、`member_applications#approve`・`reject`、`registration_filings#include`・`exclude`、`incoming_requests#resolve`・`cover_letter`、`fiscal_periods#start_next`・`reopen`、`procedure_steps#complete`・`reopen`・`skip`、`resolutions#apply_item`、`undo#undo`・`redo`、`passkeys` の `*_options` など。ADR-0008 は「移した業務から順に無くす」。新しく足さないことは決まり、残りをいつ移すかが要確認。
-- コントローラーの中で `Audit.label!` を呼んでいるところがある(`procedure_steps_controller.rb`・`incoming_requests_controller.rb`・`journal_entries_controller.rb`・`people_controller.rb`)。ADR-0004 では操作履歴の名前まで入口がする。
 - 監査の役割の確かめを、`read_only_for_auditor` のほかにコントローラーでもしているところがある(`People::AddressChangesController` など 11 か所)。
 
 ## 3. 画面(ビュー・Hotwire・自動保存)
@@ -58,18 +58,14 @@
 出どころ: CLAUDE.md「画面の決まり」、ADR-0008・0012・0013・0033、`docs/design-system/README.md`、`app/javascript/controllers/`。
 
 - **保存ボタンを置かない。** 入力欄は `data-controller="autosave"` の中に置き、`data-url` に PATCH(JSON)の送り先を書く。コントローラーは `include AutosaveResponse` と `respond_to { format.json { autosave_response(record) } }`(`app/controllers/concerns/autosave_response.rb`)。
+  - **例外: 作る画面(new)(開発QAボード 第8回 8-2)**: 必須の項目がそろうまで行を作れないので、送るボタンを残してよい。文字は動詞にする(「作る」「登録する」。「保存」としない)。直す画面(edit)は自動保存にする。いま保存ボタンの残る画面(`organizations/edit`・`journal_entries/_form`・`people/_form`・`accounts/edit`・`vouchers/_form`・`annual_reports/_form`・`resolutions/_form`・`registration_filings/show`)は、見直し票で画面ごとに合意を取ってから移す(#39)。
 - 動きは Stimulus のコントローラー(`app/javascript/controllers/*_controller.js`、名前はハイフンつき: `confirm-twice`・`row-detail`・`year-switch`)。JavaScript は importmap(ビルドしない)。
-- **元に戻せない操作のボタンは `confirm-twice`**(2 回押し、ダイアログを出さない。`data-armed-label="もう一度押すと…(元に戻せません)"`)。危ないボタンは `nb-btn nb-btn--danger`。
+- **元に戻せない操作と消す操作のボタンは `confirm-twice`**(2 回押し、ダイアログを出さない。`data-armed-label="もう一度押すと…(元に戻せません)"`)。危ないボタンは `nb-btn nb-btn--danger`。ブラウザのダイアログ(`turbo_confirm`・`data-confirm`)は使わない(開発QAボード 第8回 8-3)。いま残る 3 つ(`journal_entries/show`・`vouchers/show`・`siwake_imports/show`)は #37 で替える。
+- **画面の書き換え(開発QAボード 第8回 8-8)**: いまは、出来事は送ったあと別の画面に移る(PRG)、入力は自動保存の JSON。画面の一部だけを書き換える必要のある画面ができたら Turbo Stream を使う(ジョブの進み具合の知らせ #23 の Action Cable で使う見込み。ADR-0008)。
 - PDF と外のサイトへのリンクは別のタブ(`new_tab_link_to`、文字の後ろに「↗」)。帳票は `layouts/print`(明朝・全角数字・黒一色)、PDF は `PdfRenderer`。
 - アイコンは `icon(role)`(`app/helpers/icon_helper.rb`、Lucide。ADR-0017)。
 - 画面の説明(右ペインの「使い方」)は `config/help/` の YAML、年に一度の手続きは `config/procedures/*.yml`(条文は定款で確かめてから書く。推測で条文の番号を書かない)。
 - 待つ表示(AI の作業中など)は `auto-reload`(残りの秒数を出し、決まった間隔で読み込み直す。デザインシステム「待つ表示」)。
-
-**要確認**
-
-- 移す前の画面に保存ボタンが残っている: `organizations/edit`・`journal_entries/_form`・`people/_form`・`accounts/edit`・`vouchers/_form`・`annual_reports/_form`・`resolutions/_form`(`f.submit "保存", class: "btn"`)、`registration_filings/show`(`<button class="nb-btn">保存</button>`)。
-- 消す操作に、ブラウザのダイアログ(`turbo_confirm`)を使っているところが 3 つある: `journal_entries/show`・`vouchers/show`・`siwake_imports/show`。決まりは `confirm-twice`(ダイアログを出さない)。
-- ADR-0008 は「画面の部分的な更新は Turbo Stream」と書くが、いまは Turbo Stream を使っているところが無い(自動保存は JSON、出来事はリダイレクト)。
 
 ## 4. 操作履歴と元に戻す
 
@@ -87,13 +83,13 @@
 
 - **UI を変える順番: ①見直し票(artifact)で案を見せて合意 → ②`docs/design-system/` に書く → ③実装。** 実装してから相談しない。デザインシステムに書いていない UI は作らない。小さな不具合(崩れ・誤字)の修正はこの限りでない。実装のコミットに見直し票の回の番号を書く(「(見直し第21回)」)。
 - 色・寸法は `var(--…)` のトークンだけ。新しい画面は `nb-` の部品(`nb-btn`・`nb-sheet`・`nb-field` など。一覧は README「コンポーネント」)。
+- **Tailwind のユーティリティ(開発QAボード 第8回 8-7)**: 並べ方のユーティリティ(`flex`・`grid`・`items-center`・`justify-between`・`gap-*`・`flex-wrap` など)は使ってよい。色・文字の大きさ・余白(`text-red-600`・`text-sm`・`mb-4`・`p-2` など)は、トークンか `nb-` の部品だけで決める。古い部品(`.btn`・`.card`・`.data-table`)の画面は、触るときに `nb-` の部品へ移す(まとめて移す EPIC は作らない)。
 - `tokens.json`・`components.css` を直したら `bin/rails design:tokens`、CSS は `bin/rails tailwindcss:build`。
 - 狭い幅(720px まで)は 1 列・本文を先に・右ペインを出さない(README「狭い幅」)。ダークモードは `data-theme="dark"` のときだけ。
 
 **要確認**
 
-- 古い部品(`.btn`・`.card`・`.data-table`)を使う画面がまだ 42 ある(`nb-` の画面は 51)。移す時期と順番。
-- レイアウトに Tailwind のユーティリティ(`flex gap-2` など)を直に書いているところが多い。「トークンだけ」の決まりに、余白・並べ方のユーティリティを含めるか。帳票の `layouts/print` には色の値を直に書いている(`#f5f5f4`)。
+- 帳票の `layouts/print` は色の値を直に書いている(`#f5f5f4`)。帳票はこのシステムの色を使わない(黒一色)ので、トークンにするか、帳票だけの例外とするか。
 
 ## 6. 名前と言葉
 
@@ -103,11 +99,7 @@
 - 日付は画面では `2026/11/20`、帳票では和暦の全角(`Wareki`)。
 - 製品名は英字で `n-bato`、Ruby で `NBato`、画面では `<ruby>N<rt>エヌ</rt></ruby>ばと`。
 - 書面決議のモデルは、コントローラーでは `::Resolution` と書く(Rails の helper のモジュールとぶつかるため)。
-- モデルの日本語の名前は `config/locales/models.ja.yml`(操作履歴の表示に使う)。
-
-**要確認**
-
-- モデルの日本語の名前を、`models.ja.yml` ではなくクラスメソッド `self.model_name_label` に書いているものがある(`PersonYear`・`RegistrationFiling`・`RegistrationFiling::Completion`・`Person::AddressChange`)。どちらにそろえるか。
+- **モデルの日本語の名前は `config/locales/models.ja.yml`**(操作履歴の表示に使う。`model_name.human`)。クラスメソッド `self.model_name_label` には書かない(開発QAボード 第8回 8-6)。いま `model_name_label` に書いているもの(`PersonYear`・`RegistrationFiling` など)は #38 で移し、`model_name_label` を無くす。
 
 ## 7. Ruby の書き方
 
@@ -163,6 +155,6 @@
 
 - コミットメッセージは日本語。1 行目に「何をしたか」と、要るなら括弧で理由や出どころ(「(見直し第21回)」「(issue #9 のときどき失敗するテスト)」「ADR-0026」)。本文に箇条書きで中身と理由。末尾に `Co-Authored-By:`。
 - 意味のまとまりごとに分け、テストが通る状態でコミットする。書き方だけをそろえる自動修正は、別のコミットにする。
-- 1 つの Issue が 1 つのブランチ(`<種類>/<説明>-<Issue 番号>`)と 1 つの PR。PR は Draft で作り、本文に `Closes #<番号>`(🧱 infra は `Refs #<番号>`)。マージは人がする。
-- push・外への送信は、ユーザーに確かめてから。
+- 1 つの Issue が 1 つのブランチ(`<種類>/<説明>-<Issue 番号>`)と 1 つの PR。PR は Draft で作り、本文に `Closes #<番号>`(🧱 infra は `Refs #<番号>`)。自己レビュー(`nbato-review`)のあと、人が確かめることが残らず CI が通っていれば AI がマージしてよい(`git-workflow.md`)。
+- push・外への送信は、ユーザーに確かめてから。ただし `/nbato-review` を呼んだことは、その PR の中の操作(コメント・ラベル・Ready・PR のブランチへの push・子の Issue)の確かめとみなす。`main` への push とマージはスキルではしない。出す本文は `bin/check-private --text` に通す(開発QAボード 第8回 8-10)。
 - 人が決めることは開発QAボードで聞き、Issue に記録を積む(`decisions.md`)。設計の大事な決定は ADR に足す。
