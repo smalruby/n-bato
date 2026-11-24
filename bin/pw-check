@@ -1,0 +1,82 @@
+#!/usr/bin/env ruby
+# 画面を Playwright(Chromium)で開いて確かめる(issue #14)。架空のデータの環境(bin/demo)に向けて使う。
+#
+#   bin/pw-check URL [URL ...] [--screenshot [PATH]] [--width 390] [--height 900] [--full]
+#
+#   - ログインの画面に回されたら、ai@example.com と tmp/demo_password(か NBATO_DEMO_PASSWORD)でログインしてから開き直す
+#   - 状態コード・題・ブラウザのエラー(console.error・JavaScript の例外)・横にはみ出しているかを出す
+#   - --screenshot: 画面の写しを PATH(省くと tmp/screenshots/pw-check-<時刻>-<n>.png)に保存する。--full はページ全体
+#   - エラーがあれば終了コード 1
+#
+# 例: bin/pw-check http://localhost:3300/people --screenshot --width 390
+require "bundler/setup"
+require "playwright"
+require "fileutils"
+
+ROOT = File.expand_path("..", __dir__)
+VERSION = File.read(File.join(ROOT, ".playwright-version")).strip
+
+urls = []
+shot = nil
+width = 1400
+height = 900
+full = false
+args = ARGV.dup
+until args.empty?
+  case (a = args.shift)
+  when "--screenshot" then shot = args.first&.start_with?("-") || args.first.to_s.match?(%r{\Ahttps?://}) || args.empty? ? :auto : args.shift
+  when "--width" then width = Integer(args.shift)
+  when "--height" then height = Integer(args.shift)
+  when "--full" then full = true
+  when "-h", "--help" then puts File.read(__FILE__)[/\A#!.*?\n((?:#.*\n)+)/m, 1].gsub(/^# ?/, "")
+                           exit 0
+  else urls << a
+  end
+end
+abort "URL を書いてください(例: bin/pw-check http://localhost:3300/)" if urls.empty?
+
+email = ENV.fetch("NBATO_DEMO_EMAIL", "ai@example.com")
+password_file = File.join(ROOT, "tmp/demo_password")
+password = ENV["NBATO_DEMO_PASSWORD"].to_s.strip
+password = File.read(password_file).strip if password.empty? && File.exist?(password_file)
+
+failed = false
+Playwright.create(playwright_cli_executable_path: "npx -y playwright@#{VERSION}") do |playwright|
+  playwright.chromium.launch(headless: true) do |browser|
+    context = browser.new_context(viewport: { width:, height: }, locale: "ja-JP")
+    page = context.new_page
+    errors = []
+    page.on("console", ->(msg) { errors << "console.#{msg.type}: #{msg.text}" if msg.type == "error" })
+    page.on("pageerror", ->(err) { errors << "JavaScript の例外: #{err.message}" })
+
+    urls.each_with_index do |url, i|
+      errors.clear
+      response = page.goto(url)
+      if page.url.include?("/session/new") && !url.include?("/session/new")
+        abort "ログインに回されましたが、パスワードがありません(tmp/demo_password か NBATO_DEMO_PASSWORD)" if password.empty?
+        page.fill("input[name=email_address]", email)
+        page.fill("input[name=password]", password)
+        page.expect_navigation { page.click("input[type=submit][value=ログイン]") }
+        if page.url.include?("/session/new")
+          abort "ログインできませんでした(#{email}): #{page.text_content('body').to_s.split.first(20).join(' ')}"
+        end
+        response = page.goto(url)
+      end
+      page.wait_for_load_state(state: "networkidle")
+      status = response&.status
+      overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+      puts "#{url}"
+      puts "  状態 #{status} / 題「#{page.title}」 / 幅 #{width}px#{overflow.to_i.positive? ? " / 横に #{overflow}px はみ出している" : ''}"
+      errors.each { puts "  エラー: #{it}" }
+      failed ||= errors.any? || status.to_i >= 400
+      next unless shot
+
+      path = shot == :auto ? File.join(ROOT, "tmp/screenshots", "pw-check-#{Time.now.strftime('%Y%m%d-%H%M%S')}-#{i + 1}.png") : shot
+      path = path.sub(/(\.png)\z/, "-#{i + 1}\\1") if shot != :auto && urls.size > 1
+      FileUtils.mkdir_p(File.dirname(path))
+      page.screenshot(path:, fullPage: full)
+      puts "  写し: #{File.expand_path(path)}"
+    end
+  end
+end
+exit(failed ? 1 : 0)

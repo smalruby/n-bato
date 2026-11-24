@@ -101,12 +101,44 @@ jobs:
         env:
           RAILS_ENV: test
           # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test test:system
+        run: bin/rails db:test:prepare test
 
       - name: Verify current states against events (docs/adr/0005)
         env:
           RAILS_ENV: test
         run: bin/rails db:seed model:verify
+
+  # ブラウザを動かすテスト(test/system、Playwright の Chromium。issue #14)。速い bin/rails test とは分けて流す
+  system_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Set up Node.js (Playwright を npx で動かす)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Playwright Chromium (版は .playwright-version)
+        run: npx -y playwright@$(cat .playwright-version) install --with-deps chromium
+
+      - name: Build the fictional demo data (bin/demo と同じ種)
+        env:
+          NBATO_DEMO: "1"
+          RAILS_ENV: development
+        run: bin/rails demo:reset model:verify
+
+      - name: Run system tests
+        env:
+          RAILS_ENV: test
+        run: bin/rails db:test:prepare test:system
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v4
