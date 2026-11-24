@@ -23,7 +23,7 @@ COVERAGE=1 bin/rails test      # カバレッジ(バックエンドが 100% を�
 bin/rails test:system          # ブラウザのテスト(Playwright の Chromium。版は .playwright-version。HEADFUL=1 で窓を出す)
 bin/demo                       # 架空のデータだけの環境を作り直して http://localhost:3300 で動かす(-d 裏で / --no-reset / --reset-only / --stop)
 bin/pw-check URL [--screenshot [PATH]] [--width 390] [--full]  # 画面を Playwright で開いて確かめる(localhost ならログインも自動。写しは tmp/screenshots/)
-bin/rubocop                    # スタイル(rubocop-rails-omakase)
+bin/standardrb                 # Ruby の書き方(standardrb + standard-rails。直すのは --fix。設定は .standard.yml)
 bin/brakeman --no-pager        # セキュリティ静的解析
 bin/dev                        # 開発サーバ(http://localhost:3000)
 bin/rails kaikeiou:import[PATH]        # 会計王 SIWAKE ファイル(またはディレクトリ)の取り込み

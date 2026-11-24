@@ -37,7 +37,7 @@ NPO 法人の事務を何でも引き受ける「スーパー事務員」アプ�
 bin/setup --skip-server   # 依存の導入と DB の準備
 bin/dev                   # http://localhost:3000
 bin/rails test            # テスト
-bin/rubocop && bin/brakeman --no-pager
+bin/standardrb && bin/brakeman --no-pager
 ```
 
 AI エージェント(Claude Code)向けの決まりは `CLAUDE.md` と `.claude/rules/`、設計の決定は `docs/adr/`、画面の決まりは `docs/design-system/`、データモデルは `docs/data-model.md`。

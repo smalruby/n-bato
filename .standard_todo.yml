@@ -1,0 +1,743 @@
+# Auto generated files with errors to ignore.
+# Remove from this list as you refactor files.
+---
+ignore:
+- Gemfile:
+  - Layout/SpaceInsidePercentLiteralDelimiters
+  - Layout/EmptyLines
+- app/channels/application_cable/connection.rb:
+  - Layout/EmptyLinesAroundAccessModifier
+  - Layout/IndentationWidth
+  - Layout/IndentationConsistency
+  - Lint/AssignmentInCondition
+- app/controllers/accounts_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/TernaryParentheses
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Rails/HttpStatusNameConsistency
+  - Style/StringLiteralsInInterpolation
+- app/controllers/annual_reports_controller.rb:
+  - Rails/HttpStatusNameConsistency
+- app/controllers/application_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/TernaryParentheses
+  - Layout/EmptyLines
+  - Lint/IneffectiveAccessModifier
+  - Layout/SpaceInsideHashLiteralBraces
+  - Rails/RedirectBackOrTo
+- app/controllers/articles_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/controllers/assistant_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Rails/HttpStatusNameConsistency
+- app/controllers/concerns/authentication.rb:
+  - Layout/EmptyLinesAroundAccessModifier
+  - Layout/IndentationWidth
+  - Layout/IndentationConsistency
+  - Layout/SpaceInsideHashLiteralBraces
+- app/controllers/concerns/autosave_response.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/StringLiteralsInInterpolation
+  - Layout/ArgumentAlignment
+  - Rails/HttpStatusNameConsistency
+- app/controllers/concerns/closed_year_guard.rb:
+  - Style/StringLiteralsInInterpolation
+- app/controllers/filing_destination_searches_controller.rb:
+  - Style/TernaryParentheses
+- app/controllers/filing_destinations_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/controllers/filing_samples_controller.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/controllers/filings_controller.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ArgumentAlignment
+  - Style/StringLiteralsInInterpolation
+- app/controllers/incoming_requests_controller.rb:
+  - Style/EmptyMethod
+  - Style/SingleLineMethods
+- app/controllers/journal_entries/cancellations_controller.rb:
+  - Style/TernaryParentheses
+- app/controllers/journal_entries_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Layout/MultilineMethodCallIndentation
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/RedundantParentheses
+  - Style/EmptyMethod
+  - Style/SingleLineMethods
+  - Rails/HttpStatusNameConsistency
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/StringLiteralsInInterpolation
+  - Style/RescueModifier
+  - Layout/ArgumentAlignment
+  - Style/Semicolon
+- app/controllers/journal_proposals/approvals_controller.rb:
+  - Style/StringLiteralsInInterpolation
+- app/controllers/ledgers_controller.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/ArgumentAlignment
+- app/controllers/member_applications_controller.rb:
+  - Lint/ShadowedException
+- app/controllers/memberships_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/controllers/officer_terms_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/controllers/organizations_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/EmptyMethod
+  - Style/SingleLineMethods
+  - Rails/HttpStatusNameConsistency
+- app/controllers/passkey_sessions_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Rails/HttpStatusNameConsistency
+- app/controllers/passkeys_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Layout/SpaceInsideHashLiteralBraces
+  - Rails/HttpStatusNameConsistency
+- app/controllers/passwords_controller.rb:
+  - Layout/SpaceInsidePercentLiteralDelimiters
+  - Lint/AssignmentInCondition
+  - Layout/EmptyLinesAroundAccessModifier
+  - Layout/IndentationWidth
+  - Layout/IndentationConsistency
+- app/controllers/people/change_cancellations_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/controllers/people/name_changes_controller.rb:
+  - Layout/ArgumentAlignment
+- app/controllers/people_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/EmptyMethod
+  - Style/SingleLineMethods
+  - Rails/HttpStatusNameConsistency
+  - Style/StringLiteralsInInterpolation
+  - Layout/MultilineMethodCallIndentation
+  - Layout/SpaceInsideHashLiteralBraces
+- app/controllers/pickers_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/controllers/procedure_steps_controller.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/TernaryParentheses
+  - Style/StringLiteralsInInterpolation
+  - Style/RedundantInterpolation
+  - Layout/ArgumentAlignment
+- app/controllers/procedures_controller.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/controllers/registration_filings_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/controllers/resolutions_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/ArgumentAlignment
+  - Rails/HttpStatusNameConsistency
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/controllers/roles_controller.rb:
+  - Rails/RedirectBackOrTo
+- app/controllers/sessions_controller.rb:
+  - Layout/SpaceInsidePercentLiteralDelimiters
+  - Lint/AssignmentInCondition
+- app/controllers/setups_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/controllers/siwake_imports_controller.rb:
+  - Style/EmptyMethod
+  - Style/SingleLineMethods
+- app/controllers/statements_controller.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/controllers/todos_controller.rb:
+  - Rails/RedirectBackOrTo
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/TernaryParentheses
+- app/controllers/ui_prefs_controller.rb:
+  - Rails/HttpStatusNameConsistency
+- app/controllers/undo_controller.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/TernaryParentheses
+  - Rails/RedirectBackOrTo
+- app/controllers/vouchers_controller.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Rails/HttpStatusNameConsistency
+  - Style/EmptyMethod
+  - Style/SingleLineMethods
+- app/controllers/working_years_controller.rb:
+  - Style/RescueModifier
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/helpers/application_helper.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/RedundantInterpolation
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideHashLiteralBraces
+- app/helpers/articles_helper.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/helpers/icon_helper.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/ArgumentAlignment
+- app/helpers/member_applications_helper.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/helpers/navigation_helper.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/helpers/procedures_helper.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/StringLiteralsInInterpolation
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ArrayAlignment
+- app/helpers/todos_helper.rb:
+  - Style/TernaryParentheses
+  - Style/NestedTernaryOperator
+  - Style/StringLiteralsInInterpolation
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/mailers/application_mailer.rb:
+  - Layout/ArgumentAlignment
+- app/models/account.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/TernaryParentheses
+- app/models/annual_report.rb:
+  - Rails/FindEach
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/article_version.rb:
+  - Style/StringLiteralsInInterpolation
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/articles/document.rb:
+  - Style/StringLiteralsInInterpolation
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/assistant/action.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/assistant/responder.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/audit.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/TernaryParentheses
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/LambdaCall
+- app/models/audit_change.rb:
+  - Style/StringLiteralsInInterpolation
+- app/models/audit_operation.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/TernaryParentheses
+- app/models/backup.rb:
+  - Style/StringLiteralsInInterpolation
+- app/models/backup/archive.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/backup/snapshot.rb:
+  - Style/StringLiteralsInInterpolation
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/backup/verification.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/balance_check.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/bookkeeper/client.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/bookkeeper/proposal_generator.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/RedundantInterpolationUnfreeze
+  - Layout/MultilineMethodCallIndentation
+- app/models/compliance/checklist.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ArgumentAlignment
+- app/models/concerns/audited.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/TernaryParentheses
+- app/models/concerns/year_records.rb:
+  - Rails/ReadWriteAttribute
+  - Style/ReverseFind
+  - Style/TernaryParentheses
+- app/models/concerns/yearly_dataset.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/TernaryParentheses
+- app/models/consent.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/department.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/models/filing_destination.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/filing_destination/confirmation.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/models/filing_destination_search.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/MultilineMethodCallIndentation
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+- app/models/fiscal_period.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/fiscal_year.rb:
+  - Style/TernaryParentheses
+  - Style/NestedTernaryOperator
+  - Style/StringLiteralsInInterpolation
+- app/models/incoming_request.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/incoming_request_message.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/journal_entry.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/TernaryParentheses
+- app/models/journal_entry/cancellation.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/StringLiteralsInInterpolation
+- app/models/journal_proposal.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/MultilineMethodCallIndentation
+- app/models/journal_proposal/approval.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/journal_proposal/rejection.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/models/journal_proposal/withdrawal.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/models/kaikeiou/account_master.rb:
+  - Style/LambdaCall
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/kaikeiou/siwake_file.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/RedundantStructKeywordInit
+- app/models/kaikeiou/siwake_importer.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/kaikeiou/wareki.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/TernaryParentheses
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/ledger/book.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/TernaryParentheses
+  - Layout/MultilineMethodCallIndentation
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/ledger/report.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/MultilineMethodCallIndentation
+- app/models/ledger/year_statement.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/TernaryParentheses
+  - Layout/EmptyLineBetweenDefs
+  - Style/NestedTernaryOperator
+  - Layout/MultilineMethodCallIndentation
+- app/models/local_mailbox.rb:
+  - Style/StringLiteralsInInterpolation
+- app/models/masker.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/member_application.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+- app/models/member_application/approval.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/models/member_application/rejection.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/models/membership.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/model_verification.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/UnlessLogicalOperators
+- app/models/officer_term.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/ComparableBetween
+  - Style/TernaryParentheses
+  - Layout/ArgumentAlignment
+- app/models/opening_balance.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/ops_script.rb:
+  - Style/StringLiteralsInInterpolation
+- app/models/organization.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/organization_year.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/passkey.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/passkeys/ceremony.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/ArgumentAlignment
+- app/models/passkeys/relying_party.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/pdf_renderer.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/RescueModifier
+- app/models/person.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/RedundantStructKeywordInit
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ArgumentAlignment
+- app/models/person/address_change.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/models/person/change_cancellation.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+- app/models/person/change_event.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+  - Style/HashSyntax
+  - Layout/ArgumentAlignment
+- app/models/person/name_change.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/TernaryParentheses
+  - Layout/ArgumentAlignment
+- app/models/person_year.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/picker_items.rb:
+  - Style/TernaryParentheses
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/procedure_definition.rb:
+  - Rails/RootPathnameMethods
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ArgumentAlignment
+- app/models/procedure_run.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/procedure_step.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/program_profile.rb:
+  - Rails/CompactBlank
+- app/models/registration.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/StringLiteralsInInterpolation
+- app/models/registration_filing.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ArrayAlignment
+  - Style/StringLiteralsInInterpolation
+  - Style/TernaryParentheses
+  - Style/NestedTernaryOperator
+- app/models/registration_filing/acceptance.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/StringLiteralsInInterpolation
+- app/models/registration_filing/completion.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/StringLiteralsInInterpolation
+- app/models/registration_filing/correction.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/StringLiteralsInInterpolation
+- app/models/registration_filing/statement.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+- app/models/registration_filing/submission.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/StringLiteralsInInterpolation
+- app/models/registration_filing/withdrawal.rb:
+  - Layout/EmptyLinesAfterModuleInclusion
+  - Style/StringLiteralsInInterpolation
+- app/models/registration_online.rb:
+  - Style/RedundantStructKeywordInit
+  - Style/TernaryParentheses
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/StringLiteralsInInterpolation
+- app/models/requests/applier.rb:
+  - Rails/CompactBlank
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/RescueModifier
+  - Layout/ArgumentAlignment
+  - Style/TernaryParentheses
+- app/models/requests/cover_letter.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/EmptyStringInsideInterpolation
+  - Style/StringLiteralsInInterpolation
+  - Performance/Detect
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/requests/organizer.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+- app/models/resolution.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/resolution_item.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/StringLiteralsInInterpolation
+  - Style/MultilineIfModifier
+  - Layout/ArgumentAlignment
+- app/models/siwake_import.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/slack_notice.rb:
+  - Style/StringLiteralsInInterpolation
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/RescueModifier
+  - Style/RescueStandardError
+- app/models/slack_notice/activity.rb:
+  - Style/RedundantParentheses
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+  - Layout/ArrayAlignment
+  - Layout/SpaceInsideHashLiteralBraces
+  - Rails/Blank
+- app/models/slack_notice/digest.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+- app/models/todo.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- app/models/todo_list.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/Semicolon
+  - Style/TernaryParentheses
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+- app/models/user.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/EmptyLineBetweenDefs
+- app/models/voucher.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- app/models/wareki.rb:
+  - Style/TernaryParentheses
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+- config/application.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- config/environments/development.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- config/environments/production.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ExtraSpacing
+  - Style/GlobalStdStream
+- config/environments/test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- config/routes.rb:
+  - Style/HashSyntax
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261119230238_create_opening_balances.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- db/migrate/20261119230239_create_journal_entries.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- db/migrate/20261119231742_create_active_storage_tables.active_storage.rb:
+  - Layout/ExtraSpacing
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/EmptyLinesAroundAccessModifier
+  - Layout/IndentationWidth
+  - Layout/IndentationConsistency
+- db/migrate/20261119231751_create_journal_proposals.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261119231753_add_approval_to_journal_entries.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261119232653_create_memberships.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- db/migrate/20261119232858_create_program_activities.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- db/migrate/20261119233854_create_resolutions.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261119233906_create_consents.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- db/migrate/20261120092825_create_audit_tables.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- db/migrate/20261120093345_create_procedures.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- db/migrate/20261120132852_create_fiscal_periods.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261120140118_add_fiscal_year_to_accounts_and_departments.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/TernaryParentheses
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/StringLiteralsInInterpolation
+  - Style/LambdaCall
+- db/migrate/20261120140819_fill_person_years_and_organization_years.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/TernaryParentheses
+- db/migrate/20261120141527_backfill_audit_change_fiscal_years.rb:
+  - Style/EmptyMethod
+  - Style/SingleLineMethods
+- db/migrate/20261123090000_split_journal_proposal_events.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261123100000_create_journal_entry_cancellations.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261123110000_create_filing_destinations.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261124090000_create_person_change_events.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/ArgumentAlignment
+- db/migrate/20261124091000_create_member_application_events.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- db/migrate/20261124092000_create_registration_filings.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- lib/review_findings.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- lib/tasks/articles.rake:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+- lib/tasks/backup.rake:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- lib/tasks/backup_snapshot.rake:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- lib/tasks/bookkeeper.rake:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- lib/tasks/data.rake:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- lib/tasks/design.rake:
+  - Style/StringLiteralsInInterpolation
+  - Style/LambdaCall
+- lib/tasks/filing_destinations.rake:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- lib/tasks/kaikeiou.rake:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/StringLiteralsInInterpolation
+  - Layout/ArrayAlignment
+- lib/tasks/mail.rake:
+  - Style/StringLiteralsInInterpolation
+- lib/tasks/ops.rake:
+  - Layout/ArgumentAlignment
+- lib/tasks/organization.rake:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/TernaryParentheses
+- lib/tasks/users.rake:
+  - Style/StringLiteralsInInterpolation
+- script/make_sample_siwake.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/LambdaCall
+  - Style/ItBlockParameter
+- script/slack_check.rb:
+  - Layout/MultilineMethodCallIndentation
+  - Style/NestedTernaryOperator
+  - Style/TernaryParentheses
+  - Style/StringLiteralsInInterpolation
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/Semicolon
+  - Rails/TimeZone
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/application_system_test_case.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/integration/accounting_flow_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/integration/annual_report_flow_test.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Style/Semicolon
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/TernaryParentheses
+- test/integration/articles_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/closing_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/filing_destinations_test.rb:
+  - Style/Semicolon
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/integration/journal_entry_cancellation_flow_test.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/member_applications_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/Semicolon
+- test/integration/navigation_test.rb:
+  - Style/Semicolon
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/passkeys_test.rb:
+  - Style/Semicolon
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Rails/Pluck
+- test/integration/passwords_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/people_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/person_years_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/registrations_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/resolution_flow_test.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/right_pane_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- test/integration/sheet_and_procedure_test.rb:
+  - Rails/Pluck
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/MultilineHashBraceLayout
+- test/integration/todos_test.rb:
+  - Layout/EmptyLineBetweenDefs
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/ArrayAlignment
+  - Style/RescueModifier
+- test/integration/voucher_events_flow_test.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/integration/voucher_flow_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/integration/yearly_dataset_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- test/lib/review_findings_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/ArrayAlignment
+- test/models/audit_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/backup/archive_test.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+  - Style/Semicolon
+- test/models/backup/snapshot_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/bookkeeper/proposal_generator_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Rails/Pluck
+- test/models/data_model_ledger_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+- test/models/event_rules_test.rb:
+  - Rails/RootPathnameMethods
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/filing_destination_test.rb:
+  - Layout/EmptyLineBetweenDefs
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/MultilineBlockLayout
+  - Layout/BlockEndNewline
+  - Style/LambdaCall
+- test/models/journal_entry_cancellation_test.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/journal_proposal_events_test.rb:
+  - Layout/ArgumentAlignment
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- test/models/kaikeiou/account_master_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/kaikeiou/siwake_importer_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/ledger/balance_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Rails/Pluck
+- test/models/ledger/book_test.rb:
+  - Layout/SpaceInsideHashLiteralBraces
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/officer_term_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/passkeys_relying_party_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+  - Layout/SpaceInsideHashLiteralBraces
+- test/models/person_history_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/registration_filing_test.rb:
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/models/slack_notice_test.rb:
+  - Style/Semicolon
+  - Layout/SpaceInsideArrayLiteralBrackets
+- test/test_helper.rb:
+  - Layout/SpaceInsideHashLiteralBraces

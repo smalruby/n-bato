@@ -1,0 +1,12 @@
+# Ruby の書き方の決まり(standardrb と standard-rails)。調べるのは bin/standardrb、直すのは bin/standardrb --fix。
+# 決まりは standard の既定のまま使う。外すときは、ファイルを限って理由を書く(.claude/rules/code-style.md「Ruby の書き方」)。
+plugins:
+  - standard-rails
+
+ignore:
+  - "infra/**/*"      # AWS の部品(CDK、TypeScript)
+  - "vendor/**/*"
+  - "db/schema.rb"    # Rails が作る
+  # イベントの表には created_at・updated_at を付けない(日時は出来事の列 1 つだけ。docs/adr/0003、test/models/event_rules_test.rb)
+  - "db/migrate/**/*":
+      - Rails/CreateTableWithTimestamps
