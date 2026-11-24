@@ -4,7 +4,7 @@ module SlackNotice
   # - 年度を締めた・締めを解いた・次の年度を始めた
   # - 監事の監査の手順を済みにした、所轄庁への提出を記録した
   class Activity
-    PERSONAL = %w[Person PersonYear Membership OfficerTerm Consent User Organization OrganizationYear IncomingRequestMessage MemberApplication].freeze
+    PERSONAL = %w[Person PersonYear Membership OfficerTerm Consent User Organization OrganizationYear IncomingRequestMessage IncomingRequestMessage::Delivery MemberApplication].freeze
     CURSOR = "cursor:audit"
 
     def run!

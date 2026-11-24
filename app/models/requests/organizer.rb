@@ -1,7 +1,7 @@
 module Requests
   # 依頼ごとの AI との対話(デザインシステム「やること」の RequestThread)。
   # AI に渡すのは、伏せた文(と人が選んだ添付)・いまのやることの一覧・年度の状態・選べる画面と決まりの一覧だけ。
-  # AI は返事と「やることの案」を返す。記録は、人が「決める」を押してから Requests::Applier が行う。
+  # AI は返事と「やることの案」を返す。記録は、人が「決める」を押してから IncomingRequestMessage::Adoption.adopt! が行う。
   class Organizer
     TODO_ITEM = {
       type: "object", additionalProperties: false,
@@ -51,10 +51,12 @@ module Requests
       @request, @client, @today = request, client, today
     end
 
-    # message: 人の発言(送る前の下書き)。AI の返事を IncomingRequestMessage として保存して返す。
-    def call(message)
-      content = [ { type: "text", text: prompt_text(message) } ]
-      if message.send_attachments
+    # message: 人の発言(送る前の下書き)。masked_body: 伏せた文(これだけを送る)。send_attachments: 添付も送るか。
+    # AI の返事を IncomingRequestMessage::Delivery.deliver! で記録し、AI の発言(IncomingRequestMessage)を返す。
+    def call(message, masked_body:, send_attachments: false)
+      at = Time.current
+      content = [ { type: "text", text: prompt_text(message, masked_body) } ]
+      if send_attachments
         message.files.each do |f|
           case f.content_type
           when %r{\Aimage/} then content << { type: "image", source: { type: "base64", media_type: f.content_type, data: Base64.strict_encode64(f.download) } }
@@ -63,8 +65,7 @@ module Requests
         end
       end
       json = @client.complete_json(system: system_prompt, content:, schema: SCHEMA, max_tokens: 8_000)
-      message.update!(sent_at: Time.current)
-      @request.messages.create!(role: "assistant", body: json.fetch("reply"), proposal: json)
+      IncomingRequestMessage::Delivery.deliver!(message, masked_body:, send_attachments:, reply: json, at:)
     end
 
     private
@@ -86,8 +87,8 @@ module Requests
       PROMPT
     end
 
-    def prompt_text(message)
-      history = @request.messages.where.not(id: message.id).map { |m| "#{m.user? ? '人' : 'AI'}: #{m.user? ? m.masked_body : m.body}" }.last(10)
+    def prompt_text(message, masked_body)
+      history = @request.messages.where.not(id: message.id).includes(:delivery).map { |m| "#{m.user? ? '人' : 'AI'}: #{m.user? ? m.masked_body : m.body}" }.last(10)
       todos = @request.todos.map { |t| "##{t.id} [#{t.status_label}] #{t.fiscal_year ? "#{t.fiscal_year}年度" : '年度なし'} #{t.title}(#{t.kind_label}#{"・待ち: #{t.waiting_on}" if t.waiting_on.present?})" }
       years = FiscalPeriod.ordered.map { "#{it.year}年度: #{it.state_label}" }
       <<~TEXT
@@ -99,7 +100,7 @@ module Requests
         #{history.presence&.join("\n") || '(はじめて)'}
 
         人の今回の発言:
-        #{message.masked_body}
+        #{masked_body}
       TEXT
     end
   end

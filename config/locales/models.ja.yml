@@ -8,6 +8,10 @@ ja:
       filing_destination: 提出先
       filing_destination/confirmation: 提出先の確認
       filing_destination_search: 提出先の調べもの
+      todo/status_change: やることの状態の変化
+      incoming_request/settlement: 依頼の解決
+      incoming_request_message/delivery: 依頼の対話を AI に送った
+      incoming_request_message/adoption: AI の案を決めた
       journal_entry: 仕訳
       opening_balance: 期首残高
       balance_check: 残高の照合

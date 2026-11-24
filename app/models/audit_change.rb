@@ -13,6 +13,8 @@ class AuditChange < ApplicationRecord
   def model_label = auditable_class&.model_name&.human || auditable_type
 
   def fields = (changeset || {}).keys
+  # 記録の列の値(削除なら消す前の値、ほかは変えたあとの値)。元に戻すときの、持ち主の記録を探すのに使う。
+  def value(field) = snapshot ? snapshot[field] : Array((changeset || {})[field]).compact.last
   def field_label(name) = auditable_class&.human_attribute_name(name) || name
 
   scope :in_fiscal_year, ->(year) { where(fiscal_year: year) }

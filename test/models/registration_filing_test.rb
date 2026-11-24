@@ -90,8 +90,8 @@ class RegistrationFilingTest < ActiveSupport::TestCase
   end
 
   test "申請した → 受付 → 補正 → 完了。完了で登記した日が入り、待っていたやることが作業中に戻る" do
-    todo = Todo.create!(title: "登記後の証明書を送る", status: "wait", resume_rule: "registration_completed", waiting_on: "登記")
-    other = Todo.create!(title: "ほかの待ち", status: "wait")
+    todo = Todo.create!(title: "登記後の証明書を送る", resume_rule: "registration_completed").tap { Todo::StatusChange.change!(it, status: "wait", waiting_on: "登記") }
+    other = Todo.create!(title: "ほかの待ち").tap { Todo::StatusChange.change!(it, status: "wait") }
     filing = RegistrationFiling.start!([ reg_for(@chair_term), reg_for(@vice_term) ])
     assert_raises(ArgumentError) { RegistrationFiling::Acceptance.accept!(filing, accepted_on: Date.current) }
     assert_raises(ArgumentError) { RegistrationFiling::Completion.complete!(filing, completed_on: Date.current) }

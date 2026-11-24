@@ -49,7 +49,7 @@
       <% if defn.effect == "close_year" && (open_todos = Todo.unfinished.where(fiscal_year: @run.period.to_i).includes(:incoming_request)).any? %>
         <div class="nb-flash nb-flash--alert" role="note">
           <b><%= @run.period %>年度が対象の、済んでいないやることが <%= open_todos.size %> 件あります。</b>締める前に確かめてください。
-          <ul style="margin:4px 0 0 1.2em"><% open_todos.each do |t| %><li><%= link_to t.title, open_todo_path(t), class: "underline" %>(<%= t.status_label %><%= "・#{t.incoming_request.title}" if t.incoming_request %>)</li><% end %></ul>
+          <ul style="margin:4px 0 0 1.2em"><% open_todos.each do |t| %><li><%= link_to t.title, todo_path(t), class: "underline" %>(<%= t.status_label %><%= "・#{t.incoming_request.title}" if t.incoming_request %>)</li><% end %></ul>
         </div>
       <% end %>
 

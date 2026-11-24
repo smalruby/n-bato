@@ -13,15 +13,15 @@
   <section id="todos">
     <h2 class="section-title" style="margin:0 0 6px">やること(<%= r.done_count %> / <%= r.todos.size %> 済み)</h2>
     <% if r.todos.any? %>
-      <% items = r.todos.map { |t| TodoList::Item.new(status: t.status, fiscal_year: t.fiscal_year, title: t.title, kind_label: t.kind_label, assignee: t.assignee, due_on: t.due_on, path: (t.target.present? ? open_todo_path(t) : nil), todo: t, note: [ (t.status == "wait" && t.waiting_on.present? ? "待ち: #{t.waiting_on}" : nil), (t.done? ? t.done_note.presence : nil) ].compact.join(" ")) } %>
+      <% items = r.todos.map { |t| TodoList::Item.new(status: t.status, fiscal_year: t.fiscal_year, title: t.title, kind_label: t.kind_label, assignee: t.assignee, due_on: t.due_on, path: (t.target.present? ? todo_path(t) : nil), todo: t, note: [ (t.status == "wait" && t.waiting_on.present? ? "待ち: #{t.waiting_on}" : nil), (t.done? ? t.done_note.presence : nil) ].compact.join(" ")) } %>
       <%= render "todos/table", groups: [ TodoList::Group.new(key: "r", source: "request", title: r.title, note: "", due_on: nil, request: r, items:) ], show_groups: false %>
     <% else %>
       <p class="text-sm" style="color:var(--ink-muted)">まだありません。下の対話で AI に依頼の文を送ると、やることの案が出ます。</p>
     <% end %>
     <% unless Current.user&.auditor? %>
       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px">
-        <% if r.all_done? && !r.resolved? %><%= button_to "全部済みました。依頼を解決にする", resolve_incoming_request_path(r), class: "nb-btn nb-btn--primary", form: { style: "display:inline" } %><% end %>
-        <% if r.all_done? || r.resolved? %><%= button_to (r.cover_letter.present? ? "送付状の下書きを作り直す" : "送付状(返信)の下書きを作る"), cover_letter_incoming_request_path(r), class: "nb-btn", form: { style: "display:inline" } %><% end %>
+        <% if r.all_done? && !r.resolved? %><%= button_to "全部済みました。依頼を解決にする", incoming_request_settlement_path(r), class: "nb-btn nb-btn--primary", form: { style: "display:inline" } %><% end %>
+        <% if r.all_done? || r.resolved? %><%= button_to (r.cover_letter.present? ? "送付状の下書きを作り直す" : "送付状(返信)の下書きを作る"), incoming_request_cover_letter_path(r), class: "nb-btn", form: { style: "display:inline" } %><% end %>
       </div>
     <% end %>
     <% if r.cover_letter.present? %>
@@ -35,7 +35,7 @@
       <% r.messages.each do |m| %>
         <% next if m.user? && !m.sent? %>
         <div class="nb-msg <%= m.user? ? 'nb-msg--user' : 'nb-msg--ai' %>">
-          <div class="nb-msg-meta"><%= m.user? ? "人(AI に送った伏せた文#{'・添付つき' if m.send_attachments})" : "AI" %> ・<%= l m.created_at, format: :short %></div>
+          <div class="nb-msg-meta"><%= m.user? ? "人(AI に送った伏せた文#{'・添付つき' if m.send_attachments})" : "AI" %> ・<%= l m.written_at, format: :short %></div>
           <% if m.user? %><%= with_masks(m.masked_body) %><% else %><%= m.body %><% end %>
           <% if !m.user? && (m.proposal_todos.any? || m.proposal_updates.any? || m.proposal&.dig("request", "title").present?) %>
             <div class="nb-proposal">
@@ -52,7 +52,7 @@
                 <ol><% m.proposal_updates.each do |u| %><li>#<%= u["id"] %> → <%= Todo::STATUSES[u["status"]] %> <%= u["waiting_on"].presence || u["done_note"] %></li><% end %></ol>
               <% end %>
               <% if m.proposal_actionable? && !Current.user&.auditor? %>
-                <div><%= button_to "この案で決める", incoming_request_message_apply_path(r, m), class: "nb-btn nb-btn--primary", form: { style: "display:inline" } %> <span class="text-xs" style="color:var(--ink-muted)">違うところは、下に書いて AI に直してもらえます</span></div>
+                <div><%= button_to "この案で決める", incoming_request_message_adoption_path(r, m), class: "nb-btn nb-btn--primary", form: { style: "display:inline" } %> <span class="text-xs" style="color:var(--ink-muted)">違うところは、下に書いて AI に直してもらえます</span></div>
               <% end %>
             </div>
           <% end %>
@@ -68,7 +68,7 @@
         <h2 class="section-title" style="margin:0 0 6px">AI に送る文(確かめてください)</h2>
         <div class="nb-msg nb-msg--user" style="max-width:100%;justify-self:stretch"><%= with_masks(@masked.text) %></div>
         <p class="text-xs" style="margin:6px 0"><%= @masked.masked? ? "伏せた箇所: #{@masked.summary}。黒い部分は AI に送りません。" : "伏せる箇所は見つかりませんでした。" %>伏せ忘れがあれば、下書きを消して書き直してください。</p>
-        <%= form_with url: incoming_request_message_deliver_path(r, @draft), class: "grid gap-2" do %>
+        <%= form_with url: incoming_request_message_delivery_path(r, @draft), class: "grid gap-2" do %>
           <% if @draft.files.attached? %>
             <div class="text-sm">添付: <%= @draft.files.map { it.filename.to_s }.join("、") %></div>
             <label class="text-sm"><input type="checkbox" name="send_attachments" value="1"> 添付も AI に送る(添付は伏せられません。住所・電話・メールアドレスが入っていないことを確かめてから)</label>

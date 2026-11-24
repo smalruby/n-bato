@@ -49,16 +49,16 @@ Rails.application.routes.draw do
     # 取消(イベントを作る。docs/adr/0026)
     resource :cancellation, only: :create, module: :journal_entries
   end
-  # やること(デザインシステム「やること」)
-  resources :todos, only: %i[index update] do
-    get :open, on: :member
+  # やること(デザインシステム「やること」)。出来事(状態の変化・解決・送った・決めた)は、それぞれ「作る」で表す(docs/adr/0008・0034)
+  resources :todos, only: %i[index show] do
+    resources :status_changes, only: :create, module: :todos
   end
   resources :incoming_requests, only: %i[new create show] do
-    post :resolve, on: :member
-    post :cover_letter, on: :member
+    resource :settlement, only: :create, module: :incoming_requests
+    resource :cover_letter, only: :create, module: :incoming_requests
     resources :messages, controller: "incoming_request_messages", only: %i[create destroy] do
-      post :deliver
-      post :apply
+      resource :delivery, only: :create, module: :incoming_request_messages
+      resource :adoption, only: :create, module: :incoming_request_messages
     end
   end
   resources :resolutions do
