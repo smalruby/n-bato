@@ -1,12 +1,14 @@
 # n-bato の本番(Lightsail・東京)。サーバーと周りの AWS の部品は infra/ の CDK(NBatoStack)が作る。
-# 決めたことはデプロイの相談 第1〜3回(場所は CLAUDE.local.md)。
+# 決めたことはデプロイの相談 第1〜3回(場所は CLAUDE.local.md)と開発QAボード 第6回(docs/adr/0036)。
 #
-#   NBATO_SECRETS_DIR=<秘密の置き場所> bin/kamal deploy
+# デプロイの道は 2 つ(docs/deploy.md):
+#   いつも:   gh workflow run deploy.yml --ref main          # GitHub Actions の Deploy
+#   予備:     NBATO_SECRETS_DIR=<秘密の置き場所> bin/kamal deploy   # Mac から
 #
-# 秘密(鍵・パスワード)は NBATO_SECRETS_DIR から読む(.kamal/secrets)。リポジトリには場所も値も書かない。
-<% secrets_dir = ENV.fetch("NBATO_SECRETS_DIR") { abort "NBATO_SECRETS_DIR に秘密の置き場所を入れてください" } %>
+# 秘密(鍵・パスワード)は .kamal/secrets → bin/kamal-secret が、環境変数か NBATO_SECRETS_DIR から読む。
+# リポジトリには場所も値も書かない。
 service: n-bato
-image: n-bato
+image: smalruby/n-bato
 
 servers:
   web:
@@ -18,15 +20,22 @@ proxy:
   healthcheck:
     path: /up
 
-# 手元で作ったイメージを SSH でサーバーへ直接送る(外のレジストリを使わない。Kamal 2.8 以降)
+# イメージは ghcr.io に公開で置く(ghcr.io/smalruby/n-bato。鍵は入れない。docs/adr/0036)。
+# Kamal は、置くときも、サーバーで取ってくるときも docker login する。Actions は GITHUB_TOKEN
+#(ジョブが終われば使えなくなる)、Mac は ghcr.env のトークン。デプロイのあとサーバーからは logout する。
 registry:
-  server: localhost:5555
+  server: ghcr.io
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
 
 ssh:
   user: ubuntu
   keys_only: true
-  keys:
-    - <%= secrets_dir %>/n-bato-deploy
+  # 鍵は秘密から(Mac: n-bato-deploy、Actions: Actions だけの鍵)
+  key_data:
+    - NBATO_SSH_PRIVATE_KEY
 
 env:
   secret:

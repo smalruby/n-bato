@@ -11,6 +11,9 @@
 ARG RUBY_VERSION=4.0.10
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
+# ghcr.io のパッケージをこのリポジトリに結びつける(Actions の GITHUB_TOKEN で置けるようにする。docs/deploy.md)
+LABEL org.opencontainers.image.source="https://github.com/smalruby/n-bato"
+
 # Rails app lives here
 WORKDIR /rails
 
