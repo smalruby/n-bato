@@ -18,13 +18,11 @@ class FilingSamplesController < ApplicationController
     @addressee = "（例）○○市長　○○　○○"
     respond_to do |format|
       format.html { render "filings/documents" }
-      # :nocov:
       format.pdf do
         @pdf = true
         send_data PdfRenderer.render(render_to_string("filings/documents", formats: [ :html ])),
                   filename: "n-bato-forms-sample.pdf", type: "application/pdf", disposition: "attachment"
       end
-      # :nocov:
     end
   end
 end

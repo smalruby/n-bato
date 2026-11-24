@@ -40,4 +40,13 @@ class Kaikeiou::SiwakeFileTest < ActiveSupport::TestCase
     broken = @bytes.b.sub("H.36/05/11".encode(Encoding::Windows_31J).b, "2024/05/11")
     assert_raises(Kaikeiou::SiwakeFile::FormatError) { Kaikeiou::SiwakeFile.parse(broken) }
   end
+
+  test "書き出した日時が読めなければ nil" do
+    assert_nil Kaikeiou::SiwakeFile.new(header: { "RTNDATE" => "20261399", "RTNTIME" => "120000" }).exported_at
+    assert_nil Kaikeiou::SiwakeFile.new.exported_at
+  end
+
+  test "行の終わりのカンマのあとは空の列" do
+    assert_equal [ [ "1", false ], [ "", false ] ], Kaikeiou::SiwakeFile.send(:parse_fields, "1,")
+  end
 end

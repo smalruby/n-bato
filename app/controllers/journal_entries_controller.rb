@@ -76,11 +76,8 @@ class JournalEntriesController < ApplicationController
     end
   end
 
+  # AI の提案を承認してできた仕訳は消さない(訂正は訂正の仕訳。docs/adr/0007)。止めるのは require_editable
   def destroy
-    # AI の提案を承認してできた仕訳は消さない(訂正は訂正の仕訳。docs/adr/0007)
-    if @entry.proposal_approval
-      return redirect_to(journal_entries_path(year: @entry.fiscal_year), alert: "AI の提案を承認してできた仕訳は消せません。直すときは「取り消す」を使ってください(証憑の画面に、正しい提案がもう一度出ます)")
-    end
     if FiscalPeriod.for(@entry.fiscal_year)&.closed?
       reason = params[:reason].to_s.strip
       return redirect_to(journal_entries_path(year: @entry.fiscal_year), alert: "#{@entry.fiscal_year}年度は締めた年度です。消す理由を書いてください") if reason.empty?

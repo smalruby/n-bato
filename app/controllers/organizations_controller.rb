@@ -25,6 +25,7 @@ class OrganizationsController < ApplicationController
     if saved
       redirect_to organization_path, notice: "#{@working_period&.label}の法人情報を保存しました"
     else
+      flash.now[:alert] = (record || @organization).errors.full_messages.join(" / ")
       render :edit, status: :unprocessable_entity
     end
   end

@@ -70,4 +70,34 @@ class AuditTest < ActiveSupport::TestCase
     assert_not_includes raw, "テスト町"
     assert_equal "松江市テスト町1", AuditChange.last.changeset["address"].last
   end
+
+  test "金額の BigDecimal は文字で残す" do
+    assert_equal "1.5", Audit.dump(BigDecimal("1.5"))
+    assert_equal "2024-05-01", Audit.dump(Date.new(2024, 5, 1))
+    assert_equal 3, Audit.dump(3)
+  end
+
+  test "追加を元に戻せない(ほかの記録が使っている)ときは知らせる" do
+    account = Audit.operation(user: @user, scope: "accounts") { Account.create!(fiscal_year: 2024, code: 101, name: "小口現金") }
+    OpeningBalance.create!(fiscal_year: 2024, account:, amount: 100)
+    error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "accounts") }
+    assert_match "元に戻せませんでした", error.message
+    assert Account.exists?(account.id)
+  end
+
+  test "削除をやり直す。やり直せない(ほかの記録が使い始めた)ときは知らせる" do
+    a = Account.create!(fiscal_year: 2024, code: 101, name: "小口現金")
+    b = Account.create!(fiscal_year: 2024, code: 102, name: "預り金")
+    Audit.operation(user: @user, scope: "accounts") { a.destroy! }
+    Audit.undo!(@user, "accounts")
+    Audit.redo!(@user, "accounts")
+    assert_not Account.exists?(a.id), "やり直すと、もう一度消える"
+
+    Audit.operation(user: @user, scope: "accounts") { b.destroy! }
+    Audit.undo!(@user, "accounts")
+    OpeningBalance.create!(fiscal_year: 2024, account_id: b.id, amount: 100)
+    error = assert_raises(Audit::Conflict) { Audit.redo!(@user, "accounts") }
+    assert_match "やり直せませんでした", error.message
+    assert Account.exists?(b.id)
+  end
 end

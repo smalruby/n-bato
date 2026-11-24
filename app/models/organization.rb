@@ -5,6 +5,7 @@ class Organization < ApplicationRecord
   DEFAULT_ACCOUNTING_STANDARD_NOTE = "財務諸表の作成は、ＮＰＯ法人会計基準（2010年７月20日　2011年11月20日一部改正　ＮＰＯ法人会計基準協議会）によっています。".freeze
 
   validates :name, presence: true
+  validates :first_fiscal_year, numericality: { only_integer: true }, allow_nil: true
 
   # 会員の種別(定款)。data/organization.yml の membership_kinds で上書きできる。
   DEFAULT_MEMBERSHIP_KINDS = [

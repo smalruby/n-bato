@@ -48,13 +48,11 @@ class RegistrationFilingsController < ApplicationController
     @statement = @filing.statement
     respond_to do |format|
       format.html { render "registration_filings/document", layout: "print" }
-      # :nocov: PDF はヘッドレス Chrome で作る(機械に依存するので、テストでは HTML を確かめる)
       format.pdf do
         @pdf = true
         html = render_to_string("registration_filings/document", layout: "print", formats: [ :html ])
         send_data PdfRenderer.render(html), filename: "registration-#{@filing.id}-#{@doc}.pdf", type: "application/pdf", disposition: "inline"
       end
-      # :nocov:
     end
   end
 

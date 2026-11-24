@@ -26,6 +26,7 @@ class AssistantController < ApplicationController
   rescue ActiveSupport::MessageVerifier::InvalidSignature
     render json: { ok: false, message: "操作の案が正しくありません。もう一度聞いてください" }, status: :unprocessable_entity
   rescue ArgumentError, ActiveRecord::RecordInvalid, Bookkeeper::Client::Error => e
+    # 証憑を保存できない(受け付けない形のファイルなど)。AI のエラーは ProposalGenerator が証憑に残すので、ここまでは来ない
     render json: { ok: false, message: e.message }, status: :unprocessable_entity
   end
 end

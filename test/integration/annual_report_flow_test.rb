@@ -54,6 +54,7 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
     FilingDestination::Confirmation.confirm!(d, by: users(:one))
     get document_annual_report_path(2024, "letter")
     assert_match "（あて先）テスト市長　山田　太郎", response.body
+    assert_pdf pack_annual_report_path(2024, format: :pdf)
   end
 
   test "事業報告書の無い年度へ切り替えると一覧へ戻る" do
@@ -79,5 +80,21 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
     draft = AnnualReport.draft_for(2025)
     assert_equal "前年度の成果", draft.achievements
     assert_equal 3, draft.program_activities.size
+  end
+
+  test "編集の画面・保存できなければ戻す・書類一式を HTML で出す" do
+    post annual_reports_path, params: { annual_report: { fiscal_year: "", achievements: "x" } }
+    assert_response :unprocessable_entity
+
+    AnnualReport.draft_for(2024).save!
+    AnnualReport.draft_for(2025).save!
+    get edit_annual_report_path(2024)
+    assert_response :success
+    patch annual_report_path(2024), params: { annual_report: { fiscal_year: 2025 } }
+    assert_response :unprocessable_entity
+
+    get pack_annual_report_path(2024)
+    assert_response :success
+    assert_match "事業報告書等一式", response.body
   end
 end

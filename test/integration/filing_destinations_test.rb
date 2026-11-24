@@ -90,6 +90,7 @@ class FilingDestinationsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match "（例）NPO法人サンプル", response.body
     assert_match "（例）○○市長", response.body
+    assert_pdf filing_samples_path(format: :pdf)
   end
 
   test "最初の起動: 法人が無ければホームからウィザードへ。名前と所在地を入れて進む" do

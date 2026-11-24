@@ -28,4 +28,15 @@ class Kaikeiou::SiwakeImporterTest < ActiveSupport::TestCase
     si = import.siwake_import
     assert_equal @bytes.b, si.reload.to_siwake_file.to_bytes.b
   end
+
+  test "ファイルかディレクトリの中の .txt を取り込む" do
+    results = Kaikeiou::SiwakeImporter.import_path(file_fixture("siwake_sample.txt").to_s)
+    assert_equal [ true ], results.map(&:created)
+    Dir.mktmpdir do |dir|
+      File.binwrite(File.join(dir, "a.txt"), @bytes)
+      File.write(File.join(dir, "readme.md"), "取り込まない")
+      results = Kaikeiou::SiwakeImporter.import_path(dir)
+      assert_equal [ "同じファイルを取り込み済み" ], results.map(&:skipped_reason)
+    end
+  end
 end
