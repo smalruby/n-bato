@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# bin/setup-worktree — 隣のディレクトリに worktree を作り、手元だけのファイルをつなぐ。
+#
+# worktree は本体の隣に置く(例: ~/work/smalruby/n-bato-<名前>/)。
+# 本体の中(.claude/worktrees/ など)に置くと、.claude 以下をコミットするときにじゃまになるため。
+#
+# 使い方(本体のディレクトリで):
+#   bin/setup-worktree <名前> [<ブランチ名>] [<元のブランチ>]
+#     例: bin/setup-worktree issue-15 refactor/todo-events-15
+#     ブランチ名の既定は topic/<名前>、元の既定は main。
+#   すでにある worktree の中で、つなぐところだけやり直す:
+#   bin/setup-worktree --link
+#
+# つなぐもの(git 管理外。リンクにするので、本体の側と同じものを使う):
+#   .private-patterns  コミットの点検語(bin/check-private)
+#   CLAUDE.local.md    手元専用の指示
+#   notes/             作業記録・連絡帳(ジャーナルを 1 か所にまとめる)
+#   config/master.key  開発・テストの credentials
+# つながないもの: data/(団体の実データ)、storage/(手元の DB)、.env(API キー)。
+# worktree の DB は、その worktree の storage/ に新しく作る。
+set -euo pipefail
+
+main_root() { git worktree list --porcelain | sed -n '1s/^worktree //p'; }
+
+link_local_files() {
+  local main; main="$(main_root)"
+  [ "$main" = "$(pwd -P)" ] && { echo "本体の中です。worktree の中で実行してください" >&2; exit 1; }
+  for f in .private-patterns CLAUDE.local.md notes config/master.key; do
+    if [ -e "$main/$f" ] && [ ! -e "$f" ]; then ln -s "$main/$f" "$f"; echo "つないだ: $f"; fi
+  done
+  bundle check >/dev/null || bundle install
+  bin/rails db:prepare >/dev/null
+  RAILS_ENV=test bin/rails db:prepare >/dev/null
+  bin/rails tailwindcss:build >/dev/null 2>&1 || true
+  echo "準備ができました: $(pwd)"
+}
+
+if [ "${1:-}" = "--link" ]; then link_local_files; exit 0; fi
+
+name="${1:?使い方: bin/setup-worktree <名前> [<ブランチ名>] [<元のブランチ>]}"
+branch="${2:-topic/$name}"
+base="${3:-main}"
+main="$(main_root)"
+dir="$(dirname "$main")/$(basename "$main")-$name"
+
+git -C "$main" worktree add "$dir" -b "$branch" "$base"
+cd "$dir"
+link_local_files

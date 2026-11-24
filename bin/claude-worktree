@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# bin/claude-worktree — Claude Code の WorktreeCreate / WorktreeRemove フック(.claude/settings.json)。
+#
+# Agent の isolation: "worktree" や EnterWorktree の worktree を、本体の中(.claude/worktrees/)ではなく
+# 本体の隣(../n-bato-<名前>/、ブランチ topic/<名前>)に作る。作り方は bin/setup-worktree と同じ。
+#
+#   create: 標準入力の JSON の name で作り、作った場所(絶対パス)だけを標準出力に出す。ほかの出力は標準エラーへ。
+#   remove: 標準入力の JSON の worktree_path を消す。まだコミットしていない変更があれば消さない(失敗にする)。
+#           ブランチは、マージ済みのときだけ消す。
+set -euo pipefail
+
+input="$(cat)"
+field() { ruby -rjson -e 'puts JSON.parse(ARGV[0])[ARGV[1]].to_s' "$input" "$1"; }
+
+case "${1:-}" in
+  create)
+    name="$(field name)"; cwd="$(field cwd)"
+    common="$(git -C "${cwd:-.}" rev-parse --path-format=absolute --git-common-dir)"
+    root="$(cd "$common/.." && pwd -P)"
+    dir="$(dirname "$root")/$(basename "$root")-$name"
+    (cd "$root" && bin/setup-worktree "$name" "topic/$name" main) >&2
+    printf '%s\n' "$dir"
+    ;;
+  remove)
+    path="$(field worktree_path)"
+    [ -d "$path" ] || exit 0
+    common="$(git -C "$path" rev-parse --path-format=absolute --git-common-dir)"
+    branch="$(git -C "$path" branch --show-current)"
+    git --git-dir="$common" worktree remove "$path" >&2
+    [ -n "$branch" ] && git --git-dir="$common" branch -d "$branch" >&2 2>/dev/null || true
+    ;;
+  *) echo "使い方: bin/claude-worktree create|remove(標準入力に Claude Code のフックの JSON)" >&2; exit 2 ;;
+esac

@@ -28,6 +28,7 @@ bin/rails 'ledger:opening[2017,100:12000 106:345000]'  # 期首残高(数字は�
 bin/rails 'organization:load[data/organization.yml]'   # 法人情報(例: config/organization.example.yml)
 bin/rails 'data:load[data/records.yml]'                 # 会員・役員・事業報告書
 EMAIL=... PASSWORD=... NAME=... bin/rails users:create
+bin/setup-worktree <名前> [<ブランチ>]  # 隣のディレクトリ(../n-bato-<名前>)に worktree を作る。決まりは .claude/rules/git-workflow.md
 bin/rails server -p 3100 -d            # 開発サーバ(画面の確認は Playwright でスクリーンショット)
 RAILS_MASTER_KEY=$(cat config/master.key) docker compose up -d --build   # 手元の Docker(http://localhost:3200)
 NBATO_SECRETS_DIR=... bin/kamal deploy                 # 本番(https://n-bato.smalruby.app、Lightsail)。秘密の置き場所は CLAUDE.local.md
