@@ -18,4 +18,18 @@ class Compliance::ChecklistTest < ActiveSupport::TestCase
     assert items.any? { it.category == "登記" && it.overdue? }
     assert by_title["2025年度の通常総会（前年度の事業報告・決算の承認）"].overdue?
   end
+
+  test "期限まで 90 日以内は近い、それより先は未完了" do
+    OfficerTerm.create!(person: @person, role: "chair", starts_on: Date.new(2025, 1, 1), ends_on: Date.new(2026, 12, 31))
+    Registration.create!(kind: "representative_change", cause_on: Date.new(2026, 3, 1), due_on: Date.new(2026, 12, 31), note: "期限の先の登記")
+    items = Compliance::Checklist.new(today: Date.new(2026, 4, 10), organization: @org).items
+    by_title = items.index_by(&:title)
+    assert_equal :upcoming, by_title["2026年度の通常総会（前年度の事業報告・決算の承認）"].status
+    assert_equal :open, items.find { it.category == "登記" && it.title.end_with?("期限の先の登記") }.status
+    assert_not items.any? { it.category == "役員" }, "任期満了まで 90 日より先"
+
+    soon = Compliance::Checklist.new(today: Date.new(2026, 11, 1), organization: @org).items.find { it.category == "役員" }
+    assert_equal :upcoming, soon.status
+    assert_equal Date.new(2026, 12, 31), soon.due_on
+  end
 end

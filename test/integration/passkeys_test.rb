@@ -130,4 +130,15 @@ class PasskeysTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_equal 0, Passkey.count
   end
+
+  test "チャレンジが違う署名ではログインできない" do
+    sign_in
+    register_passkey
+    delete session_path
+    post options_passkey_session_path, as: :json
+    post passkey_session_path, params: { credential: @client.get(challenge: "AAAA", user_verified: true) }, as: :json
+    assert_response :unprocessable_entity
+    get root_path
+    assert_redirected_to new_session_path
+  end
 end

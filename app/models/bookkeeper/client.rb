@@ -9,13 +9,21 @@ module Bookkeeper
     def self.api_key = ENV["ANTHROPIC_API_KEY"].presence || Rails.application.credentials.dig(:anthropic, :api_key)
     def self.configured? = api_key.present?
 
+    # api: Anthropic::Client の代わり。テストでは偽の API を渡すか、Bookkeeper::Client.api に入れる
+    # (SlackNotice.poster と同じ。本物の Claude API は呼ばない)。nil なら本物を使う。
+    class << self
+      attr_accessor :api
+    end
+
+    def initialize(api: self.class.api) = @api = api
+
     def model = MODEL
 
     # content: Messages API の content ブロックの配列。戻り値は JSON を読んだ Hash。
     def complete_json(system:, content:, schema:, max_tokens: 16_000)
       raise NotConfigured, "ANTHROPIC_API_KEY が設定されていません" unless self.class.configured?
 
-      message = Anthropic::Client.new(api_key: self.class.api_key).messages.create(
+      message = api.messages.create(
         model: MODEL.to_sym,
         max_tokens: max_tokens,
         system_: [ { type: "text", text: system } ],
@@ -41,7 +49,6 @@ module Bookkeeper
     def search_json(system:, prompt:, schema:, max_tokens: 16_000, max_uses: 8)
       raise NotConfigured, "ANTHROPIC_API_KEY が設定されていません" unless self.class.configured?
 
-      api = Anthropic::Client.new(api_key: self.class.api_key)
       messages = [ { role: "user", content: prompt } ]
       message = nil
       5.times do
@@ -66,5 +73,9 @@ module Bookkeeper
       raise Error, "AI の回答を JSON として読めません: #{e.message}"
     end
     # :nocov:
+
+    private
+
+    def api = @api ||= Anthropic::Client.new(api_key: self.class.api_key)
   end
 end

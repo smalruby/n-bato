@@ -28,6 +28,46 @@ module ActiveSupport
     setup { PdfRenderer::Fake.reset! }
 
     # Add more helper methods to be used by all tests here...
+
+    # 環境変数を一時的に変える(nil は消す)。テストの後は元に戻す
+    def with_env(vars)
+      before = vars.keys.to_h { [ it, ENV[it] ] }
+      vars.each { |k, v| v.nil? ? ENV.delete(k) : ENV[k] = v }
+      yield
+    ensure
+      before.each { |k, v| v.nil? ? ENV.delete(k) : ENV[k] = v }
+    end
+
+    # Claude API を偽物にして、鍵があることにする。答えは呼ばれた順(最後の答えはくり返す)
+    def with_fake_claude(*replies)
+      api = FakeClaudeApi.new(*replies)
+      before = Bookkeeper::Client.api
+      Bookkeeper::Client.api = api
+      with_env("ANTHROPIC_API_KEY" => "test-key") { yield api }
+    ensure
+      Bookkeeper::Client.api = before
+    end
+  end
+end
+
+# Claude API(Anthropic::Client)の偽物。答えは Hash(JSON にして返す)・文字・Message・例外。本物の API は呼ばない
+class FakeClaudeApi
+  Block = Data.define(:type, :text)
+  Message = Data.define(:stop_reason, :content)
+
+  attr_reader :requests
+
+  def self.reply(text, stop_reason: :end_turn) = Message.new(stop_reason, [ Block.new(:text, text), Block.new(:thinking, "") ])
+
+  def initialize(*replies) = (@replies, @requests = replies, [])
+  def messages = self
+
+  def create(**params)
+    @requests << params
+    r = @replies.size > 1 ? @replies.shift : @replies.first
+    raise r if r.is_a?(Exception)
+
+    r.is_a?(Message) ? r : self.class.reply(r.is_a?(String) ? r : r.to_json)
   end
 end
 
