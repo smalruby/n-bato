@@ -65,7 +65,11 @@ class PeopleRecordsTest < ActionDispatch::IntegrationTest
     assert_equal "テスト法人", org.name, "空の名前は保存しない(本体の列)"
     assert_equal "テスト法人", org.at(2024).name, "空の名前は保存しない(操作している年度の記録)"
     assert_equal "テスト法人", org.record_for(2023).name
+
+    first_year = org.first_fiscal_year
     patch organization_path, params: { organization: { first_fiscal_year: "abc", name: "テスト法人" } }
-    assert_response :redirect
+    assert_response :unprocessable_entity
+    assert_match "第 1 期の年度は数値で入力してください", flash[:alert]
+    assert_equal first_year, org.reload.first_fiscal_year, "数でない値で第 1 期の年度を消さない"
   end
 end
