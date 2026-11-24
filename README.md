@@ -18,7 +18,7 @@ NPO 法人の事務を何でも引き受ける「スーパー事務員」アプ�
 | P2 | 提出と公告: 所轄庁への年次提出パック、貸借対照表の公告 |
 | P3 | 会員・役員・書面決議(みなし決議)と議事録 |
 
-当面は手元の Docker で動かし、ログインするのは理事長 1 人。
+いまは本番(Lightsail)で動かしていて、ログインするのは理事長 1 人。開発のタスクは GitHub の Issue と Projects で管理する(団体の事務は載せない。事務のやることは Nばとの「やること」で管理する)。
 
 ## できること(2026-11-20 時点)
 
@@ -30,6 +30,17 @@ NPO 法人の事務を何でも引き受ける「スーパー事務員」アプ�
 | 会員・役員 | 年度ごとの会員資格、役員の任期(満了後も次の選任までは伸長)、住所などは暗号化 |
 | 決議 | 総会・理事会の書面決議(みなし決議)。同意の記録、提案書・同意書・議事録、成立後に役員選任・互選・決算承認を記録へ反映 |
 | 期限 | ホームに「やること・期限」(提出・通常総会・役員改選・登記・貸借対照表の公告) |
+
+## 開発
+
+```bash
+bin/setup --skip-server   # 依存の導入と DB の準備
+bin/dev                   # http://localhost:3000
+bin/rails test            # テスト
+bin/rubocop && bin/brakeman --no-pager
+```
+
+AI エージェント(Claude Code)向けの決まりは `CLAUDE.md` と `.claude/rules/`、設計の決定は `docs/adr/`、画面の決まりは `docs/design-system/`、データモデルは `docs/data-model.md`。
 
 ## 手元の Docker で動かす
 
@@ -43,8 +54,12 @@ PDF はコンテナ内の Chromium と Noto CJK フォントで作る。デー�
 
 ## 技術構成
 
-Rails 8 / SQLite / Solid Queue / Hotwire / Tailwind CSS。本番は Kamal で Lightsail に載せる予定。
+Rails 8 / SQLite / Solid Queue / Hotwire / Tailwind CSS。本番は Kamal で AWS Lightsail に載せる(`config/deploy.yml`)。AWS の部品(サーバー・S3 のバックアップ・SES)は CDK(`infra/`)。毎晩、データを S3 に送る(`NightlyBackupJob`)。
 
 ## 個人情報について
 
-このリポジトリは公開する。**会員の個人情報や実際の仕訳データはリポジトリに入れない。** テストには架空のデータを使う。
+**会員の個人情報や実際の仕訳データはリポジトリに入れない。** テストには架空のデータを使う。コミットの前と CI で `bin/check-private` が、鍵や個人情報らしい形をファイルと履歴の両方で調べる。
+
+## ライセンス
+
+MIT(`LICENSE`)。
