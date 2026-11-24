@@ -44,6 +44,7 @@ class BlockedReasonTest < ActiveSupport::TestCase
     consent = resolution.consents.sole
     assert_nil item.destroy_blocked_reason
     assert_nil consent.cancel_blocked_reason
+    assert_same resolution, resolution.consents.includes(:person).first.resolution, "画面で同意ごとに決議を読み直さない(inverse_of)"
 
     item.update!(kind: "officer_election", payload: {"appointments" => []})
     ResolutionItem::Application.apply!(item.reload, on: Date.new(2026, 5, 10))

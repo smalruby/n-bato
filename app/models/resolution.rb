@@ -11,7 +11,8 @@ class Resolution < ApplicationRecord
   before_destroy :keep_events, prepend: true
   has_many :items, -> { order(:position, :id) }, class_name: "ResolutionItem", dependent: :destroy
   # 取り消していない同意(成立に数えるもの)。取り消したものも含めるときは all_consents
-  has_many :consents, -> { active }, class_name: "Consent"
+  # inverse_of: 画面で同意ごとに理由(Consent#cancel_blocked_reason)を出すとき、決議と議案を読み直さないため
+  has_many :consents, -> { active }, class_name: "Consent", inverse_of: :resolution
   has_many :all_consents, class_name: "Consent", dependent: :restrict_with_error
   accepts_nested_attributes_for :items, allow_destroy: true, reject_if: ->(a) { a["title"].blank? }
 

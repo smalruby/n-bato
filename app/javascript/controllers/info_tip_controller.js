@@ -46,9 +46,12 @@ export default class extends Controller {
     this.open()
   }
 
+  // 説明の中(リンク)にいたら (i) に戻す。ボタンや (i) にいたら、そのまま閉じるだけ
   escape() {
     if (!this.isOpen) return
+    const inTip = this.tipTarget.contains(document.activeElement)
     this.close()
+    if (!inTip) return
     this.quiet = true
     this.triggerTarget.focus()
     this.quiet = false

@@ -12,7 +12,7 @@ class JournalEntriesController < ApplicationController
     @departments = Department.in_year(@year).ordered
     @filter = journal_filter
     entries = JournalEntry.in_fiscal_year(@year).chronological
-      .includes(:debit_account, :credit_account, :debit_department, :credit_department, :siwake_import, :journal_proposal, cancellation: :canceller)
+      .includes(:debit_account, :credit_account, :debit_department, :credit_department, :siwake_import, {journal_proposal: :voucher}, cancellation: :canceller)
     # 取り消した仕訳は、絞り込みの「取り消した仕訳も出す」のときだけ出す(docs/adr/0026)
     entries = entries.active unless @filter[:cancelled]
     if (id = @filter[:account_id])
