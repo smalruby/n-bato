@@ -101,6 +101,6 @@
   <% if (blocked = @voucher.destroy_blocked_reason) %>
     <%= disabled_action "削除", blocked %>
   <% else %>
-    <%= button_to "削除", @voucher, method: :delete, class: "btn-danger", form: { data: { turbo_confirm: "削除しますか？" } } %>
+    <%= button_to "削除", @voucher, method: :delete, class: "nb-btn nb-btn--danger", form: { data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } }, data: { confirm_twice_target: "button", armed_label: "もう一度押すと、この証憑を削除します" } %>
   <% end %>
 </div>

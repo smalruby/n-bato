@@ -60,7 +60,7 @@
 - **保存ボタンを置かない。** 入力欄は `data-controller="autosave"` の中に置き、`data-url` に PATCH(JSON)の送り先を書く。コントローラーは `include AutosaveResponse` と `respond_to { format.json { autosave_response(record) } }`(`app/controllers/concerns/autosave_response.rb`)。
   - **例外: 作る画面(new)(開発QAボード 第8回 8-2)**: 必須の項目がそろうまで行を作れないので、送るボタンを残してよい。文字は動詞にする(「作る」「登録する」。「保存」としない)。直す画面(edit)は自動保存にする。いま保存ボタンの残る画面(`organizations/edit`・`journal_entries/_form`・`people/_form`・`accounts/edit`・`vouchers/_form`・`annual_reports/_form`・`resolutions/_form`・`registration_filings/show`)は、見直し票で画面ごとに合意を取ってから移す(#39)。
 - 動きは Stimulus のコントローラー(`app/javascript/controllers/*_controller.js`、名前はハイフンつき: `confirm-twice`・`row-detail`・`year-switch`)。JavaScript は importmap(ビルドしない)。
-- **元に戻せない操作と消す操作のボタンは `confirm-twice`**(2 回押し、ダイアログを出さない。`data-armed-label="もう一度押すと…(元に戻せません)"`)。危ないボタンは `nb-btn nb-btn--danger`。ブラウザのダイアログ(`turbo_confirm`・`data-confirm`)は使わない(開発QAボード 第8回 8-3)。いま残る 3 つ(`journal_entries/show`・`vouchers/show`・`siwake_imports/show`)は #37 で替える。
+- **元に戻せない操作と消す操作のボタンは `confirm-twice`**(2 回押し、ダイアログを出さない。`data-armed-label="もう一度押すと…(元に戻せません)"`)。危ないボタンは `nb-btn nb-btn--danger`。ブラウザのダイアログ(`turbo_confirm`・`data-confirm`)は使わない(開発QAボード 第8回 8-3)。残っていた 3 つ(`journal_entries/show`・`vouchers/show`・`siwake_imports/show`)は #37 で替えた。結合テストでは `assert_confirm_twice` で確かめる。
 - **画面の書き換え(開発QAボード 第8回 8-8)**: いまは、出来事は送ったあと別の画面に移る(PRG)、入力は自動保存の JSON。画面の一部だけを書き換える必要のある画面ができたら Turbo Stream を使う(ジョブの進み具合の知らせ #23 の Action Cable で使う見込み。ADR-0008)。
 - PDF と外のサイトへのリンクは別のタブ(`new_tab_link_to`、文字の後ろに「↗」)。帳票は `layouts/print`(明朝・全角数字・黒一色)、PDF は `PdfRenderer`。
 - アイコンは `icon(role)`(`app/helpers/icon_helper.rb`、Lucide。ADR-0017)。
