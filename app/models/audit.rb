@@ -64,7 +64,8 @@ module Audit
   end
 
   def finish(op)
-    return unless op
+    # 操作を作った変更が、セーブポイントごと取り消されたとき(入口が途中で失敗した)は、何もしなかったのと同じ
+    return unless op && AuditOperation.exists?(op.id)
     # 新しい操作をしたら、それまでに元に戻した操作はやり直せなくする(ふつうのアプリと同じ)
     AuditOperation.in_scope(op.user, op.scope).redoable_ops.update_all(redoable: false) if op.kind == "do"
   end

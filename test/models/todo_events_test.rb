@@ -154,6 +154,15 @@ class TodoEventsTest < ActiveSupport::TestCase
     assert_empty ModelVerification.mismatches
   end
 
+  test "B4: 決めるがセーブポイントごと取り消されたら、何もしなかったのと同じ(やり直せる操作も残る)" do
+    op { Todo::StatusChange.change!(@todo, status: "doing", by: @user) }
+    Audit.undo!(@user, "todos")
+    msg = IncomingRequestMessage.write!(@req, role: "assistant", body: "案", proposal: { "request" => { "title" => "直した題" }, "todos_new" => [ { "title" => "" } ] })
+    op { assert_raises(ActiveRecord::RecordInvalid) { IncomingRequestMessage::Adoption.adopt!(msg, by: @user) } }
+    assert_equal "架空の依頼", @req.reload.title
+    assert_equal({ undo: 0, redo: 1 }, Audit.counts(@user, "todos"))
+  end
+
   test "照合: 列を直接書き換えると食い違いが出る" do
     Todo::StatusChange.change!(@todo, status: "wait", waiting_on: "返事")
     @todo.update_columns(status: "done")

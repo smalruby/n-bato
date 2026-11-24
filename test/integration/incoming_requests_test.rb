@@ -101,6 +101,23 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
     assert_not IncomingRequest.exists?(req.id)
   end
 
+  test "B4: この案で決めるが途中で失敗したら、途中までの変更も残さない" do
+    req = IncomingRequest.create!(title: "元の題")
+    todo = req.todos.create!(title: "前からあるやること", kind: "ask")
+    msg = IncomingRequestMessage.write!(req, role: "assistant", body: "案", proposal: {
+      "request" => { "title" => "直した題" },
+      "todos_new" => [ { "title" => "一つ目" }, { "title" => "" } ],
+      "todos_update" => [ { "id" => todo.id, "status" => "doing" } ] })
+    before = AuditChange.maximum(:id).to_i
+    post incoming_request_message_adoption_path(req, msg)
+    assert_empty AuditChange.where(id: (before + 1)..).where.not(auditable_type: "FiscalPeriod").pluck(:auditable_type), "操作履歴にも残さない"
+    assert_redirected_to incoming_request_path(req)
+    assert flash[:alert].present?
+    assert_equal [ "元の題", [ "前からあるやること" ], "todo" ], [ req.reload.title, req.todos.map(&:title), todo.reload.status ]
+    assert_not msg.reload.applied?
+    assert_empty ModelVerification.mismatches
+  end
+
   test "状態の分からない変化は受け付けない" do
     todo = Todo.create!(title: "架空のやること")
     post todo_status_changes_path(todo), params: { status: "nope" }
