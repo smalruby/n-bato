@@ -94,7 +94,5 @@ class ActionDispatch::IntegrationTest
     assert_response :success
     assert_equal "application/pdf", response.media_type
     assert response.body.start_with?("%PDF")
-  rescue Ferrum::BinaryNotFoundError
-    skip "Chrome がありません"
   end
 end
