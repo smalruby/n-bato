@@ -19,7 +19,7 @@ decision-makers: 理事長(ユーザー)・Claude
 
 ## 検討した選択肢
 
-第6回の 5 問(Issue #13 の「判断待ち」「決まったこと」に全文)。
+第6回の 5 問と、作ってから出た第8回の 4 問(Issue #13 の「判断待ち」「決まったこと」に全文)。
 
 * r6-registry: **ghcr.io に公開** / ghcr.io に非公開
 * r6-trigger: **いまは手で起動、PR の形になったら自動** / いまから自動 / 毎回承認
@@ -35,19 +35,20 @@ decision-makers: 理事長(ユーザー)・Claude
 
 * **アプリ**: `.github/workflows/deploy.yml`(workflow_dispatch)。開発の Claude が `gh workflow run deploy.yml --ref main` で起動する。preflight で「main であること」「`DEPLOY_FREEZE` が true でないこと」「そのコミットの CI(ci.yml)が通ったこと」を確かめ、Environment `production` のジョブで `bin/kamal deploy`。concurrency で 1 つずつ、サーバーの側でも Kamal のロック。
 * **イメージ**: `ghcr.io/smalruby/n-bato`(公開)。Kamal は git clone から作るので、コミットしたものしか入らない。Actions は `GITHUB_TOKEN`(`packages: write`)で置く。
-  * Kamal 2.12 は、外のレジストリを使うと、サーバーでも必ず `docker login` する(飛ばす設定がない)。そのため Actions はジョブの `GITHUB_TOKEN` でログインし、終わったら `kamal registry logout --skip-local` で外す。Mac は `ghcr.env` のトークン(classic、`write:packages` だけ)。公開にしても、Kamal を通す限りログインは要る。公開にする良さは、鍵の無いイメージを誰でも確かめられることと、将来ほかの道(staging など)からも取れること。
+  * Kamal 2.12 は、外のレジストリを使うと、サーバーでも必ず `docker login` する(飛ばす設定がない)。そのため Actions はジョブの `GITHUB_TOKEN` でログインし、終わったら `kamal registry logout --skip-local` で外す。Mac からのトークンの持ち方は開発QAボード 第9回(`r9-ghcr`)の答え待ち(第8回 8-12 で選んだ `gh-auth` は、いまの gh のログインが fine-grained で ghcr.io が受け付けないため聞き直し)。それまで `bin/kamal-secret` は `KAMAL_REGISTRY_*` を環境変数からだけ読み、どちらの案にもあとから足せるようにしておく。公開にしても、Kamal を通す限りログインは要る。公開にする良さは、鍵の無いイメージを誰でも確かめられることと、将来ほかの道(staging など)からも取れること。
 * **秘密**: `.kamal/secrets` は `bin/kamal-secret NAME` だけを呼ぶ。同じ名前の環境変数があればそれ(Actions。Environment の Secrets を env で渡す)、無ければ `$NBATO_SECRETS_DIR` のファイル(Mac)。名前とファイルの対応はこのスクリプトの表 1 か所だけ。SSH の鍵も `ssh.key_data` で秘密として読むので、Actions はファイルを書かない。
 * **SSH**: Actions だけの鍵(`NBATO_SSH_PRIVATE_KEY`)。サーバーの `authorized_keys` に `restrict` を付けて足す。ホスト鍵は Environment の変数 `NBATO_SSH_KNOWN_HOSTS` で固定し、知らない鍵ならつながない。
 * **CDK**: スタックに GitHub の OIDC プロバイダと役割 2 つを足す。
   * `n-bato-github-cdk-diff`: PR と main への push から。NBatoStack のテンプレートと bootstrap の版を読むだけ(ReadOnlyAccess は使わない。バックアップの中身を読めてしまうため)。「CI - Infra」が `cdk diff --method template` を要約に出す。
   * `n-bato-github-cdk-deploy`: Environment `production-infra` のジョブからだけ。CDK の bootstrap の役割を引き受けることしかできない。「Deploy Infra」は main に infra/ の変更が入ったとき(か手で)差分を出し、承認者(理事長)の承認のあと `cdk deploy`。削除・置き換えを含む差分(`--fail-on destructive`)は Actions では出さず、人が読んで Mac から出す。
-* **Environment を 2 つ**: `production`(アプリ。main だけ、承認なし。秘密)と `production-infra`(CDK。main だけ、承認あり)。GitHub の承認者は Environment ごとにしか付けられず、1 つにまとめるとアプリのデプロイも毎回承認になり、r6-trigger(毎回の承認はしない)と合わないため。staging を足すときは `staging` / `staging-infra`。
-* **止めるスイッチ**: リポジトリの変数 `DEPLOY_FREEZE`。true のとき Deploy も Deploy Infra も出さない。入れる・外すのは人が決めたときだけ。
+* **Environment を 2 つ**(開発QAボード 第8回 8-11 `split`): `production`(アプリ。main だけ、承認なし。秘密)と `production-infra`(CDK。main だけ、承認あり)。GitHub の承認者は Environment ごとにしか付けられず、1 つにまとめるとアプリのデプロイも毎回承認になり、r6-trigger(毎回の承認はしない)と合わないため。staging を足すときは `staging` / `staging-infra`。
+* **止めるスイッチ**: リポジトリの変数 `DEPLOY_FREEZE`。true のとき Deploy も Deploy Infra も出さない(両方に効かせる。開発QAボード 第8回 8-14 `both`)。入れる・外すのは人が決めたときだけ。CDK だけ急ぐときは、人が決めてから一時的に切る(`docs/deploy.md`)。
+* **時間の決まり**: デプロイする時間の決まりは置かない(開発QAボード 第8回 8-13 `anytime`。Kamal は新しいコンテナが立ってから切り替える)。運用のスクリプトに響く変更の前もっての知らせと、出したあとの連絡帳への記録は残す(`.claude/rules/session-roles.md`)。
 
 ### 結果
 
 * 良い: Mac が無くてもデプロイでき、起動の記録が Actions に残る。AWS には長く使う鍵を置かない。CDK の反映の前に、人が差分を見る。Mac の道も同じ設定で動く。
-* 悪い: 秘密の置き場所が 2 つ(Mac が原本、Environment は写し)になり、鍵を変えたときは両方を直す(`docs/deploy.md` の手順 4 を流し直す)。Actions の SSH の鍵は長く使う鍵のまま(#25 で見直す)。Mac からの操作にも ghcr.io のトークンが要るようになった。イメージの名前が変わったので、それより前の版には `kamal rollback` で戻れない。
+* 悪い: 秘密の置き場所が 2 つ(Mac が原本、Environment は写し)になり、鍵を変えたときは両方を直す(`docs/deploy.md` の手順 4 を流し直す)。Actions の SSH の鍵は長く使う鍵のまま(#25 で見直す)。Mac から新しいコンテナを起こす操作(予備のデプロイ・`bin/prod-restore`)にも ghcr.io のトークンが要るようになった(持ち方は第9回の答え待ち。答えが出るまで、この形を本番に入れない)。イメージの名前が変わったので、それより前の版には `kamal rollback` で戻れない。
 
 ### 確かめ方
 

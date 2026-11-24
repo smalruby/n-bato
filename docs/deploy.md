@@ -1,6 +1,6 @@
 # 本番へのデプロイ
 
-決めたことは開発QAボード 第6回(Issue #13)と ADR-0036。ここには、仕組みと、人が一度だけすることと、AI が毎回することを書く。
+決めたことは開発QAボード 第6回・第8回(Issue #13)と ADR-0036。**Mac から ghcr.io を使うところ(予備のデプロイ・`bin/prod-restore`)は、第9回(`r9-ghcr`)の答え待ち**。ここには、仕組みと、人が一度だけすることと、AI が毎回することを書く。
 
 ## 仕組み
 
@@ -12,10 +12,10 @@
 
 - **イメージ**は ghcr.io に公開で置く(`ghcr.io/smalruby/n-bato:<コミット>`)。鍵は入れない(鍵はサーバーで起動するときに渡す)。Kamal はコミットを git clone してから作るので、コミットしていないファイルは入らない。`.dockerignore` も鍵と実データを外す。
 - **秘密**は `.kamal/secrets` が `bin/kamal-secret` で読む。同じ名前の環境変数があればそれ(Actions)、無ければ `$NBATO_SECRETS_DIR` のファイル(Mac)。名前とファイルの対応は `bin/kamal-secret` の表だけに書く。
-- **止めるスイッチ**: リポジトリの変数 `DEPLOY_FREEZE` が `true` のとき、Deploy も Deploy Infra も出さない。
+- **止めるスイッチ**: リポジトリの変数 `DEPLOY_FREEZE` が `true` のとき、Deploy も Deploy Infra も出さない(両方に効かせる。開発QAボード 第8回 8-14)。CDK だけ急ぐときの切り方は「AI が毎回すること」の「CDK だけ急いで反映するとき」。
 - **重ならないように**: Deploy は 1 つずつ(concurrency `deploy-production`、走っているものは打ち切らない)。サーバーの側でも Kamal のロックを取るので、`bin/prod-runner`・`bin/prod-restore` が流れている間は失敗する(`bin/kamal lock status` で確かめる)。Deploy Infra も 1 つずつ(`infra-deploy-production`)。
 - **出すのは CI が通った main だけ**。Deploy の preflight が、そのコミットの CI(`ci.yml`、main への push)が成功していることを確かめる。
-- **ghcr.io へのログイン**: Kamal は、イメージを置くときも、サーバーで取ってくるときも `docker login` する(公開のイメージでも、Kamal 2.12 にはサーバーでのログインを飛ばす設定がない)。Actions はそのジョブの `GITHUB_TOKEN`(ジョブが終われば使えなくなる)で入り、終わったら `bin/kamal registry logout --skip-local` でサーバーから外す。Mac は `ghcr.env` のトークン。
+- **ghcr.io へのログイン**: Kamal は、イメージを置くときも、サーバーで取ってくるときも `docker login` する(公開のイメージでも、Kamal 2.12 にはサーバーでのログインを飛ばす設定がない)。Actions はそのジョブの `GITHUB_TOKEN`(ジョブが終われば使えなくなる)で入り、終わったら `bin/kamal registry logout --skip-local` でサーバーから外す。Mac からのトークンの持ち方は **第9回の答え待ち**(下の「Mac から ghcr.io を使うとき」)。いまは `bin/kamal-secret` が `KAMAL_REGISTRY_*` を環境変数からだけ読む(置き場所のファイルは読まない)。
 
 ### Environment と、そこに置くもの(名前だけ。値はここにも記録にも書かない)
 
@@ -31,7 +31,7 @@
 
 - ghcr.io のトークンは置かない(Actions の `GITHUB_TOKEN` を使う)。
 - 役割の ARN を Secrets にするのは、AWS のアカウント番号を公開のログに出さないため(`mask-aws-account-id` も付ける)。
-- Environment を 2 つに分けるのは、承認者の設定が Environment ごとだから。アプリのデプロイは承認なし(第6回 r6-trigger)、CDK の反映は承認あり(r6-cdk)。
+- Environment を 2 つに分けるのは、承認者の設定が Environment ごとだから。アプリのデプロイは承認なし(第6回 r6-trigger)、CDK の反映は承認あり(r6-cdk)。分け方は開発QAボード 第8回 8-11 で決めた(`split`)。
 
 ### AWS の役割(OIDC。`infra/lib/n-bato-stack.ts`)
 
@@ -50,17 +50,34 @@
    1. 同じ AWS アカウントに GitHub の OIDC プロバイダ(`token.actions.githubusercontent.com`)がすでにあるか確かめる: `aws iam list-open-id-connect-providers`。あれば、以下の cdk のコマンドに `-c githubOidcProviderArn=<その ARN>` を付け、手順 4 で `AWS_GITHUB_OIDC_PROVIDER_ARN` にも入れる(付けたり外したりしない。外すとスタックがプロバイダを作ろうとして失敗する)。
    2. `cd infra && npx cdk diff` で、足されるのが OIDC のプロバイダ・役割 2 つ・その権限だけであることを確かめる。
    3. `npx cdk deploy`。出力の `CdkDiffRoleArn` と `CdkDeployRoleArn` を控える(手元だけ)。
-2. **Environment を作る(外への操作。GitHub の設定)**
-   - `production`: Deployment branches を「Selected branches」の `main` だけにする。承認者は付けない。
-   - `production-infra`: 同じく `main` だけ。Required reviewers に理事長を入れる。
-   - 画面(Settings → Environments)でも、gh でもよい。gh なら(n-bato のトークンは Administration を書ける):
+2. **Environment を 2 つ作る(外への操作。GitHub の設定。開発QAボード 第8回 8-11)**
+   - `production`(アプリの Deploy): Deployment branches は `main` だけ。承認者は付けない。
+   - `production-infra`(Deploy Infra の反映): Deployment branches は `main` だけ。Required reviewers は理事長。
+   - 作るのは人に確かめてから(AI が勝手に作らない)。画面(Settings → Environments)でも、gh でもよい。gh なら(n-bato のトークンは Administration を書ける):
      ```bash
      export GH_TOKEN=$(cat ~/.private/n-bato-dev.pat)
-     gh api -X PUT repos/smalruby/n-bato/environments/production \
-       --input - <<<'{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
-     gh api -X POST repos/smalruby/n-bato/environments/production/deployment-branch-policies -f name=main -f type=branch
-     # production-infra も同じに作り、承認者を足す(reviewers の id は理事長の GitHub のユーザー ID)
+     R=smalruby/n-bato
+     # production: main だけ、承認者なし
+     gh api -X PUT "repos/$R/environments/production" --input - <<'JSON'
+     {"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}
+     JSON
+     gh api -X POST "repos/$R/environments/production/deployment-branch-policies" -f name=main -f type=branch
+
+     # production-infra: main だけ、承認者は理事長(<ログイン> は理事長の GitHub のログイン名)
+     REVIEWER_ID=$(gh api "users/<ログイン>" --jq .id)
+     gh api -X PUT "repos/$R/environments/production-infra" --input - <<JSON
+     {"reviewers":[{"type":"User","id":${REVIEWER_ID}}],"prevent_self_review":false,
+      "deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}
+     JSON
+     gh api -X POST "repos/$R/environments/production-infra/deployment-branch-policies" -f name=main -f type=branch
+
+     # 確かめる(承認者があるのは production-infra だけ、どちらも main だけ)
+     gh api "repos/$R/environments" --jq '.environments[] | {name, rules: [.protection_rules[].type]}'
+     gh api "repos/$R/environments/production/deployment-branch-policies" --jq '[.branch_policies[].name]'
+     gh api "repos/$R/environments/production-infra/deployment-branch-policies" --jq '[.branch_policies[].name]'
      ```
+   - `prevent_self_review` は `false` にする。Deploy Infra は main へのマージで起き、マージした人(AI が理事長のトークンで操作したときも理事長)が「起こした人」になるため。`true` にすると、理事長が承認できなくなる。
+   - 承認は理事長が GitHub の画面で行う。AI は、トークンで承認できても承認しない(下の「AWS の部品を変える」)。
 3. **Actions だけの SSH の鍵を作って、サーバーに登録する(本番の操作)**
    ```bash
    # 作る(Mac の秘密の置き場所に。パスフレーズなし、Actions が使うため)
@@ -91,9 +108,9 @@
    ```
    - `ssh-keygen -F` の行がハッシュされていても、そのまま使える。
    - 鍵を変えたときは、Mac の置き場所(原本)を直してから、同じコマンドで入れ直す。
-5. **Mac から ghcr.io に置くためのトークン(予備の道と運用のため)**
-   - Kamal は Mac からの操作でも ghcr.io にログインする(予備のデプロイ、`bin/prod-restore` の新しいコンテナ)。GitHub の classic のトークンを `write:packages` だけで作り(期限つき)、`$NBATO_SECRETS_DIR/ghcr.env` に `KAMAL_REGISTRY_USERNAME=<GitHub のユーザー名>` と `KAMAL_REGISTRY_PASSWORD=<トークン>` を書く(chmod 600)。
-   - 無いと、`bin/kamal` のたびに「ghcr.env が読めません」と出る(`--reuse` の `app exec` やロックは、それでも動く)。
+5. **Mac から ghcr.io を使うためのトークン — 開発QAボード 第9回(`r9-ghcr`)の答え待ち**
+   - いまは何もしない(Mac に ghcr.io のトークンを置かない)。答えが出たら、ここと下の「Mac から ghcr.io を使うとき」を書き直す。
+   - **答えが出るまで PR #29 はマージしない**。マージすると、Mac からの `bin/kamal deploy` と、`bin/prod-restore`(新しいコンテナを起こす)が ghcr.io にログインできずに動かない。
 6. **はじめての Deploy(本番の操作)**
    1. AI が `gh workflow run deploy.yml --ref main` で起動する(下の「AI が毎回すること」)。
    2. パッケージ `ghcr.io/smalruby/n-bato` ができたら、公開にする前に、中に鍵が無いことを確かめる(AI):
@@ -135,21 +152,28 @@ GH_TOKEN=$(cat ~/.private/n-bato-dev.pat) gh variable set DEPLOY_FREEZE --body f
 
 入れる・外すのは、人が決めたときだけ。
 
+### CDK だけ急いで反映するとき(止めるスイッチが入っている間)
+
+`DEPLOY_FREEZE` はアプリの Deploy にも Deploy Infra にも効く(開発QAボード 第8回 8-14)。CDK だけ急いで直したいときは、人が決めてから、スイッチを一時的に切る。
+
+1. 人に確かめる。切っている間はアプリの Deploy も出せてしまうので、その間 AI は Deploy を起動しない。
+2. 切る: `GH_TOKEN=$(cat ~/.private/n-bato-dev.pat) gh variable set DEPLOY_FREEZE --body false --repo smalruby/n-bato`
+3. Deploy Infra を起こす: `GH_TOKEN=$(cat ~/.private/n-bato-dev.pat) gh workflow run deploy-infra.yml --ref main --repo smalruby/n-bato`(main に入ったときにスイッチで止まった Run は、これで流し直す)。差分を見て、理事長が承認する。
+4. 反映のジョブ(「本番に反映する」)が始まったら、すぐ戻す: `... gh variable set DEPLOY_FREEZE --body true ...`。反映のジョブは始めにスイッチを見るので、承認の前に戻すと承認のあとで止まる。承認しないで止めるときも、戻す。
+
 ### AWS の部品を変える
 
 1. `infra/` を変えた PR(または main へのコミット)で、CI - Infra の要約の差分を読む。
 2. main に入ると Deploy Infra が走り、差分があれば `production-infra` の承認を待つ。理事長に、要約の差分を見て承認してもらう(AI は承認しない)。
 3. 差分に削除・置き換えがあると、Deploy Infra は止まる。人が差分を読み、よければ Mac から `cd infra && npx cdk deploy` する(本番の操作)。
 
-## 予備の道: Mac から
+## 予備の道: Mac から(第9回の答え待ち)
 
-GitHub が使えないときや、Actions の準備ができる前に使う。
+GitHub が使えないときや、Actions の準備ができる前に使う道。**ghcr.io のトークンの持ち方が開発QAボード 第9回(`r9-ghcr`)の答え待ちなので、いまは使えない。** 答えが出たら、ここに手順を書く。
 
-```bash
-NBATO_SECRETS_DIR=<秘密の置き場所> bin/kamal deploy
-NBATO_SECRETS_DIR=<秘密の置き場所> bin/kamal registry logout --skip-local   # サーバーから ghcr.io のトークンを外す
-```
-
-- Actions と同じ `config/deploy.yml` と `.kamal/secrets` を使う。違うのは、秘密が `$NBATO_SECRETS_DIR` のファイルから来ることと、SSH の鍵が `n-bato-deploy`、ghcr.io のトークンが `ghcr.env` であることだけ。
+- AI のおすすめ(`actions-only`): Mac は ghcr.io のトークンを持たない。デプロイも、バックアップからの戻し(`bin/prod-restore` に当たるもの)も Actions から起こす(戻しは理事長の承認のあと)。Actions が止まっているときだけ、期限の短いトークンをその都度作り、環境変数(`KAMAL_REGISTRY_USERNAME`・`KAMAL_REGISTRY_PASSWORD`)で渡して、終わったら消す。
+- ほかの案(`classic-narrow`): `write:packages` だけのトークンを秘密の置き場所に置く。そのときは `bin/kamal-secret` の表にファイルを足す。
+- どちらでも、`config/deploy.yml` と `.kamal/secrets` は Actions と同じものを使い、違うのは秘密が `$NBATO_SECRETS_DIR` のファイルから来ることと、SSH の鍵が `n-bato-deploy` であること。トークンを使ったあとは `bin/kamal registry logout --skip-local` でサーバーから外す。
 - イメージは Mac で作って ghcr.io に置く(Apple シリコンでも amd64 で作る。`builder.arch`)。
 - `DEPLOY_FREEZE` は Mac からの道では効かない。止めている時期かどうかは、自分で確かめる。
+- `--reuse` の `bin/kamal app exec`(`bin/prod-runner`)とロックは、ghcr.io のトークンが無くても動く(イメージを取ってこないため)。

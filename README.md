@@ -54,7 +54,7 @@ PDF はコンテナ内の Chromium と Noto CJK フォントで作る。デー�
 
 ## 技術構成
 
-Rails 8 / SQLite / Solid Queue / Hotwire / Tailwind CSS。本番は Kamal で AWS Lightsail に載せる(`config/deploy.yml`)。AWS の部品(サーバー・S3 のバックアップ・SES)は CDK(`infra/`)。毎晩、データを S3 に送る(`NightlyBackupJob`)。デプロイは GitHub Actions から(予備は Mac から)。人が一度だけすることと AI が毎回することは `docs/deploy.md`。
+Rails 8 / SQLite / Solid Queue / Hotwire / Tailwind CSS。本番は Kamal で AWS Lightsail に載せる(`config/deploy.yml`)。AWS の部品(サーバー・S3 のバックアップ・SES)は CDK(`infra/`)。毎晩、データを S3 に送る(`NightlyBackupJob`)。デプロイは GitHub Actions から(予備は Mac から)。人が一度だけすることと AI が毎回することは `docs/deploy.md`。止めるスイッチ(リポジトリの変数 `DEPLOY_FREEZE` を `true`)はアプリと CDK の両方に効き、CDK だけ急ぐときは人が決めてから一時的に `false` にする(手順は `docs/deploy.md`「CDK だけ急いで反映するとき」)。
 
 ## 個人情報について
 

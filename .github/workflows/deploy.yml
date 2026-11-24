@@ -8,9 +8,10 @@ name: Deploy
 # - リポジトリの変数 DEPLOY_FREEZE が "true" のときは出さない(止めるスイッチ)。
 # - 同時に走るのは 1 つだけ(concurrency。走っているものは打ち切らない)。サーバーの側でも
 #   Kamal のロック(bin/prod-runner・bin/prod-restore と同じもの)を取るので、運用のスクリプトとも重ならない。
-# - 秘密は Environment「production」(main だけ)の Secrets から、環境変数で bin/kamal-secret に渡す。
+# - 秘密は Environment「production」(main だけ・承認者なし。CDK の production-infra とは別。開発QAボード 第8回 8-11)の Secrets から、環境変数で bin/kamal-secret に渡す。
 #   値は画面にも記録にも出さない(GitHub が隠す。こちらでも名前しか書かない)。
 # - Mac からの予備の道(NBATO_SECRETS_DIR=... bin/kamal deploy)も同じ config/deploy.yml・.kamal/secrets を使う。
+#   ただし Mac の ghcr.io のトークンの持ち方は開発QAボード 第9回の答え待ち(docs/deploy.md)。
 #
 # ゆくゆくは Merge Queue で main に入ったら自動で出す(#24)。そのときは on: に足す。
 

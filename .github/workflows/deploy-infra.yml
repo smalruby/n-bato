@@ -7,7 +7,9 @@ name: Deploy Infra
 #   承認を待つ。理事長が差分を読んで承認したら、反映する役割で cdk deploy する。
 # - 削除・置き換え(サーバーやバケットを作り直すもの)を含む差分は、ここでは出さない。人が読んで、
 #   Mac から出す(サーバーを作り直すとデータが消えるため)。
-# - DEPLOY_FREEZE が "true" のときは出さない。同時に走るのは 1 つだけ。
+# - DEPLOY_FREEZE が "true" のときは出さない(アプリの Deploy と両方に効かせる。開発QAボード 第8回 8-14)。
+#   CDK だけ急ぐときは、人が決めてから一時的に切る(docs/deploy.md「CDK だけ急いで反映するとき」)。
+# - 同時に走るのは 1 つだけ。
 #
 # staging(#26)を足すときは、ジョブを staging → production の順に並べる(smalruby3-editor の Deploy Infra と同じ形)。
 
@@ -113,7 +115,7 @@ jobs:
     if: needs.diff.outputs.changed == 'true'
     runs-on: ubuntu-latest
     # Environment「production-infra」: main だけ・承認者(理事長)が要る。アプリの Deploy の「production」
-    # (承認なし)とは分ける。AWS の側も、このジョブだけが
+    # (承認なし)とは分ける(開発QAボード 第8回 8-11)。AWS の側も、このジョブだけが
     # 反映する役割を引き受けられる(sub = repo:smalruby/n-bato:environment:production-infra)。
     environment: production-infra
     permissions:
