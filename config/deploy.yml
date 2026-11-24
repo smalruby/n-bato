@@ -22,8 +22,8 @@ proxy:
 
 # イメージは ghcr.io に公開で置く(ghcr.io/smalruby/n-bato。鍵は入れない。docs/adr/0036)。
 # Kamal は、置くときも、サーバーで取ってくるときも docker login する。Actions は GITHUB_TOKEN
-#(ジョブが終われば使えなくなる)。デプロイのあとサーバーからは logout する。Mac からのトークンの
-# 持ち方は開発QAボード 第9回(r9-ghcr)の答え待ち(docs/deploy.md)。
+#(ジョブが終われば使えなくなる)。デプロイのあとサーバーからは logout する。Mac は ghcr.io の
+# トークンを持たない(開発QAボード 第9回 r9-ghcr)。Actions が止まっているときの予備は docs/deploy.md。
 registry:
   server: ghcr.io
   username:

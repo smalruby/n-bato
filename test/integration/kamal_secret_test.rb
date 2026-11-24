@@ -50,17 +50,20 @@ class KamalSecretTest < ActiveSupport::TestCase
     assert_includes err, "NBATO_SECRETS_DIR"
   end
 
-  test "ghcr.io のトークンは環境変数だけ(Mac での持ち方は開発QAボード 第9回の答え待ち)" do
+  test "ghcr.io のトークンは環境変数だけ。無ければ何も出さずに成功する(Mac は持たない。開発QAボード 第9回 r9-ghcr)" do
     out, err, ok = run_secret("KAMAL_REGISTRY_PASSWORD", "KAMAL_REGISTRY_PASSWORD" => "job-token")
     assert ok, err
     assert_equal "job-token", out
 
+    # 置き場所にファイルがあっても読まない。Kamal は秘密を読むたびに .kamal/secrets をすべて流すので、エラーも出さない
     Dir.mktmpdir do |dir|
       File.write(File.join(dir, "ghcr.env"), "KAMAL_REGISTRY_PASSWORD=from-file\n")
-      out, err, ok = run_secret("KAMAL_REGISTRY_PASSWORD", "NBATO_SECRETS_DIR" => dir)
-      assert_not ok
-      assert_empty out
-      assert_includes err, "第9回の答え待ち"
+      %w[KAMAL_REGISTRY_USERNAME KAMAL_REGISTRY_PASSWORD].each do |name|
+        out, err, ok = run_secret(name, "NBATO_SECRETS_DIR" => dir)
+        assert ok, err
+        assert_empty out
+        assert_empty err
+      end
     end
   end
 

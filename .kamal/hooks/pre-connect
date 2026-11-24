@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# ghcr.io のトークンが無いのに、トークンの要る Kamal の操作をしようとしたら、つなぐ前に止める。
+#
+# Mac は ghcr.io のトークンを持たない(開発QAボード 第9回 r9-ghcr: actions-only。docs/deploy.md)。
+# - 要る: deploy・redeploy・setup・build・registry login(イメージを置く・取ってくる)。
+#   `app exec`(--reuse なし。新しいコンテナを起こす)もサーバーで docker login するが、--reuse の有無は
+#   ここでは分からないので止めない(サーバーの docker login で失敗する)。
+# - 要らない: `app exec --reuse`(bin/prod-backup・bin/prod-runner)・lock・app logs・app stop/start。
+#
+# pre-build ではなく pre-connect にするのは、Kamal 2.12 は pre-build の前に手元で docker login し、
+# 空のトークンだと分かりにくいエラーで止まるため。pre-connect には秘密(KAMAL_REGISTRY_PASSWORD)が環境変数で渡る。
+set -euo pipefail
+
+case "${KAMAL_COMMAND:-}:${KAMAL_SUBCOMMAND:-}" in
+  deploy:*|redeploy:*|setup:*|build:*|registry:login) needs_token=1 ;;
+  *) needs_token= ;;
+esac
+
+if [ -n "$needs_token" ] && [ -z "${KAMAL_REGISTRY_PASSWORD:-}" ]; then
+  cat >&2 <<'MSG'
+ghcr.io のトークンがありません。Mac はトークンを持たない決まりです(開発QAボード 第9回 r9-ghcr)。
+- デプロイは GitHub Actions の Deploy から: gh workflow run deploy.yml --ref main --repo smalruby/n-bato
+- バックアップからの戻しは Restore から: gh workflow run restore.yml --ref main -f backup=<名前>(理事長の承認のあと)
+- Actions が止まっているときだけ、docs/deploy.md の「Actions が止まっているとき」の手順で、期限の短いトークンを環境変数で渡す。
+MSG
+  exit 1
+fi
