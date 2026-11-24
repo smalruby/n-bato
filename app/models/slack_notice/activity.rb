@@ -58,7 +58,7 @@ module SlackNotice
         label = { "audit" => "監事の監査が済みました", "submit" => "所轄庁への提出を記録しました" }[step.key] or return
         SlackNotice.post!("ms-step-#{step.id}", "*#{label}* #{step.procedure_run.period_label}(#{step.procedure_run.name}) #{who} #{at}")
       when "AnnualReport"
-        return unless cs["submitted_on"]&.last.present?
+        return if cs["submitted_on"]&.last.blank?
 
         year = change.record&.fiscal_year
         SlackNotice.post!("ms-submit-#{year}-#{cs['submitted_on'].last}", "*所轄庁への提出を記録しました* #{year}年度(提出日 #{cs['submitted_on'].last}) #{who} #{at}")

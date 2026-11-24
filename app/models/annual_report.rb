@@ -97,7 +97,7 @@ class AnnualReport < ApplicationRecord
 
     if (prev = find_by(fiscal_year: year - 1))
       report.assign_attributes(prev.attributes.slice("achievements", "other_business", "members_note"))
-      prev.program_activities.includes(:department).each do |pa|
+      prev.program_activities.includes(:department).each do |pa| # standard:disable Rails/FindEach -- 並び(position)のまま写すため。find_each は並びを無視する
         # 部門は年度ごとのデータセット。この年度の同じコードの部門に付け替える
         dept = pa.department.in_year(year) or next
         report.program_activities.build(pa.attributes.slice("content", "schedule", "beneficiaries", "report", "position").merge(department: dept))

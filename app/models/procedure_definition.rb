@@ -15,7 +15,7 @@ class ProcedureDefinition
 
   def summary = FilingDestination.fill(@summary)
 
-  def self.all = @all ||= Dir[Rails.root.join("config/procedures/*.yml")].sort.to_h { |f| [ File.basename(f, ".yml"), load_file(f) ] }
+  def self.all = @all ||= Rails.root.glob("config/procedures/*.yml").map(&:to_s).sort.to_h { |f| [ File.basename(f, ".yml"), load_file(f) ] }
   def self.find(kind) = all.fetch(kind.to_s)
   def self.reload! = @all = nil
 

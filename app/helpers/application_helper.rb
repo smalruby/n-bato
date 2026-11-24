@@ -8,7 +8,7 @@ module ApplicationHelper
     link_to path, "aria-current": (active ? "page" : nil) do
       badge = if count
         n, text, soon = count
-        tag.span(class: [ "nb-nav-count", ("nb-nav-count--soon" if soon) ], title: text) { tag.span("#{text.delete_suffix("#{n} 件")}", class: "sr-only") + n.to_s + tag.span(" 件", class: "sr-only") }
+        tag.span(class: [ "nb-nav-count", ("nb-nav-count--soon" if soon) ], title: text) { tag.span(text.delete_suffix("#{n} 件"), class: "sr-only") + n.to_s + tag.span(" 件", class: "sr-only") }
       end
       safe_join([ (icon(icon, size: :sm) if icon), tag.span(label), badge ].compact)
     end

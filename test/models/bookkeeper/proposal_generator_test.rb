@@ -107,7 +107,7 @@ class Bookkeeper::ProposalGeneratorTest < ActiveSupport::TestCase
 
   test "PDF の証憑は document として AI に渡す" do
     @voucher.files.attach(io: StringIO.new("%PDF-1.4\n"), filename: "invoice.pdf", content_type: "application/pdf")
-    types = Bookkeeper::ProposalGenerator.new(@voucher).content_blocks.map { it[:type] }
+    types = Bookkeeper::ProposalGenerator.new(@voucher).content_blocks.pluck(:type)
     assert_includes types, "document"
     assert_includes types, "image"
   end

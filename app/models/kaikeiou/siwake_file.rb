@@ -25,7 +25,7 @@ module Kaikeiou
     ).freeze
 
     ATTRIBUTES = COLUMNS.map { |_, attr, _| attr }.freeze
-    Row = Struct.new(*ATTRIBUTES, keyword_init: true)
+    Row = Struct.new(*ATTRIBUTES)
 
     DEFAULT_HEADER = {
       "FMTNAME" => "SIWAKE", "FMTVER" => "3.00.00", "APPNAME" => "n-bato", "APPVER" => "0.1.0"

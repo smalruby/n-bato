@@ -20,7 +20,7 @@ class MemberApplicationsController < ApplicationController
     Audit.label!("#{a.name}さんの入会を認めた(#{year}年度の正会員)")
     MemberApplication::Approval.approve!(a, fiscal_year: year, joined_on: joined, person:, by: Current.user)
     redirect_to member_application_path(a, anchor: "mail"), notice: "入会を認めました。#{year}年度の正会員になりました(元に戻せない操作です。間違えたときは人の記録と会員資格を直してください)"
-  rescue ArgumentError, Date::Error, ActiveRecord::RecordInvalid => e
+  rescue ArgumentError, ActiveRecord::RecordInvalid => e # Date::Error は ArgumentError の仲間
     redirect_to a, alert: e.message
   end
 

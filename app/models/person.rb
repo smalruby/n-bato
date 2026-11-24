@@ -50,7 +50,7 @@ class Person < ApplicationRecord
   end
 
   # 住所・氏名の移り変わり(画面の表)。記録の始まり → 出来事を日付の順に。取り消したものも出す。
-  History = Struct.new(:on, :precision, :kind, :address, :name, :change, keyword_init: true)
+  History = Struct.new(:on, :precision, :kind, :address, :name, :change)
 
   def history
     rows = (address_changes.to_a + name_changes.to_a).sort_by { [ it.occurred_on, it.class.name, it.id ] }

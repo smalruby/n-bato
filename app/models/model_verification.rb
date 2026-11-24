@@ -82,7 +82,9 @@ module ModelVerification
   def registration_mismatches
     Registration.includes(registration_filing: :completion).filter_map do |r|
       expected = r.registration_filing&.completion&.completed_on
-      "登記の事由 ##{r.id}: 登記した日 #{r.registered_on.inspect} / 申請の完了から #{expected.inspect}" unless r.registered_on == expected || (r.registered_on && expected.nil? && r.registration_filing.nil?)
+      # 申請を入れずに登記した日だけを書いたものは、食い違いとしない
+      ok = r.registered_on == expected || (r.registered_on && expected.nil? && r.registration_filing.nil?)
+      "登記の事由 ##{r.id}: 登記した日 #{r.registered_on.inspect} / 申請の完了から #{expected.inspect}" unless ok
     end
   end
 

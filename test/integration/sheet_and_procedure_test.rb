@@ -18,12 +18,12 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
     unused = Account.create!(fiscal_year: 2024, code: 700, name: "給料手当")
     get journal_entries_path(year: 2024)
     script = css_select("#picker-accounts").first
-    used = JSON.parse(script.text).map { it["code"] }
+    used = JSON.parse(script.text).pluck("code")
     assert_equal %w[100 658], used.sort
     assert_equal "3", script["data-total"]
 
     get picker_path("accounts")
-    assert_includes response.parsed_body["items"].map { it["code"] }, unused.code.to_s
+    assert_includes response.parsed_body["items"].pluck("code"), unused.code.to_s
   end
 
   test "仕訳のシートでセルを直すとすぐ保存し、元に戻せる" do

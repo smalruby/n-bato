@@ -27,7 +27,7 @@ module YearRecords
 
   def at(year = Current.working_year || FiscalYear.current.year)
     list = year_records_list
-    list.find { it.fiscal_year == year } || list.find { it.fiscal_year > year } || list.reverse.find { it.fiscal_year < year }
+    list.find { it.fiscal_year == year } || list.find { it.fiscal_year > year } || list.rfind { it.fiscal_year < year }
   end
 
   # その年度の記録が無く、ほかの年度の記録を出しているか

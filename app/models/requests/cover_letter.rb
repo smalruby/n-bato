@@ -14,7 +14,7 @@ module Requests
         #{todos.join("\n")}
         差出人: #{org&.name} 理事長
         依頼の文面(個人情報は伏せてある):
-        #{@request.messages.select(&:user?).first&.masked_body}
+        #{@request.messages.find(&:user?)&.masked_body}
       TEXT
       json = @client.complete_json(system: "NPO 法人の事務の手伝い役として、相手への送付状(書類を出すときの添え状)か返信メールの下書きを日本語で作る。依頼の番号や項目に沿って、何をどう直したかを書く。お詫びは簡潔に。推測で事実を足さない。日付は空欄にする。", content: [ { type: "text", text: } ], schema: SCHEMA, max_tokens: 4_000)
       @request.update!(cover_letter: json.fetch("text"))

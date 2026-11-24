@@ -3,7 +3,7 @@
 module RegistrationOnline
   module_function
 
-  Status = Struct.new(:open, :message, :office_message, keyword_init: true)
+  Status = Struct.new(:open, :message, :office_message)
   WDAYS = %w[日 月 火 水 木 金 土].freeze
 
   def config = @config ||= Rails.application.config_for(:registration_online).with_indifferent_access

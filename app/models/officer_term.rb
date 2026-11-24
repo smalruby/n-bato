@@ -34,7 +34,7 @@ class OfficerTerm < ApplicationRecord
   end
 
   # この日に職務を行っているか
-  def serving_on?(date) = date >= starts_on && date <= last_day
+  def serving_on?(date) = date.between?(starts_on, last_day)
 
   # 年度の中で職務を行った期間(名簿の「就任期間」)
   def period_in(fiscal_year)

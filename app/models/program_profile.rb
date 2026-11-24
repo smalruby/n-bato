@@ -3,6 +3,6 @@
 class ProgramProfile < ApplicationRecord
   validates :code, presence: true, uniqueness: true
 
-  def self.activities_by_code = pluck(:code, :activities).to_h.reject { |_, v| v.blank? }
+  def self.activities_by_code = pluck(:code, :activities).to_h.compact_blank
   def self.for(code) = find_or_initialize_by(code: code.to_i)
 end

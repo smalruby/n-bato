@@ -120,7 +120,7 @@ class PasskeysTest < ActionDispatch::IntegrationTest
     sign_in
     register_passkey
     post registration_options_passkeys_path, as: :json
-    assert_equal [ users(:one).passkeys.sole.external_id ], response.parsed_body["excludeCredentials"].map { it["id"] }
+    assert_equal [ users(:one).passkeys.sole.external_id ], response.parsed_body["excludeCredentials"].pluck("id")
   end
 
   test "パスキーが登録されていない改ざんした資格情報は足せない" do
