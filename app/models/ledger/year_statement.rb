@@ -55,13 +55,7 @@ module Ledger
 
     # 経常外は 8xx = 収益、9xx = 費用 とみなす(会計王の科目体系。実データにまだ無い)
     def extraordinary_change
-      activity_amounts.sum { |a, v|
-        if a.category == "extraordinary"
-          (a.code < 900) ? v : -v
-        else
-          0
-        end
-      }
+      activity_amounts.select { |a, _| a.category == "extraordinary" }.sum { |a, v| (a.code < 900) ? v : -v }
     end
 
     def net_assets_change = ordinary_change + extraordinary_change

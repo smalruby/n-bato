@@ -61,6 +61,11 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
     assert_select "tr.is-new"
   end
 
+  test "年度を切り替える: 戻り先(Referer)が URI として読めなければ、ホームへ戻す" do
+    get year_switch_path(2024), headers: {"Referer" => "http://www.example.com/ 読めない"}
+    assert_redirected_to "/"
+  end
+
   test "年度の外の日付は保存せずに知らせ、移すと選んだら移す" do
     patch journal_entry_path(@entry, format: :json), params: {journal_entry: {entry_date: "2025-04-01"}, sheet_year: 2024, undo_scope: "journal_entries"}
     assert_response :conflict
