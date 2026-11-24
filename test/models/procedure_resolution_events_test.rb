@@ -352,6 +352,10 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     assert_not item.reload.applied?
   end
 
+  test "移す前の操作履歴に出る、議案の反映した日の名前は残す" do
+    assert_equal "反映した日", ResolutionItem.human_attribute_name(:applied_on)
+  end
+
   test "事業報告の承認を反映すると、承認の節目を記録する" do
     resolution, (a, _) = board_resolution("理事A")
     item = resolution.items.create!(kind: "annual_report_approval", title: "承認", fiscal_year: 2025)

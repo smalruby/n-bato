@@ -82,7 +82,8 @@ ja:
       officer_term: { person_id: 人, role: 役職, starts_on: 就任日, ends_on: 任期の終わり, left_on: 退任日, remunerated: 報酬, appointed_by: 選任の経緯, notes: メモ }
       registration: { kind: 種類, cause_on: 原因の日, due_on: 期限, registered_on: 登記した日, note: メモ }
       resolution: { body: 機関, title: 件名, proposed_on: 提案日, voting_method: 方法, held_on: 開催日, place: 場所, note: メモ }
-      resolution_item: { title: 議案, content: 内容 }
+      # applied_on は議案の反映(ResolutionItem::Application)に移した。移す前の操作履歴に出るので名前は残す
+      resolution_item: { title: 議案, content: 内容, applied_on: 反映した日 }
       resolution_item/application: { applied_on: 反映した日 }
       annual_report/milestone: { kind: 種類, dated_on: 日付, automatic: 決まりで }
       procedure_step/status_change: { status: 状態, completed_on: 済んだ日, note: 理由 }
