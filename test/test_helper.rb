@@ -1,12 +1,7 @@
 ENV["RAILS_ENV"] ||= "test"
 
-# カバレッジ: COVERAGE=1 bin/rails test(結果は coverage/。git 管理外)。対象はバックエンドのコード(ビューと JavaScript は対象外。docs/adr/0025)
-if ENV["COVERAGE"]
-  require "simplecov"
-  SimpleCov.start "rails" do
-    add_filter %w[/test/ /config/ /db/ /vendor/ /lib/tasks/ /app/views/ /app/javascript/ /app/assets/]
-  end
-end
+# カバレッジ: COVERAGE=1 bin/rails test。測り始めるのは test/simplecov_start.rb(ruby -Itest で直接流すときのため、ここでも読む)
+require_relative "simplecov_start" if ENV["COVERAGE"]
 require_relative "../config/environment"
 require "rails/test_help"
 
@@ -17,10 +12,6 @@ module ActiveSupport
   class TestCase
     # Run tests in parallel with specified workers
     parallelize(workers: :number_of_processors)
-    if ENV["COVERAGE"]
-      parallelize_setup { |worker| SimpleCov.command_name "#{SimpleCov.command_name}-#{worker}" }
-      parallelize_teardown { SimpleCov.result }
-    end
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
