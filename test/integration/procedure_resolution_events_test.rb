@@ -1,4 +1,5 @@
 require "test_helper"
+require "rake"
 
 # 手続き・決議・提出の画面から作る出来事(docs/adr/0038)。画面の見た目と動きは変えていない。データは架空。
 class ProcedureResolutionEventsFlowTest < ActionDispatch::IntegrationTest
@@ -47,6 +48,38 @@ class ProcedureResolutionEventsFlowTest < ActionDispatch::IntegrationTest
     post procedure_step_status_changes_path(@run, "audit"), params: { status: "skipped" }
     assert_equal "この手順は対象外にできません", flash[:alert]
     assert_equal "open", @run.step("audit")[:status]
+  end
+
+  test "監査の役割では、手順の状態・同意の取消・議案の反映を作れない" do
+    chair = Person.create!(name: "役員A")
+    resolution = Resolution.create!(body: "board", voting_method: "meeting", title: "会議の決議", proposed_on: Date.current, held_on: Date.current, proposer: chair)
+    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: { "appointments" => [] })
+    consent = Consent.record!(resolution, person: chair, consented_on: Date.current)
+    users(:one).update!(role: "auditor")
+
+    post procedure_step_status_changes_path(@run, "close_books"), params: { status: "done" }
+    assert_equal "監査の役割では、記録を変えられません", flash[:alert]
+    post resolution_consent_cancellation_path(resolution, consent)
+    assert_equal "監査の役割では、記録を変えられません", flash[:alert]
+    post resolution_item_application_path(resolution, item)
+    assert_equal "監査の役割では、記録を変えられません", flash[:alert]
+    assert_equal [ 0, 0, 0 ], [ ProcedureStep::StatusChange.count, Consent::Cancellation.count, ResolutionItem::Application.count ]
+  end
+
+  test "data:load: 事業報告の日付・過去の提出日は節目として記録する(架空のデータ)" do
+    Rails.application.load_tasks unless Rake::Task.task_defined?("data:load")
+    Rake::Task["data:load"].reenable
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, "records.yml")
+      File.write(path, { "annual_reports" => [ { "fiscal_year" => 2024, "achievements" => "架空の成果", "approved_on" => Date.new(2025, 6, 20), "submitted_on" => Date.new(2025, 6, 28) } ],
+                         "past_submissions" => [ { "fiscal_year" => 2023, "submitted_on" => Date.new(2024, 6, 27) } ] }.to_yaml)
+      capture_io { Rake::Task["data:load"].invoke(path) }
+    end
+    report = AnnualReport.find_by!(fiscal_year: 2024)
+    assert_equal [ "架空の成果", Date.new(2025, 6, 20), Date.new(2025, 6, 28) ], [ report.achievements, report.approved_on, report.submitted_on ]
+    assert_equal %w[approved submitted], report.milestones.map(&:kind)
+    assert_equal [ "submitted" ], AnnualReport.find_by!(fiscal_year: 2023).milestones.map(&:kind)
+    assert_empty ModelVerification.mismatches
   end
 
   test "手続きを始めるを二度押ししても 1 つ" do
