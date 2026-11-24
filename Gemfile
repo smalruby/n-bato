@@ -62,7 +62,9 @@ group :test do
   gem "simplecov", require: false # テストのカバレッジ(COVERAGE=1 のとき)
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
-  gem "selenium-webdriver"
+  # ブラウザを動かすテスト(test/system)は Playwright で動かす。版は .playwright-version の Playwright と合わせる(issue #14)
+  gem "capybara-playwright-driver"
+  gem "playwright-ruby-client", "~> 1.58.1", require: "playwright"
 end
 
 gem "rails-i18n", "~> 8.1"

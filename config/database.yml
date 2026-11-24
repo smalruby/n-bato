@@ -9,9 +9,10 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   timeout: 5000
 
+# NBATO_DEMO=1 のときは、架空のデータだけの DB(bin/demo。issue #14)。実データの入った development.sqlite3 には触らない
 development:
   <<: *default
-  database: storage/development.sqlite3
+  database: <%= ENV["NBATO_DEMO"].present? ? "storage/demo.sqlite3" : "storage/development.sqlite3" %>
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".

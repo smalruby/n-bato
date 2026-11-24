@@ -14,6 +14,7 @@
 #   bin/check-private --all           リポジトリのすべてのファイルを調べる
 #   bin/check-private --history       履歴のすべてのコミットで足された行を調べる(CI)
 #   bin/check-private --install-hook  pre-commit フックに入れる
+#   bin/check-private --text PATH     標準入力の文を、PATH のファイルの中身として調べる(許可の一覧の試し。test/integration/check_private_test.rb)
 
 require "open3"
 require "yaml"
@@ -86,7 +87,10 @@ def skip?(path) = path.nil? || SKIP.include?(path) || SKIP_PREFIX.any? { path.st
 
 # [ファイル, 行番号 or コミット, 行] の並び
 lines =
-  if ARGV.include?("--all")
+  if (i = ARGV.index("--text"))
+    path = ARGV.fetch(i + 1) { abort "--text のあとにファイルの名前を書いてください" }
+    $stdin.read.force_encoding("UTF-8").scrub.each_line.with_index(1).map { |l, n| [ path, n, l.chomp ] }
+  elsif ARGV.include?("--all")
     out, = Open3.capture2("git", "ls-files", "-z")
     out.split("\0").flat_map do |path|
       next [] if skip?(path) || !File.file?(path)
