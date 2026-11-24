@@ -27,5 +27,7 @@ git branch -d refactor/todo-events-15                 # マージ済みなら
 
 - ブランチは `<種類>/<説明>-<Issue 番号>`(例: `refactor/todo-events-15`、`test/coverage-6`)。
 - 1 つの Issue が 1 つのブランチと 1 つの PR。PR は main 向けの Draft で作り、本文に `Closes #<番号>` を書く(🧱 infra の Issue は `Refs #<番号>`)。
-- Project 5 の Status は autopilot と同じに動かす: Sprint Backlog → In Progress(AI Status: Understanding → Implementing → Self-Reviewing)→ Review(🙋 HITL、人がレビュー)→ DoD(Playwright で確かめる)→ 人がマージ。
-- マージは人がする。AI はマージしない。
+- Project 5 の Status は autopilot と同じに動かす: Sprint Backlog → In Progress(AI Status: Understanding → Implementing → Self-Reviewing)→ 自己レビュー(`.claude/skills/nbato-review`、Must / Question / FYI)→ マージ。人が確かめることが残れば Review(🙋 HITL)で人を待つ。
+- **マージ(2026-11-24 理事長)**: 自己レビューのあと、人が確かめること(「人間の判断に委ねる」の指摘・人に決めてもらう設計の選択)が残っていない PR は、CI が通っていれば AI がマージしてよい。残っていれば Review(🙋 HITL)にして人を待つ。
+- **見送った Q・FYI は EPIC に積む**: 自己レビューで直さなかった Question と FYI(「見送り: …」)は、その都度、親の EPIC の Issue にコメントする(EPIC が無い Issue は、その Issue に)。見出しは「見送った指摘(PR #N)」、1 件ずつ ID・場所・中身・見送った理由。
+- **EPIC を閉じるとき**に、その EPIC(と子の Issue)に積んだ「見送った指摘」を拾い、開発QAボード(artifact)に 1 回分としてまとめて人に確かめてもらう。多くは AI の判断のままでよいが、そうでないこともあるため。答えは EPIC に書き写す(`decisions.md`)。EPIC を閉じるのは、その確かめが済んでから。EPIC の無い Issue の見送りは、次の EPIC を閉じるときの回に一緒に入れる。
