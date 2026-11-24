@@ -1,22 +1,22 @@
 # 基本設計: PDF を AWS Lambda で作る(#22)
 
-- 状態: 提案中(敵対的なレビューの前)。決定の要約は [ADR-0037](../adr/0037-pdf-on-lambda.md)。
+- 状態: 提案中(敵対的なレビュー 1 回目を反映した。対応の表は最後の「レビューへの対応」)。決定の要約は [ADR-0037](../adr/0037-pdf-on-lambda.md)。
 - 決まったこと(前提): Issue #22 のコメント「決まったこと: 開発QAボード 第7回」(2026-11-24、理事長)。5 問とも AI のおすすめ。
   - 7-1 `lambda`: Lambda(Chromium と日本語のフォントを入れたコンテナ)で作り、Rails はジョブから頼む。
   - 7-2 `job-then-notify`: ジョブで作る。「作っています」→「開く」。できた PDF は添付として残す。元のデータが変わっていなければ残っている PDF を出す。ジョブの進み具合の画面は EPIC #23。
   - 7-3 `s3-short-lived`: HTML と PDF は PDF 専用の S3(暗号化・非公開)を通し、1 日で消す。ログに中身を書かない。Lambda の通信の上限に合うやりとりの決まり(プロトコル)を作る。
   - 7-4 `new-user`: PDF 専用の IAM ユーザー(ADR-0035)。
   - 7-5 `build-now-switch-safely`: いま作る。12/7 より前に切り替えられなければ 1 月。しばらく Chrome に戻せるスイッチを残す。**Lambda は強くする**(過去に「Chromium のメモリが 100MB を超えると止まる」「通信の失敗のやり直しが適切でない」ことがあった)。
+- 運用の手間を小さくする(理事長の方針)。部品と自動の切り替えを増やさず、手で戻せる形にする。
 - この文書は設計だけ。コードはまだ書かない。
 
-目次: 1. 全体の形 / 2. プロトコル / 3. 素材(CSS・フォント・画像)と通信の禁止 / 4. 強さ(メモリ・時間切れ・やり直し) / 5. Rails の側 / 6. AWS(CDK) / 7. テスト / 8. 切り替えの段取り・費用 / 9. 危ないこと・決めていないこと / 出どころ
+目次: 0. いまの形 / 1. 全体の形 / 2. プロトコル / 3. 素材と通信の禁止 / 4. 強さ / 5. Rails の側 / 6. AWS(CDK) / 7. テスト / 8. 切り替えの段取り・受け入れ・費用 / 9. 人に聞くこと / 10. 危ないこと・決めていないこと / 出どころ / レビューへの対応
 
 ---
 
 ## 0. いまの形(読んだコード)
 
-- `app/models/pdf_renderer.rb`(main): `PdfRenderer.render(html)` が Ferrum でヘッドレス Chrome を毎回立ち上げ、`page.content = html` → `page.pdf(format: :A4, print_background: true, prefer_css_page_size: true)` → バイト列を返す。
-  - PR #21(`fix/flaky-pdf-9`)で `PdfRenderer.engine`(差し替えられる作り方)、`PdfRenderer::Chrome`(待ち時間 60 秒)、`PdfRenderer::Fake`(テスト用。渡された HTML を覚える)になる。**この設計は #21 のあとを前提にする。**
+- `app/models/pdf_renderer.rb`(PR #21 がマージ済み): `PdfRenderer.engine` で作り方を差し替える。`PdfRenderer::Chrome`(Ferrum、待ち時間 60 秒)と `PdfRenderer::Fake`(テスト用。渡された HTML を覚える)。`PdfRenderer.render(html)` はバイト列を返す。
 - 呼ぶのは 6 つのコントローラーの `format.pdf`。どれも `render_to_string` で印刷用の HTML を作り、その場で `send_data`(同期)。
 
 | コントローラー | アクション | テンプレート | ファイル名 |
@@ -29,7 +29,7 @@
 | `FilingSamplesController` | `show`(様式の例。架空の法人) | `filings/documents` | `n-bato-forms-sample.pdf`(attachment) |
 
 - 印刷用のレイアウト `layouts/print.html.erb` は **CSS を `<style>` に直に書き、画像・スクリプト・外のファイルを使わない**。フォントは名前で指定(`"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", "MS Mincho", serif`)。本番のイメージ(Debian)では `fonts-noto-cjk` の Noto Serif CJK JP が使われる。`@pdf` のときはツールバー(リンク)を出さない。
-- 本番: Lightsail 2GB、Solid Queue は Puma の中(`SOLID_QUEUE_IN_PUMA`、1 プロセス 3 スレッド、全部のキュー)。Chrome のための swap 2GB。Active Storage はサーバーのディスク(`:local`)。
+- 本番: Lightsail 2GB、Solid Queue は Puma の中(`SOLID_QUEUE_IN_PUMA`、ワーカー 1 つ・3 スレッド・`queues: "*"`)。Chrome のための swap 2GB。Active Storage はサーバーのディスク(`:local`)。キューの名前は `default`(AI の調べもの・仕訳の提案・メール・定期のジョブ)と Active Storage のもの。
 
 ## 1. 全体の形
 
@@ -38,47 +38,49 @@ sequenceDiagram
   participant U as ブラウザ
   participant C as Rails(コントローラー)
   participant DB as SQLite
-  participant J as PdfRenderingJob(Solid Queue, キュー pdf)
+  participant F as storage/tmp/pdf(HTML の一時ファイル)
+  participant J as PdfRenderingJob(キュー pdf)
   participant S3 as S3(PDF 専用)
-  participant L as Lambda(pdf-renderer:live)
+  participant L as Lambda(n-bato-pdf-renderer:live)
   U->>C: 書類の PDF を頼む
-  C->>C: render_to_string(印刷用 HTML)→ cache_key = SHA-256
-  C->>DB: 同じ cache_key のできた PDF? → あれば、それを出す(作らない)
-  C->>DB: PdfRendering を作る(queued、HTML を圧縮して持つ)。作っている途中のものがあれば、それに合流
-  C-->>U: 「作っています」の画面(待つ表示、自動で読み込み直す)
-  J->>S3: PUT v1/in/<cache_key>.html(SSE、ChecksumSHA256)
+  C->>C: PrintDocument で印刷用 HTML → input_key = SHA-256
+  C->>DB: 同じ input_key・いまの renderer_key のできた PDF? → あれば出す
+  C->>F: HTML を圧縮して置く(0600)
+  C->>DB: PdfRendering(queued)。作っている途中のものがあれば合流(部分の一意の索引)
+  C-->>U: 「作っています」の画面(待つ表示)
+  J->>DB: 条件つき UPDATE で rendering にする(取れなければ何もしない)
+  J->>S3: PUT v1/in/<id>-<input_key>.html
   J->>L: Invoke(RequestResponse、参照だけの JSON)
-  L->>S3: HEAD v1/out/<cache_key>.pdf(あれば作らずに返す)
-  L->>S3: GET v1/in/<cache_key>.html(大きさとハッシュを確かめる)
-  L->>L: Chromium(通信をすべて止める)で PDF
-  L->>S3: PUT v1/out/<cache_key>.pdf
-  L-->>J: 結果の JSON(ページ数・大きさ・ハッシュ・メモリの山)
-  J->>S3: GET v1/out/<cache_key>.pdf(ハッシュを確かめる)
-  J->>DB: PDF を添付(Active Storage)、done。HTML を消す
-  J->>S3: DELETE in と out(1 日のライフサイクルは保険)
-  U->>C: 読み込み直す → done → PDF を開く
+  L->>S3: GET in(大きさ・ハッシュを確かめる)
+  L->>L: Chromium(data: 以外の要求を止め、JS を止める)で PDF をストリームで /tmp へ
+  L->>S3: PUT v1/out/<input_key>/<renderer_id>.pdf(If-None-Match: *)。412 ならある方を使う
+  L-->>J: 結果の JSON(キー・ページ数・メモリ・足りない字の数)
+  J->>S3: GET out(ChecksumMode ENABLED。S3 の ChecksumSHA256 と中身を照らす)
+  J->>DB: 添付して done(条件つき)。HTML の一時ファイルを消す
+  J->>S3: DELETE in・out(1 日のライフサイクルは保険)
+  U->>C: 読み込み直す → done → PDF を開く(ログインした人だけ)
 ```
 
 ### 1.1 呼び方: ジョブから同期(RequestResponse)で呼ぶ
 
-**採用: ジョブが `Invoke(InvocationType: RequestResponse)` で呼び、答えを待つ。** 非同期(Event)+ 結果を待って見に行く(ポーリング)は使わない。
+**採用: ジョブが `Invoke(InvocationType: RequestResponse)` で呼び、答えを待つ。** 非同期(Event)+ 結果を見に行く(ポーリング)は使わない。
 
-理由:
-
-- **やり直しの持ち主を 1 つにできる。** 非同期の呼び出しは、Lambda が失敗を **既定で 2 回までやり直す**(出どころ [L-retry])。ジョブのやり直しと重なると二重・三重に作る(過去の「やり直しが適切でない」の再来)。同期なら Lambda は自分ではやり直さない(同上)。やり直すのはジョブだけ、と決められる。
-- **結果がすぐ分かる。** 非同期だと、結果を S3 に置く・ジョブが一定の間隔で見に行く・いつまで待つかを決める、の 3 つが増える。キューで「何時間も待つ」こともある(同上)。
-- **大きさの上限は問題にならない。** 同期の上限は要求・応答とも 6MB、非同期は 1MB(出どころ [L-quota]。以前は 256KB と書かれていたが、いまの文書は 1MB)。どちらにせよ HTML と PDF は S3 を通し、JSON には参照だけを入れる(2 章)ので数 KB。
-- 悪い点: ジョブのスレッドが、Lambda が終わるまで(ふだん数秒、最大 90 秒)ふさがる。→ PDF 専用のキュー `pdf` を作り、そのスレッドを 2 つにする(5.5)。ほかのジョブ(Slack・バックアップ・AI)を止めない。
-- 悪い点: 待っている間に通信が切れると、Lambda が作り終えたか分からない。→ 出力の場所を cache_key で決めておき(内容で決まる名前)、次の試みは **まず S3 の出力があるかを見る**(4.5)。Lambda の側も、出力があれば作らずに返す。
+- **やり直しの持ち主を 1 つにできる。** 非同期の呼び出しは、Lambda が失敗を既定で 2 回までやり直す([L-retry])。ジョブのやり直しと重なると二重・三重に作る。同期なら Lambda は自分ではやり直さない(同上)。
+- **結果がすぐ分かる。** 非同期だと、結果を S3 に置く・ジョブが見に行く間隔・いつまで待つか、が増える。キューで何時間も待つこともある(同上)。
+- **大きさの上限は問題にならない。** 同期は要求・応答とも 6MB、非同期は 1MB([L-quota]。以前の文書の 256KB から変わった)。HTML と PDF は S3 を通し、JSON は参照だけなので数 KB。
+- 悪い点: ジョブのスレッドが Lambda の終わりまで(ふだん数秒、最大 90 秒)ふさがる。→ 同時に 2 つまで(5.5)。いまのワーカーの 3 スレッドのうち 1 つは必ず他のジョブに残る。
+- 悪い点: 待っている間に通信が切れると、作り終えたか分からない。→ 出力の場所は入力と作り手で決まる名前にし、条件つきの書き込み(If-None-Match)で最初の 1 つだけを残す(4.5)。次の試みはそれを読む。
 
 ### 1.2 Lambda の中身(コンテナイメージ)
 
-- ランタイム: Node.js 22(AWS の基本のイメージ `public.ecr.aws/lambda/nodejs:22`、x86_64)。`@sparticuz/chromium`(Lambda 向けに作った Chromium。npm の最新は 153.0.0、2026-09-11)+ `puppeteer-core`。版は 2 つとも固定し、`@sparticuz/chromium` の README の「Puppeteer が対応する Chromium の版に合わせる」に従って組にする(出どころ [SP])。
-  - x86_64 にする理由: npm の包みに入っているのは x64 だけ。arm64 は v135 から別の包み(`-min`)で配られ、取り出しの手間が増える(同上)。
-  - 代わりの案(とらない): Debian の `chromium` を入れたイメージ + Lambda の Runtime Interface Client。本番の Rails と同じ Chromium になり見比べで差が出にくいが、Lambda で動かすための旗(single-process など)を自分で探して保つことになる。`@sparticuz/chromium` は Lambda で動く旗の組をまとめて持っている。
-- **フォントは本番の Rails と同じファイルを入れる。** Dockerfile の段の 1 つを、Rails の本番と同じ Debian(`ruby:4.0.10-slim` の元の版)にして `fonts-noto-cjk` を入れ、その `.ttc` を `/var/task/fonts/` に写す。`@sparticuz/chromium` の fontconfig は `/var/task/fonts` を探す(出どころ [SP]:「Lambda には何のフォントもない」「既定の探す場所は `/var/task/.fonts`・`/var/task/fonts`・`/opt/fonts`・`/tmp/fonts`」)。これで「同じ版の Noto Serif CJK JP」が両方で使われる。
-  - 入れるのは Noto Serif CJK と Noto Sans CJK(Regular・Bold)だけ。CSS の `serif` の行き先が Open Sans(包みに入っている英字のフォント)にならないことを、7 章の `pdffonts` の確かめで守る。
-- コードの置き場所: `lambda/pdf-renderer/`(`package.json`・`Dockerfile`・`src/handler.ts`・`test/`)。CDK は `infra/lib/pdf-renderer.ts` に部品(Construct)として書き、`NBatoStack` から使う(6 章)。
+- ランタイム: Node.js 22(`public.ecr.aws/lambda/nodejs:22`、x86_64、**ダイジェスト(@sha256:…)で固定**)。`@sparticuz/chromium`(npm の最新 153.0.0、2026-09-11)+ `puppeteer-core`。2 つの版は固定し、README の「Puppeteer が対応する Chromium の版に合わせる」に従って組にする([SP])。
+  - x86_64 にする理由: npm の包みに入っているのは x64 だけ。arm64 は v135 から別の包み(`-min`)(同上)。
+- **Chromium はイメージを作るときに取り出しておく**(`@sparticuz/chromium` は立ち上がりのたびに brotli の圧縮を /tmp に展開する)。Dockerfile の中で一度 `executablePath()` を呼んで取り出し、`/opt/chromium/` に写す。動くときはその場所を直に使う。立ち上がりが速くなり、/tmp を使わない。
+- **フォントは本番の Rails と同じファイル**: Dockerfile の段の 1 つを Rails の本番と同じ Debian にして `fonts-noto-cjk` を入れ、Noto Serif CJK・Noto Sans CJK(Regular・Bold)の `.ttc` を `/var/task/fonts/` に写す。`@sparticuz/chromium` の fontconfig は `/var/task/fonts` を探す([SP]:「Lambda には何のフォントもない」)。
+  - 作るときに、フォントのファイルの SHA-256 をまとめた `font_digest` と、**フォントが持つ字の一覧(cmap)を小さいファイル `coverage.bin` に書き出す**(4.9)。`font_digest` は応答の `renderer` に入れる。
+  - `serif` の行き先が Open Sans(包みの英字のフォント)にならないことを、7.3 の `pdffonts` で守る。
+- コードの置き場所: `lambda/pdf-renderer/`(`package.json`・`Dockerfile`・`src/handler.ts`・`schema/`・`config.json`・`test/`)。CDK は `infra/lib/pdf-renderer.ts`(6 章)。
+- `lambda/pdf-renderer/config.json` に関数のメモリ・時間切れ・上限の数を 1 つだけ書き、CDK・Lambda・Rails のテストが同じものを読む(値がずれないように)。
 
 ## 2. プロトコル(Rails ⇔ Lambda)
 
@@ -86,484 +88,559 @@ sequenceDiagram
 
 ```
 <PDF 専用のバケット>/
-  v1/in/<cache_key>.html    Rails が置く(PUT)。Lambda が読む(GET)
-  v1/out/<cache_key>.pdf    Lambda が置く(PUT)。Rails が読んで消す(GET・DELETE)
+  v1/in/<rendering_id>-<input_key>.html          Rails が置く。Lambda が読む
+  v1/out/<input_key>/<renderer_id>.pdf           Lambda が条件つきで置く(If-None-Match: *)。Rails が読んで消す
 ```
 
-- `v1` はプロトコルの版。互いに合わない変更をするときは `v2/` を足し、しばらく両方を読む。
-- 名前は内容で決まる(content-addressed)。同じ中身なら同じキーなので、2 回置いても害がなく、通信が切れたあとに「もうできているか」を名前で調べられる。
-- 日付・氏名・書類の名前などはキーに入れない(キーはログや CloudTrail に出る)。`cache_key` は SHA-256 の 16 進 64 文字。
+- `v1` はプロトコルの版。合わない変更をするときは `v2/` を足し、しばらく両方を読む。
+- 入力のキーに `rendering_id` を入れる: ある記録の後片づけの DELETE が、同じ HTML の別の記録の入力を消さないように。
+- 出力のキーは入力(`input_key`)と作り手(`renderer_id` = SHA-256(ビルドの名前 + `font_digest`) の先頭 16 文字。Lambda が自分で決める)で決まる。同じ入力・同じ作り手なら同じキーなので、二重に動いても条件つきの書き込みで最初の 1 つだけが残る。
+- 氏名・日付・書類の名前はキーに入れない(キーはログや CloudTrail に出る)。
 
-### 2.2 cache_key(同じ PDF を 2 度作らないための鍵)
+### 2.2 鍵: input_key と renderer_key
 
 ```
-cache_key = SHA-256( "n-bato-pdf" \0 PROTOCOL_VERSION \0 RENDERER_GENERATION \0 canonical_json(options) \0 html_bytes )
+input_key    = SHA-256( "n-bato-pdf" \0 PROTOCOL_VERSION \0 RENDERER_GENERATION \0 canonical_json(options) \0 html_bytes )
+renderer_key = engine ":" build ":" font_digest          (例 "lambda:2026.12.1-c153:9f2c…" / "chrome:<Chromium の版>:<フォントの digest>")
 ```
 
-- `PROTOCOL_VERSION` = 1。`RENDERER_GENERATION` は Rails の定数(整数)。フォントや Chromium を入れ替え、**見た目が変わるので作り直したいとき**に人が 1 つ上げる。Lambda のイメージを入れ替えるたびには上げない(同じ HTML なら同じ見た目、が前提。違えば 7 章の見比べで分かる)。
-- `options` は `{ "format": "A4", "print_background": true, "prefer_css_page_size": true }`(いまの Ferrum の呼び方と同じ)。キーを並べ替えた JSON にする。
-- エンジン(lambda / chrome)は鍵に入れない。切り替えの間、Chrome で作った PDF も同じ鍵で使い回す(見た目は 7 章で同じと確かめる)。
+- **使い回すのは `input_key` と `renderer_key` の両方が同じ `done` だけ**。エンジン(切り替えの間)・Lambda のビルド・フォントが変われば、作り直す。
+- `renderer_key` は、作るまで Rails には分からない。そこで「そのエンジンで最後にできた PDF の `renderer_key`」を **いまの作り手** とみなす(`PdfRendering.current_renderer_key(engine)`)。Lambda をデプロイしたあと、最初の 1 件ができるまでは前のビルドの PDF が使い回される。→ デプロイの手順に、架空の「様式の例」を 1 件作る確かめを入れる(8 章の P4・デプロイのたび)。これで新しいビルドが分かり、以後は作り直される。
+- `RENDERER_GENERATION` は Rails の定数(整数)。テンプレートの外の理由で作り直したいときに人が上げる。
+- `options` は `{ "format": "A4", "print_background": true, "prefer_css_page_size": true }`(いまの Ferrum の呼び方と同じ)。キーを並べた JSON。
 
-### 2.3 要求(Invoke の Payload)
+### 2.3 JSON Schema は 1 か所に
 
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object", "additionalProperties": false,
-  "required": ["protocol", "request_id", "cache_key", "input", "output", "options", "limits", "deadline_at"],
-  "properties": {
-    "protocol":   { "const": 1 },
-    "request_id": { "type": "string", "pattern": "^pdf-[0-9]+-a[0-9]+$", "description": "PdfRendering の id と試みの回数。ログの照合用。中身は入れない" },
-    "cache_key":  { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "input":  { "type": "object", "additionalProperties": false, "required": ["bucket", "key", "sha256", "bytes"],
-                "properties": { "bucket": {"type": "string"}, "key": {"type": "string", "pattern": "^v1/in/[0-9a-f]{64}\\.html$"},
-                                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "bytes": {"type": "integer", "minimum": 1, "maximum": 10485760} } },
-    "output": { "type": "object", "additionalProperties": false, "required": ["bucket", "key"],
-                "properties": { "bucket": {"type": "string"}, "key": {"type": "string", "pattern": "^v1/out/[0-9a-f]{64}\\.pdf$"} } },
-    "options": { "type": "object", "additionalProperties": false,
-                 "properties": { "format": {"const": "A4"}, "print_background": {"type": "boolean"}, "prefer_css_page_size": {"type": "boolean"} } },
-    "limits":  { "type": "object", "additionalProperties": false, "required": ["max_pages", "max_output_bytes"],
-                 "properties": { "max_pages": {"type": "integer", "maximum": 1000}, "max_output_bytes": {"type": "integer", "maximum": 52428800} } },
-    "deadline_at": { "type": "integer", "description": "UNIX ミリ秒。これを過ぎていたら作らずに DEADLINE_EXCEEDED を返す(待たされた古い頼みを捨てる)" }
-  }
-}
-```
+- `lambda/pdf-renderer/schema/request.v1.json`・`response.v1.json`。どのオブジェクトも `additionalProperties: false`。
+- Lambda のテストは ajv、Rails のテストは json_schemer で、同じファイルを使って確かめる。Rails は本番でも応答をこの形で確かめる(違えば `internal`)。
 
-- バケットとキーは Lambda の側でも決まった形か確かめる(違うバケット・違う場所を読ませない)。バケットは Lambda の環境変数の 1 つと同じでなければ断る。
-- 署名付き URL(presigned URL)は使わない。Lambda は自分の役割(IAM ロール)で S3 を読み書きする。理由: URL そのものが鍵になり、要求の JSON に秘密が入る。ロールなら JSON に秘密がない。
+要求(要点):
 
-### 2.4 応答
+| 項目 | 形 | 意味 |
+|---|---|---|
+| `protocol` | 1 | |
+| `request_id` | `pdf-<id>-a<回数>` | ログの照合用。中身は入れない |
+| `input_key` | 16 進 64 文字 | |
+| `input` | `{bucket, key, sha256, bytes}` | key は `^v1/in/[0-9]+-[0-9a-f]{64}\.html$`、bytes ≤ 10MB |
+| `output_prefix` | `v1/out/<input_key>/` | Lambda が `<renderer_id>.pdf` を足す |
+| `options` | 2.2 | |
+| `limits` | `{max_pages, max_output_bytes}` | 300・50MB(config.json) |
+| `deadline_at` | UNIX ミリ秒 | 過ぎていたら作らずに `DEADLINE_EXCEEDED` |
 
-```json
-{
-  "type": "object", "required": ["protocol", "request_id", "status"],
-  "properties": {
-    "protocol":   { "const": 1 },
-    "request_id": { "type": "string" },
-    "status":     { "enum": ["ok", "error"] },
-    "reused":     { "type": "boolean", "description": "出力がもうあったので作らなかった" },
-    "output":  { "type": "object", "required": ["bucket", "key", "bytes", "sha256", "pages"],
-                 "properties": { "bucket": {"type":"string"}, "key": {"type":"string"}, "bytes": {"type":"integer"}, "sha256": {"type":"string"}, "pages": {"type":"integer"} } },
-    "error":   { "type": "object", "required": ["code", "retryable"],
-                 "properties": { "code": {"enum": ["INVALID_REQUEST", "UNSUPPORTED_PROTOCOL", "DEADLINE_EXCEEDED", "INPUT_NOT_FOUND", "INPUT_CHECKSUM_MISMATCH",
-                                                   "INPUT_TOO_LARGE", "TOO_MANY_PAGES", "OUTPUT_TOO_LARGE", "RENDER_TIMEOUT", "BROWSER_LAUNCH_FAILED",
-                                                   "BROWSER_CRASHED", "S3_ERROR", "INTERNAL"]},
-                                 "retryable": {"type": "boolean", "description": "Lambda の見立て。決めるのは Rails の表(4.4)"},
-                                 "detail": {"type": "string", "maxLength": 200, "description": "例外の種類の名前など。HTML・URL・ページの文は入れない"} } },
-    "metrics": { "type": "object",
-                 "properties": { "cold_start": {"type":"boolean"}, "duration_ms": {"type":"integer"}, "launch_ms": {"type":"integer"}, "render_ms": {"type":"integer"},
-                                 "peak_rss_mb": {"type":"integer"}, "memory_limit_mb": {"type":"integer"}, "tmp_free_mb": {"type":"integer"}, "blocked_requests": {"type":"integer"} } },
-    "renderer": { "type": "object", "properties": { "build": {"type":"string"}, "chromium": {"type":"string"}, "puppeteer": {"type":"string"} } }
-  }
-}
-```
+- バケットとキーの形を Lambda の側でも確かめる。バケットは関数の環境変数と同じでなければ断る。
+- 署名付き URL は使わない(URL そのものが鍵になり、要求に秘密が入る)。Lambda は自分のロールで読み書きする。
 
-- 分かっている失敗は、例外を投げずに `status: "error"` で返す(Lambda の `FunctionError` にしない)。例外のまま終わるのは、予想していない失敗と、Lambda のランタイムが止めたとき(時間切れ・メモリ切れ)だけ。この 2 つを Rails は `FunctionError` で見分ける(4.4)。
-- 応答は数 KB。6MB の上限には遠い。
+応答(要点):
 
-### 2.5 暗号化・寿命・権限・ログ
+| 項目 | 形 | 意味 |
+|---|---|---|
+| `protocol`・`request_id` | | |
+| `status` | `ok` / `error` | |
+| `reused` | bool | 条件つきの書き込みが 412 で、すでにあるものを返した |
+| `output` | `{bucket, key, bytes, pages}` | ハッシュは入れない(Rails は S3 のオブジェクトのチェックサムで確かめる。4.5) |
+| `error` | `{code, retryable, detail}` | code は 4.4 の表。`detail` は例外の種類の名前だけ(200 字まで) |
+| `metrics` | `{cold_start, duration_ms, launch_ms, render_ms, upload_ms, peak_rss_mb, memory_limit_mb, tmp_free_mb, blocked_requests, missing_glyphs, missing_codepoints}` | `missing_codepoints` は `U+XXXX` の並びだけ(最大 50) |
+| `renderer` | `{build, chromium, puppeteer, font_digest, renderer_id}` | |
 
-- バケット: 公開をすべて止める・TLS だけ(`enforceSSL`)・SSE-S3 の既定の暗号化・バージョニングなし(消したら本当に消える)・オブジェクトの所有はバケットの持ち主(ACL を使わない)。
-- 寿命: ライフサイクルで `v1/` を **1 日で消す**。ただしそれは保険で、ふだんは Rails が添付したすぐあとに in と out を消す(数分で消える)。S3 のライフサイクルの消去は、期限のあと非同期に行われる(期限ちょうどには消えない。出どころ [S3-lc])。
-- KMS(お客が管理する鍵)は使わない(バックアップのバケットと同じ SSE-S3)。理由: 中身が数分しか置かれず、鍵の管理・費用(月 1 ドル + 呼び出し)を足すほどの差がない。9 章の決めていないことに残す。
-- IAM: 6.3。Rails の PDF 用ユーザーは「in に置く・out を読む・両方を消す・この関数を呼ぶ」だけ。
+- 分かっている失敗は、例外を投げずに `status: "error"` で返す。例外のまま終わる(Lambda の `FunctionError`)のは、予想していない失敗と、ランタイムが止めたとき(時間切れ・メモリ切れ)だけ。
+- **ハンドラー全体を包む**: いちばん外で例外を受け、`INTERNAL`(`detail` は例外の種類の名前だけ)で返す。ランタイムに渡るのは、時間切れ・メモリ切れで包みの外で止まったときだけになる。Rails は `FunctionError` の本文(`errorMessage` など)をログにも記録にも書かない。種類(`Unhandled` かどうか)だけを使う。
+
+### 2.4 暗号化・寿命・権限・ログ
+
+- バケット: 公開をすべて止める・TLS だけ・SSE-S3(バックアップのバケットと同じ。KMS は使わない)・バージョニングなし(消したら本当に消え、If-None-Match も単純に効く)・ACL なし。
+- 寿命: ライフサイクルで `v1/` を **1 日で消す**、**途中のマルチパートのアップロードを 1 日で消す**(AbortIncompleteMultipartUpload。[S3-cw] がすすめる)。ふだんは Rails が添付したすぐあとに in と out を消す。ライフサイクルの消去は期限のあと非同期に行われる(未確認。P3 の前に確かめる)。
+- 権限: 6.3。
 - **ログに中身を書かない**(7-3)。
-  - Lambda: 要求の JSON をそのまま出さない(`console.log(event)` を禁止。lint の決まりとテストで守る)。出すのは 1 行の JSON: `request_id`・`cache_key` の先頭 12 文字・状態・エラーのコード・時間・ページ数・大きさ・メモリ。ページの `console`・`pageerror`・ブロックした要求の URL は出さない(数だけ)。例外の文は `detail` に種類の名前だけ。ログの保存は 30 日。
-  - Rails: ジョブの引数は `PdfRendering` だけ(GlobalID。HTML を引数にしない。Solid Queue は引数を DB に残すため)。Lambda の応答をそのままログに出さない。`error_message` は 4.4 の表の文と `detail` だけ。
+  - Lambda: 要求の JSON をそのまま出さない(lint の決まりとテストで守る)。出すのは 1 行の JSON: `request_id`・`input_key` の先頭 12 文字・状態・エラーのコード・時間・ページ数・大きさ・メモリ・`missing_glyphs`。ページの `console`・`pageerror`・止めた要求の URL は出さない(数だけ)。ログの保存は 30 日。
+  - Rails: ジョブの引数は `PdfRendering` だけ(HTML を引数にしない。Solid Queue は引数を DB に残す)。Lambda の応答・`FunctionError` の本文をログに出さない。`error_message` は 4.4 の表の文と `detail` だけ。
 
 ## 3. 素材(CSS・フォント・画像)と通信の禁止
 
 ### 3.1 素材の決まり: 印刷用の HTML は 1 つのファイルで完結させる
 
 - CSS は `<style>` に直に書く(いまの `layouts/print` のまま)。
-- 画像を入れるとき(これからの印影・ロゴなど)は `data:` の URI にする。そのための helper(例: `inline_image_tag(blob_or_path)`)を足す。大きい画像は Rails の側で縮めてから入れる(HTML の上限 10MB に入るように)。
-- スクリプトは使わない(Lambda でも止める)。外のフォント(Web フォント)は使わない。フォントは名前で指定し、Lambda のイメージに入れたものを使う(1.2)。
-- **守り方**: Rails の側の `PdfRenderer::HtmlCheck` が、送る前に HTML を Nokogiri で見て、`src`・`href`(`<link>`)・CSS の `url(...)`・`@import` のうち `data:` でないものを数える。テストと開発では例外にする(気づかないまま本番に出さない)。本番では警告を 1 行(数だけ)出して続ける(Lambda の側で止まるので、出る PDF から抜けるだけ)。6 つの書類のテストで「外を参照していない」を確かめる。
+- 画像を入れるとき(これからの印影・ロゴなど)は `data:` の URI にする。そのための helper(例: `inline_image_tag`)を足す。大きい画像は Rails の側で縮める(HTML の上限 10MB)。
+- スクリプトと外のフォントは使わない。フォントは名前で指定し、Lambda のイメージに入れたものを使う。
+- **守り方**: `PdfRenderer::HtmlCheck` が、送る前に HTML を Nokogiri で見て、`data:` でない `src`・`href`(`<link>`)・CSS の `url(...)`・`@import` を数える。テストと開発では例外。本番では警告を 1 行(数だけ)出して続ける(Lambda で止まり、PDF から抜けるだけ)。
 
-### 3.2 Lambda の中の通信の禁止(三重)
+### 3.2 Lambda の中の通信の禁止
 
-1. **ページの要求を止める**: Puppeteer の `page.setRequestInterception(true)` で、`data:` と `about:blank` 以外をすべて `abort()`。止めた数を `blocked_requests` に数える(URL はログに出さない)。加えて `page.setOfflineMode(true)` と `page.setJavaScriptEnabled(false)`。
-2. **Chromium の旗**: `--proxy-server=127.0.0.1:9`(つながらない先)と `--host-resolver-rules=MAP * ~NOTFOUND`(名前を引けない)。`@sparticuz/chromium` の既定の旗のうち `--disable-web-security` と `--allow-running-insecure-content` は外す(要らない。外のファイルを読ませる穴になる)。旗が効くかは 7.4 の攻撃のテストで確かめる(未確認)。
-3. **Lambda を外に出られない網に置く**(おすすめ、9 章で確かめる): Lambda を VPC の「外へ出られないサブネット」(NAT なし)に置き、S3 だけはゲートウェイ型の VPC エンドポイントで通す。1 と 2 が破られても、インターネット・メタデータのアドレスに届かない。NAT とゲートウェイ型のエンドポイントは費用 0(NAT を置かないため)。CloudWatch Logs へのログは Lambda の仕組みが送るので、エンドポイントは要らない(未確認。P1 で確かめる)。
+VPC には置かない(レビュー Q6。部品と運用の手間を増やさない)。守りは Chromium の中で行う。
+
+1. **要求を止める**: Puppeteer の `page.setRequestInterception(true)` で、`data:` と `about:blank` 以外をすべて `abort()`。止めた数を `blocked_requests` に数える(URL は出さない)。
+2. **JS を止める**: `page.setJavaScriptEnabled(false)`。
+3. **旗**: `@sparticuz/chromium` の既定の旗のうち `--disable-web-security` と `--allow-running-insecure-content` を外す。使う旗の一覧をコードの定数にし、**一覧そのものをテストで固定する**(足し忘れ・外し忘れを見つける)。`--proxy-server`・`--host-resolver-rules` は足してもよいが、効くかは 7.4 で確かめてから(未確認)。
+- 狙われうる先: Lambda の Runtime API(`127.0.0.1:9001`、`AWS_LAMBDA_RUNTIME_API`)・メタデータのアドレス・インターネット。7.4 の攻撃のテストにすべて入れる。
+- 費用の守り: AWS Budgets の警報(月の見込みの数倍で、メール)と、同時に動く数の上限(Rails の側で 2。予約の同時実行は 4.8)。
 
 ## 4. 強さ(この設計の柱)
 
 ### 4.1 過去の 2 つの不具合を、どう防ぐか
 
-| 過去の不具合 | ありそうな原因(推測) | この設計での防ぎ方 |
+| 過去の不具合 | ありそうな原因(9 章で人に聞く) | この設計での防ぎ方 |
 |---|---|---|
-| Chromium のメモリが 100MB を超えると止まる | 関数のメモリが小さすぎた(既定は 128MB)/ `/dev/shm` が無い・小さい Lambda で Chromium の共有メモリが足りなかった / 複数のプロセスで動かした | メモリは 2048MB から(`@sparticuz/chromium` の README は「最低 512MB、1600MB 以上をすすめる」[SP])。`--single-process`(同じ包みの既定)と `--disable-dev-shm-usage`(共有メモリの代わりに /tmp を使う。効くかは P1 で確かめる)。**メモリの山を毎回測って記録し**(4.2)、ストレスのテストを半分のメモリ(1024MB)で通すことを切り替えの条件にする |
-| 通信に失敗したときのやり直しが適切でない | AWS の SDK の既定: Ruby の SDK は待ち時間 60 秒で読み取りを打ち切り(`http_read_timeout` の既定 60)、通信の失敗として **3 回までやり直す**(`retry_mode: legacy`、`retry_limit` の既定 3)。Lambda が 60 秒を超えると、SDK が同じ要求をまた送り、裏で Chromium が 2〜4 つ同時に動く(このリポジトリの aws-sdk-core 3.272.0 のソースで確かめた) | Lambda の呼び出しは **SDK のやり直しを切る**(`max_attempts: 1`)、**読み取りの待ち時間を Lambda の時間切れより長く**する(100 秒 > 90 秒)。やり直すのはジョブだけ(4.4)。同じ cache_key は同時に 1 つしか動かさない(4.5) |
+| Chromium のメモリが 100MB を超えると止まる | 関数のメモリが既定の 128MB だった / Puppeteer の WebSocket の `maxPayload`(100MiB)を PDF の base64 が超えた / 応答で PDF を返して 6MB の上限に当たった / `heapUsed`(JS のヒープ)だけを見ていて実際の RSS を見ていなかった / /tmp 512MB があふれた / `/dev/shm` が無い・小さい | メモリは約 3008MB(1 つの関数。4.2)。**PDF はストリームで /tmp に書き出す**(`page.createPDFStream()`、CDP の `transferMode: ReturnAsStream`)ので、WebSocket の 1 つのメッセージに PDF 全体が乗らない。PDF は S3 で渡し、応答には載せない。メモリは **REPORT の `Max Memory Used` を正**とし、RSS も測る。/tmp は 1024MB。P1 の実験 ①〜④(4.10)で原因の候補を 1 つずつ確かめる |
+| 通信に失敗したときのやり直しが適切でない | AWS の SDK の既定: Ruby の aws-sdk-core 3.272.0 は `retry_mode: standard`・`max_attempts: 3`(やり直し 2 回)、読み取りの待ち時間 60 秒(`http_read_timeout`)。`Net::ReadTimeout` は `Seahorse::Client::NetworkingError` に包まれ、やり直しの対象になる。Lambda が 60 秒を超えると同じ要求が送り直され、Chromium が並んで動く | Lambda のクライアントに **`retry_mode: "standard", max_attempts: 1` を明示する**(クライアントに渡した値は `AWS_RETRY_MODE`・`AWS_MAX_ATTEMPTS` の環境変数より強い)。**読み取りの待ち時間 100 秒 > 関数の時間切れ 90 秒**。この 2 つを Rails のテストで確かめる(7.6)。やり直すのはジョブだけ(4.4) |
 
 ### 4.2 メモリ
 
-- 初めの値: **2048MB**(1,769MB で vCPU 1 つ分 [L-quota]。Chromium の立ち上がりと組版は CPU を使うので、少し上にする)。`/tmp` は 1024MB。
+- **関数は 1 つ、メモリは約 3008MB**(レビュー Q5)。新しいアカウントはメモリの上限が下げられていることがある([L-quota])ので、cdk deploy の前に上限を確かめ、上限の中で最大に近い値にする。重い入力のやり直しも同じ関数で 1 回だけ。
+- `/tmp` は 1024MB。
 - 測り方(毎回):
-  - Lambda の `REPORT` の行の `Max Memory Used`(実行の環境まるごと。子のプロセスも入る)。CloudWatch Logs Insights でまとめて見る。
-  - 関数の中で 100 ミリ秒ごとに、Chromium のプロセス(`browser.process().pid` と、その子)の `/proc/<pid>/status` の `VmRSS` と、Node の `process.memoryUsage().rss` を足し、その最大を `peak_rss_mb` として応答とログに入れる。Rails は `PdfRendering#peak_memory_mb` に残す(書類の種類ごとの傾向が分かる)。
-  - CloudWatch の Embedded Metric Format でメトリクス `PeakRssMb`・`DurationMs`・`Pages` を出し、**`PeakRssMb` が関数のメモリの 60% を超えたら警報**(SNS でメール。宛先は運用の側で決める)。
-- 決め方: P1 で 1024 / 1536 / 2048MB でストレスのテスト(7.3)を流し、いちばん重いものの山の **2 倍以上**を関数のメモリにする。新しい AWS のアカウントはメモリの上限が下げられていることがある [L-quota](9 章)。
-- メモリ切れの次の試み: ランタイムが止めた(`FunctionError` で、メモリ切れ・時間切れ・異常終了)ときの 2 回目は、**同じイメージでメモリを倍にした関数 `pdf-renderer-large`(4096MB)** に回す。それでも駄目なら「作れない入力」として止める(4.6)。
+  - **正は Lambda の `REPORT` の行の `Max Memory Used`**(実行の環境まるごと。子のプロセスも入る)。CloudWatch Logs Insights で書類の種類ごとにまとめる。
+  - 関数の中でも 100 ミリ秒ごとに、Chromium のプロセスの集まり(プロセスグループ)の各プロセスの `/proc/<pid>/status` の `VmRSS` と Node の `process.memoryUsage().rss` を足し、その最大を `peak_rss_mb` にして応答とログに入れる(`heapUsed` は使わない)。Rails は `PdfRendering#peak_memory_mb` に残す。REPORT との差は P1 の実験 ④ で確かめる。
+  - Embedded Metric Format でメトリクス `PeakRssMb`・`DurationMs`・`Pages`・`MissingGlyphs` を出す。**`PeakRssMb` が関数のメモリの 50% を超えたら警報**(SNS でメール)。
+- 切り替えの条件(8.2): 本番の実データで、**いちばん重い書類のメモリの山が関数のメモリの 50% 以下**。
 
 ### 4.3 時間切れ(外側ほど長く)
 
 | 層 | 値 | 何が起きるか |
 |---|---|---|
 | Chromium: `setContent` | 15 秒(外を読まないので、ふだん 1 秒もかからない) | `RENDER_TIMEOUT` |
-| Chromium: `page.pdf` | Lambda の残り時間 − 10 秒(`context.getRemainingTimeInMillis()`)。上限 70 秒 | `RENDER_TIMEOUT`。片づけ(ブラウザを閉じる・/tmp を消す)と S3 への PUT の 10 秒を残す |
+| Chromium: PDF のストリーム | Lambda の残り時間 **− 20 秒**(`context.getRemainingTimeInMillis()`)、上限 60 秒 | `RENDER_TIMEOUT`。片づけと S3 への PUT の 20 秒を残す |
+| Lambda の中の S3 のクライアント | 1 回の要求の時間切れ(`requestTimeout`)と回数(`maxAttempts`)を残り時間から決める: 残り 40 秒以上なら 10 秒・3 回、それより少なければ 残り − 5 秒・1 回 | 失敗は種類にかかわらず **いつも `S3_ERROR`** |
 | Lambda 関数 | **90 秒**(上限は 1,800 秒 [L-quota]) | ランタイムが止める → `FunctionError` |
-| Ruby の Lambda の呼び出し | 接続 5 秒、読み取り **100 秒**、SDK のやり直し 0 | 接続できない → やり直してよい。読み取りの時間切れ → 結果が分からない(4.5) |
-| Ruby の S3 | 接続 5 秒、読み取り 30 秒、SDK のやり直し 3(standard)。PUT・GET・DELETE は何度やっても同じ結果なので SDK に任せてよい | |
-| 1 つの PdfRendering の全体 | 頼まれてから **10 分**(`deadline_at`)。過ぎたらやり直さず failed | 待たされた古い頼みを作らない |
-| 待つ画面 | 3 分を超えたら「時間がかかっています」を出す(文は見直し票で決める) | |
+| Ruby の Lambda の呼び出し | 接続 5 秒、読み取り **100 秒**、`max_attempts: 1` | 接続できない → 一時的。読み取りの時間切れ → 結果が分からない |
+| Ruby の S3 | 接続 5 秒、読み取り 30 秒、`max_attempts: 3`(PUT・GET・DELETE は何度やっても同じ結果) | |
+| 1 つの PdfRendering の全体 | 頼まれてから **10 分**(`deadline_at`) | `expired`(4.4) |
+| 待つ画面 | 3 分を超えたら「時間がかかっています」(文は見直し票) | |
 
-- ブラウザは **呼び出しごとに立ち上げて閉じる**(温まった環境でも使い回さない)。1 回 0.5〜1 秒ほど余計にかかるが、前の呼び出しのメモリ・壊れた状態を持ち越さない。`--user-data-dir` は呼び出しごとに `/tmp/chrome-<uuid>` を作り、`finally` で消す(Playwright で /tmp が溜まって `ERR_INSUFFICIENT_RESOURCES` になる例が README にある [SP])。閉じる前にページを閉じ、`browser.close()` を待つ(同上)。閉じられなければ 5 秒で `SIGKILL`。
-- 呼び出しの初めに `/tmp` の空きを測り、200MB を切っていたら古い `/tmp/chrome-*` を消してから進む。
+- **呼び出しごとに、まっさらにする**(レビュー Q2): `TMPDIR=/tmp/r-<uuid>` を作り、`--user-data-dir` もその下に置く。ブラウザは呼び出しごとに立ち上げ、プロセスグループを分けて(detached)起こす。終わったらページ → ブラウザの順に閉じ、5 秒で閉じなければ **プロセスグループごと `SIGKILL`**。最後に `/tmp/r-<uuid>` を消す(`finally`)。Puppeteer が Linux で detached に起こすかは確かめ、そうでなければ自分で `spawn` して `puppeteer.connect` でつなぐ(未確認)。
+- 呼び出しの初めに `/tmp` の空きを測り、200MB を切っていたら残った `/tmp/r-*` を消してから進む。
 
 ### 4.4 やり直しの決まり(やり直すのはジョブだけ)
 
-- **Lambda はやり直さない。** 中で S3 の SDK が自分でやり直すのだけ許す(何度やっても同じ結果になる操作)。Chromium の立ち上げ・組版はやり直さない。非同期の呼び出しを使わないので、Lambda の仕組みのやり直しもない。
+- **Lambda はやり直さない。** 中で S3 の SDK が自分でやり直すのだけ許す(4.3 の回数)。Chromium の立ち上げ・組版はやり直さない。非同期の呼び出しを使わない。
 - **Ruby の SDK は Lambda の呼び出しをやり直さない**(`max_attempts: 1`)。
-- **ジョブ**(`PdfRenderingJob`)が、次の表でやり直す。待ち時間は指数 + ゆらぎ(jitter ±25%)。ActiveJob の `retry_on ... wait: ->(n) { ... }` で書き、試みの回数は `PdfRendering#attempts` にも残す。
+- **ジョブ** が次の表でやり直す。数えるのは DB の `PdfRendering#attempts`(ActiveJob の `retry_on` の回数は宣言ごとに数えられるので使わない。レビュー M7)。`rescue_from PdfRenderer::Error` の 1 か所で分類を見て、`retry_job(wait:)` するか止める。待ちは表の値 × (1 ± 0.15) のゆらぎを 1 回だけかける(ActiveJob の `retry_on` のゆらぎと重ねない)。
 
 | 分類 | 何が起きたか(例) | やり直す | 回数(全部で) | 待ち | 尽きたら |
 |---|---|---|---|---|---|
-| 一時的 | `TooManyRequestsException`(429、同時に動く数の上限)・`ServiceException`(5xx)・`ResourceNotReadyException`(デプロイの直後)・接続できない・S3 の 5xx・`S3_ERROR`・`BROWSER_LAUNCH_FAILED` | する | 5 | 5 秒・20 秒・60 秒・120 秒(429 は 2 倍) | failed(`transient_exhausted`)。切り替えの間は Chrome に回す(4.7) |
-| 結果が分からない | Ruby の読み取りの時間切れ・接続が途中で切れた | する。**先に S3 の出力を見る**(4.5) | 一時的と同じ枠 | 同上 | 同上 |
-| 重い入力かもしれない | `FunctionError`(時間切れ・メモリ切れ・異常終了)・`BROWSER_CRASHED`・`RENDER_TIMEOUT` | 1 回だけ、`pdf-renderer-large` で | 2 | 10 秒 | failed(`render_failed`)。Chrome には回さない(本番のサーバーで同じことが起きるのを避ける) |
-| 入力が悪い(やり直しても同じ) | `TOO_MANY_PAGES`・`INPUT_TOO_LARGE`・`OUTPUT_TOO_LARGE`・`INVALID_REQUEST`・`UNSUPPORTED_PROTOCOL` | しない | 1 | — | failed。理由をそのまま画面に |
-| 途中で壊れた | `INPUT_NOT_FOUND`・`INPUT_CHECKSUM_MISMATCH` | HTML を置き直して 1 回 | 2 | 0 | failed(`internal`) |
-| 設定の誤り | `AccessDeniedException`・`ResourceNotFoundException`・鍵が無い(`MissingCredentialsError`)・`DEADLINE_EXCEEDED` | しない | 1 | — | failed。切り替えの間は Chrome に回す(4.7)。設定の誤りは 1 回で警報(ログの `error` + Slack の運用の知らせは #23 で) |
-| 予想していない | 上のどれでもない例外 | しない | 1 | — | failed(`internal`)。例外の種類の名前だけを残す |
+| `transient` 一時的 | `TooManyRequestsException`(429)・`ServiceException`(5xx)・`ResourceNotReadyException`(デプロイの直後)・接続できない・`S3_ERROR`・`BROWSER_LAUNCH_FAILED`・S3 の PUT の 409(DELETE とぶつかった) | する | 5 | 5 秒・20 秒・60 秒・120 秒(429 は 2 倍) | failed |
+| `unknown` 結果が分からない | Ruby の読み取りの時間切れ・接続が途中で切れた | する。先に出力を読む(4.5) | `transient` と同じ枠 | 同上 | failed |
+| `heavy` 重い入力かもしれない | `FunctionError`(時間切れ・メモリ切れ・異常終了)・`BROWSER_CRASHED`・`RENDER_TIMEOUT` | 1 回だけ(同じ関数) | 2 | 10 秒 | failed。作れない入力として 1 時間止める |
+| `input` 入力が悪い | `TOO_MANY_PAGES`・`INPUT_TOO_LARGE`・`OUTPUT_TOO_LARGE`・`INVALID_REQUEST`・`UNSUPPORTED_PROTOCOL` | しない | 1 | — | failed。理由をそのまま画面に |
+| `broken` 途中で壊れた | `INPUT_NOT_FOUND`・`INPUT_CHECKSUM_MISMATCH`・**出力のチェックサムが合わない**(4.5)・出力を読んでも無い | HTML を置き直し、出力を消してから 1 回 | 2 | 0 | failed |
+| `expired` 期限切れ | `DEADLINE_EXCEEDED`・ジョブが全体の期限(10 分)を過ぎてから動いた | しない | — | — | failed。警報は出さない(混んでいた・止まっていただけ) |
+| `config` 設定の誤り | `AccessDeniedException`・`ResourceNotFoundException`・鍵が無い(`MissingCredentialsError`) | しない | 1 | — | failed。1 回で警報(ログの `error`) |
+| `internal` 予想していない | 上のどれでもない・応答の形が Schema と違う | しない | 1 | — | failed。例外の種類の名前だけを残す |
 
-- **作れない入力(poison)**: 「重い入力かもしれない」が 2 回続いた cache_key は、`PdfRendering` が `render_failed` で残る。同じ cache_key をまた頼まれたら、**1 時間はすぐに失敗を見せ**(作り直さない)、画面の「もう一度作る」(人が明示)でだけ作り直す。同じ書類の中身が変われば cache_key が変わるので、ふつうに作られる。
-- やり直しで同じ Lambda を何度も起こさないよう、全体の期限(10 分)を過ぎたらやめる。
+- **自動で Chrome に回すことはしない**(レビュー Q8)。戻すのは人が手で(4.7)。
+- **作れない入力(poison)**: `heavy` が 2 回続いた `input_key` は、同じものをまた頼まれても **1 時間はすぐに失敗を見せる**。画面の「もう一度作る」(人が明示)でだけ作り直す。中身が変われば `input_key` が変わる。
+- 全体の期限(10 分)を過ぎたら、どの分類でもやめる(`expired`)。
 
-### 4.5 二重に作らない(5 重)
+### 4.5 二重に作らない(3 つの守り)
 
-1. **できた PDF を使い回す**: 同じ cache_key の `done` の `PdfRendering` に PDF が付いていれば、それを出す(Lambda を呼ばない)。
-2. **作っている途中に合流する**: 同じ cache_key で `queued`・`rendering` のものがあれば、新しく作らずにそれを返す。SQLite の部分の一意の索引(`UNIQUE (cache_key) WHERE status IN ('queued','rendering')`)で、同時に 2 つできないことを DB が守る。ぶつかったら作り直さず、ある方を読み直して返す。
-3. **ジョブを同時に 1 つ**: Solid Queue の `limits_concurrency to: 1, key: ->(r) { r.cache_key }, duration: 5.minutes`。
-4. **Lambda の側で出力を見る**: 作る前に `HEAD v1/out/<cache_key>.pdf`。あって `x-amz-meta-input-sha256` が要求と同じなら作らずに `reused: true` で返す。
-5. **SDK が呼び出しをやり直さない**(4.4)。
+レビュー F10 で 5 つから 3 つに減らした。ほかの仕組み(ジョブを同時に 1 つ、Lambda の HEAD)は、この 3 つがあれば要らない。
 
-- 結果が分からないときの次の試み: ジョブは Lambda を呼ぶ前に `HEAD v1/out/<cache_key>.pdf` を見る。あれば読んで、ハッシュを確かめて終わる。Lambda の読み取りの待ち時間(100 秒)は関数の時間切れ(90 秒)より長いので、「Rails があきらめたあとも Lambda が動いていて、あとから出力が置かれる」ことは、通信が切れたときだけ。そのときは次の試みと並ぶが、出力は同じ中身の同じキーなので害はない(費用が 1 回分増えるだけ)。
-- S3 は書いたすぐあとに読んでも新しい中身が返る(strong read-after-write consistency、2020 年 12 月から。出どころ [S3-cons]、本文は未確認)。HEAD にも ListBucket の権限を付ける(無いと、無いものを HEAD したとき 404 でなく 403 が返り、「無い」と「権限が無い」が見分けられない)。
+1. **できた PDF を使い回す**: 同じ `input_key`・いまの `renderer_key`(2.2)の `done` があれば、それを出す。
+2. **作っている途中に合流する**: SQLite の部分の一意の索引 `UNIQUE (input_key) WHERE status IN ('queued','rendering')`。同時に頼まれても 1 件しかできない。ぶつかったら、ある方を読み直して返す。
+3. **出力は条件つきで書く**: Lambda は `PutObject(If-None-Match: *)` で `v1/out/<input_key>/<renderer_id>.pdf` を書く。
+   - 412(もうある)→ 作ったものは捨て、`reused: true` で、ある方のキーを返す。Chromium の PDF は `/CreationDate`・`/ModDate` が毎回違い、同じ HTML でもバイト列が同じにならないので、上書きさせないことが大事(上書きされると、読む途中で中身が変わる)。
+   - 409(同じキーの DELETE とぶつかった)→ `S3_ERROR`(一時的)で返し、ジョブがやり直す([S3-cw]:「409 のあと PutObject はやり直してよい」)。
+- **Rails は S3 のオブジェクトのチェックサムで確かめる**: Lambda は PUT に `ChecksumAlgorithm: SHA256` を付ける。Rails は `GetObject(checksum_mode: "ENABLED")` で読み、SDK が中身と S3 の `ChecksumSHA256` を照らす(合わなければ例外 → `broken`)。応答に入れたハッシュは使わない(412 のとき、ある方は別の回に作られたもの)。
+- **結果が分からないときの次の試み**: Lambda を呼ぶ前に `GetObject v1/out/<input_key>/<last_renderer_id>.pdf` を試す(`last_renderer_id` は、そのエンジンでいま分かっている作り手)。あれば読んで終わる。`NoSuchKey`・403(ListBucket の権限を付けないので、無いものは 403 になる)は「まだ無い」とみなし、呼ぶ。HEAD は使わない(レビュー Q7)。403 が本当の権限の誤りのときは、その後の呼び出しや PUT で `config` として出る。この扱いは P3 で本物の S3 で確かめる。
 
-### 4.6 ページ数・大きさの上限
+### 4.6 状態の移り変わりは「条件つき」で(ジョブが二度動いても壊さない)
 
-| 上限 | 値(初め) | どこで | 理由 |
-|---|---|---|---|
-| HTML の大きさ | 10MB | Rails(送る前)・Lambda(GET の前に `bytes` と HEAD の大きさ) | 6 つの書類はいま数十 KB〜数百 KB。画像を `data:` で入れても 10MB に収める |
-| ページ数 | 300 | Lambda。`page.pdf({ pageRanges: "1-301" })` で 301 ページ目までだけ作り、301 ページあれば `TOO_MANY_PAGES` | 総勘定元帳 1 年分でも数十ページの見込み。上限を超える組版にメモリを使わない(組版はするので、効くのは PDF を書き出す分だけ。7.3 で確かめる) |
-| PDF の大きさ | 50MB | Lambda(PUT の前) | 添付とバックアップを重くしない |
-| 同時に作る数 | Rails 2(キュー `pdf` のスレッド) | Rails | 9 章: アカウントの同時実行の上限 |
+Solid Queue は、プロセスが落ちたりデプロイで止まったりすると、同じジョブをもう一度動かす(止めるときの待ちは `shutdown_timeout` 5 秒、落ちたプロセスと見なすのは `process_alive_threshold` 5 分のあと)。どの段も「自分が持ち主のときだけ」進める。
 
-- ページ数の数え方: Chromium の出す PDF のページの木(`/Type /Pages` の `/Count`)を読む。`pdf-lib` で読むとメモリを食うので、まず PDF の後ろの方から `/Count` を探す小さい読み取りを書き、P1 で 6 つの書類とストレスのもので `pdfinfo` の数と合うか確かめる(未確認)。
+| 段 | 書き方 |
+|---|---|
+| 取る | `UPDATE … SET status='rendering', attempts=attempts+1, started_at=now WHERE id=? AND attempts=<読んだ値> AND (status='queued' OR (status='rendering' AND started_at < now − 3 分))`。1 行でなければ何もしないで終わる(ほかが持っている)。3 分は関数の時間切れ 90 秒 + 読み取り 100 秒より長い「借りの期限」 |
+| 各段の前 | `reload`。`done?` か、`attempts` が自分の値と違えば終わる |
+| 終える | PDF の blob を先に作り(`create_and_upload!`)、`UPDATE … SET status='done', … WHERE id=? AND status='rendering' AND attempts=<自分の値>` が 1 行のときだけ添付する。0 行なら作った blob を消す |
+| 失敗にする | `UPDATE … SET status='failed' … WHERE id=? AND status <> 'done'`。**done を上書きしない** |
+| やり直しを積む | `status` を `queued` に戻すのも同じ条件(`attempts` が自分の値) |
 
-### 4.7 Chrome に戻すスイッチ(切り替えの間)
+- **Lambda を待つ間、DB のトランザクションを開いたままにしない**(SQLite は書き込みのロックが 1 つ。レビュー Q4)。
 
-- 環境変数(`config/deploy.yml` の `env.clear`):
-  - `NBATO_PDF_ENGINE` = `lambda` | `chrome`(本番の初めは `chrome`。テストは `fake`)。
-  - `NBATO_PDF_FALLBACK` = `chrome` | `none`(切り替えの間は `chrome`)。
-- 戻し方は 2 つ。
-  - **手で**: `NBATO_PDF_ENGINE=chrome` にして `bin/kamal deploy`(数分)。Lambda の不具合が続くとき。
-  - **自動で(1 件ずつ)**: 「一時的」が尽きたとき・「設定の誤り」のときだけ、その 1 件を本番のサーバーの Chrome で作る。`PdfRendering#engine` に `chrome`、`fallback_reason` に理由を残す。**「重い入力」では戻さない**(Lambda で 4GB でも作れないものを、2GB のサーバーで作らせない)。
-- Chrome で作るとき(自動・手)は、サーバーのメモリを守るため **同時に 1 つ**(`limits_concurrency to: 1, key: "chrome"`)。
-- ジョブで作る流れ(5 章)は、エンジンが `chrome` のままでも動く。**まず流れだけを Chrome のまま出し、そのあとエンジンを切り替える**(8 章)。2 つの変更を別の日にできる。
-- Rails のイメージから Chromium を外すのは、Lambda で数週間 Chrome に戻らなかったことを確かめてから(別の Issue。外したら、このスイッチはなくなる)。
+### 4.7 Chrome に戻すスイッチ(切り替えの間、手で)
 
-### 4.8 立ち上がり(cold start)・同時に動く数・失敗したときの見え方
+- 環境変数 `NBATO_PDF_ENGINE` = `lambda` | `chrome`(本番の初めは `chrome`。テストは `fake`)。戻すときは `NBATO_PDF_ENGINE=chrome` にして `bin/kamal deploy`(数分)。**自動では戻さない**(レビュー Q8。運用の手間と、2GB のサーバーで重いものを作る危なさを避ける)。
+- エンジンは頼まれたときに決め、`PdfRendering#engine` に残す。Chrome のときは別のジョブ `PdfChromeRenderingJob`(`limits_concurrency to: 1, key: "pdf-chrome"`。サーバーのメモリを守る)。Lambda は `PdfRenderingJob`(5.5)。1 つのクラスに `limits_concurrency` を 2 つは書けないので分ける(レビュー M6)。
+- ジョブで作る流れ(5 章)は、エンジンが `chrome` のままでも動く。**先に流れだけを Chrome のまま出し、あとでエンジンを切り替える**(8 章)。
+- **最後の逃げ道**: どのエンジンでも作れないときは、HTML の画面を開いてブラウザの印刷で PDF にする(7-1 の `browser-print` の案)。画面の失敗の表示から案内し、運用の手順書(運用の側)にも書く。
+- Rails のイメージから Chromium を外すのは、Lambda で数週間 Chrome に戻さなかったことを確かめてから(別の Issue。外したら、このスイッチはなくなる)。
 
-- 立ち上がり: コンテナのイメージは大きい(Chromium・Node・CJK のフォントで数百 MB)ので、デプロイの直後とひさしぶりの呼び出しは数秒〜十数秒かかる見込み(未確認。P1 で測り、`cold_start` と時間を記録する)。ジョブで待つので画面は固まらない。常に温めておく(Provisioned Concurrency)は費用がかかるのでしない。
-- 同時に動く数: Rails の側で 2 に絞る。Lambda の予約の同時実行(reserved concurrency)は付けたいが、**新しいアカウントは同時実行の上限が下げられていて**(既定 1,000 [L-quota] が、新しいアカウントでは小さい)、予約はアカウントの上限から 100 を残した分までしか付けられない(未確認)。cdk deploy の前に `aws lambda get-account-settings` で上限を見て決める(9 章)。
-- 失敗したときの見え方(文と並びは見直し票): 待つ画面が「作れませんでした」に変わり、理由を平らな言葉で出す(「ページが多すぎます(上限 300 ページ)」「いま混んでいます。もう一度作るを押してください」など)。**いつでも HTML の画面からブラウザの印刷で PDF にできる**ことを案内する(最後の逃げ道。7-1 の `browser-print` の案を逃げ道として残す)。
+### 4.8 立ち上がり・同時に動く数・失敗したときの見え方
+
+- 立ち上がり: イメージは数百 MB。Chromium を作るときに取り出しておく(1.2)ので、展開の分は速くなる。デプロイの直後とひさしぶりの呼び出しは数秒かかる見込み(未確認。P1 で `cold_start` と時間を測る)。ジョブで待つので画面は固まらない。常に温める(Provisioned Concurrency)はしない。
+- 同時に動く数: Rails の側で 2(5.5)。予約の同時実行(reserved concurrency)は、アカウントの上限に余裕があれば 3 を付ける。新しいアカウントは上限が小さく、付けられないことがある(cdk deploy の前に `aws lambda get-account-settings` で確かめる)。付けられなければ Rails の 2 だけで守る。
+- 失敗したときの見え方(文と並びは見直し票): 待つ画面が「作れませんでした」に変わり、分類ごとの平らな文(「ページが多すぎます(上限 300 ページ)」「いま混んでいます。もう一度作るを押してください」)と、HTML を開いてブラウザで印刷する案内を出す。
+
+### 4.9 豆腐(□)を見つける
+
+- Lambda: 作るときに書き出した `coverage.bin`(フォントが持つ字の集まり)を読み、HTML の文字(タグを除いた文と、属性ではない中身)の字のうち、**どのフォントにも無い字の種類の数**を `missing_glyphs`、その `U+XXXX` を `missing_codepoints`(最大 50)として応答に入れる。0 より大きければ警告のログ(数と U+ だけ)。Rails は記録に残し、待つ画面・#23 で「字が足りないかもしれません」を出すかは見直し票で決める。
+  - 空白・改行・制御文字・異体字セレクタは数えない。
+- **運用の側の点検のタスク**(このセッションは道具を作り、流すのは運用の側): `bin/rails pdf:coverage` が、本番の法人情報・会員・役員・決議・登記・定款・科目・摘要の文に出てくる字を集め、`coverage.bin` に無い字を数える。**出すのは件数と `U+XXXX` だけ**。どの人・どの記録の字かは出さない(氏名を出さない)。`bin/prod-runner --dry-run` で流す。
+- 7.3 の見比べでも `pdffonts` で、Noto 以外のフォントに落ちていないことを確かめる。
+
+### 4.10 P1 の実験(原因の候補を 1 つずつ確かめる)
+
+どれも REPORT の `Max Memory Used` を正として記録する。架空のデータとストレスの HTML を使う。
+
+| 番号 | 何を確かめるか | やり方 |
+|---|---|---|
+| ① | メモリと書類の重さの関係・崖の位置 | 関数のメモリを 128 / 512 / 1024 / 1600 / 3008MB にして、6 つの書類とストレス(7.3)を流す。どこで止まるか、止まり方(エラーの文の種類) |
+| ② | PDF の受け取り方 | `page.pdf()`(バイト列を一度に受ける)と `page.createPDFStream()`(`ReturnAsStream`)で、大きな PDF(50〜150MB になるもの)のメモリの山と、100MiB の `maxPayload` に当たるか |
+| ③ | `/tmp` と `/dev/shm` | `--disable-dev-shm-usage` あり・なし、`/tmp` 512MB・1024MB で、`tmp_free_mb` とメモリの山、失敗のしかた |
+| ④ | 測り方のずれ | 同じ呼び出しで `heapUsed`・Node の RSS・Chromium の RSS の合計・REPORT を並べ、どれが REPORT に近いか |
+
+結果で、関数のメモリ・/tmp・旗・受け取り方を決め直し、この文書を直す。
 
 ## 5. Rails の側
 
 ### 5.1 エンジン(`PdfRenderer`)
 
-#21 の形をそのまま広げる。
+いま(#21)の形を広げる。`PdfRenderer.render(html)`(バイト列)は残す。
 
 ```ruby
 class PdfRenderer
   PROTOCOL_VERSION = 1
   RENDERER_GENERATION = 1
   OPTIONS = { format: "A4", print_background: true, prefer_css_page_size: true }.freeze
+  CONFIG = JSON.parse(Rails.root.join("lambda/pdf-renderer/config.json").read) # 関数の時間切れ・上限
 
-  # エンジンを選ぶ: NBATO_PDF_ENGINE(lambda / chrome)。テストは Fake。
   def self.engine = @engine || ENGINES.fetch(ENV.fetch("NBATO_PDF_ENGINE", "chrome"))
-  def self.render(html) = engine.render(html)   # いまの呼び方(バイト列を返す)。残す
-  def self.build(html, rendering:) = engine.build(html, rendering:) # ジョブが使う。Output を返す
-  def self.cache_key(html) = ... # 2.2
+  def self.render(html) = engine.render(html)                         # いまの呼び方。残す
+  def self.build(rendering) = engine.build(rendering)                   # ジョブが使う。Output を返す
+  def self.input_key(html) = ...                                       # 2.2
 
-  Output = Data.define(:bytes, :pages, :engine, :metrics, :renderer)
+  Output = Data.define(:io, :pages, :renderer_key, :metrics)          # io は Tempfile(50MB をメモリに載せない)
 
-  module Chrome   # いまの Ferrum。build は render を包むだけ(pages は数える)
+  module Chrome   # いまの Ferrum。build は render を包む。renderer_key は Chromium の版 + フォントの digest
   module Fake     # いまの偽物。build も覚える。失敗を仕込める(Fake.fail_next!(:transient) など)
-  class Lambda    # 新しい。下の手順
-  class Error < StandardError; attr_reader :code, :category; end  # category: transient / unknown / heavy / input / broken / config / internal
+  class Lambda    # 新しい
+
+  class Error < StandardError; end                                    # 分類ごとの下位のクラス(M7)
+  class TransientError < Error; end; class UnknownOutcomeError < Error; end; class HeavyInputError < Error; end
+  class InputError < Error; end; class BrokenError < Error; end; class ExpiredError < Error; end
+  class ConfigError < Error; end; class InternalError < Error; end
 end
 ```
 
-`PdfRenderer::Lambda#build(html, rendering:)` の手順:
+`PdfRenderer::Lambda#build(rendering)` の手順:
 
-1. `HtmlCheck`(3.1)。大きさが 10MB を超えたら `Error(input)`。
-2. `HEAD out` → あれば 6 へ。
-3. `PUT in`(`checksum_algorithm: "SHA256"`、`content_type: text/html; charset=utf-8`)。
-4. `Invoke`(関数は `NBATO_PDF_FUNCTION`。重い入力の 2 回目は `NBATO_PDF_FUNCTION_LARGE`)。応答を 2.4 の形で確かめる(形が違えば `internal`)。
-5. エラーを 4.4 の表で `Error` にして投げる。
-6. `GET out`、SHA-256 が応答と同じか確かめる。`Output` を返す。
-- S3 の後片づけ(`DELETE in`・`DELETE out`)はジョブが添付したあと。消すのに失敗してもジョブは失敗にしない(1 日で消える)。
-- クライアント: `Aws::Lambda::Client.new(region: "ap-northeast-1", retry_mode: "standard", max_attempts: 1, http_open_timeout: 5, http_read_timeout: 100, credentials: …)`、`Aws::S3::Client.new(…, retry_mode: "standard", max_attempts: 3, http_read_timeout: 30)`。テストでは `stub_responses: true` のクライアントを渡す(`Backup::Upload` と同じく注入できるようにする)。
-- Gemfile に `aws-sdk-lambda`(`require: false`)を足す。
-- 環境変数: `NBATO_PDF_BUCKET`・`NBATO_PDF_FUNCTION`(`arn:…:function:n-bato-pdf-renderer:live`)・`NBATO_PDF_FUNCTION_LARGE`・`NBATO_PDF_AWS_ACCESS_KEY_ID`・`NBATO_PDF_AWS_SECRET_ACCESS_KEY`(秘密、`.kamal/secrets` は `NBATO_SECRETS_DIR` から読む書き方だけ)。
+1. 期限を過ぎていれば `ExpiredError`。`HtmlCheck`(3.1)。10MB を超えたら `InputError`。
+2. いま分かっている作り手の出力を `GetObject` で試す(4.5)。あれば 6 へ。
+3. `PUT v1/in/<id>-<input_key>.html`(`checksum_algorithm: "SHA256"`)。
+4. `Invoke`(`NBATO_PDF_FUNCTION`)。応答を Schema で確かめる。
+5. エラーを 4.4 の表で分類の例外にして投げる。
+6. `GetObject(checksum_mode: "ENABLED", response_target: Tempfile)` で読む(メモリに載せない)。`Output` を返す。
+- 後片づけ(in・out の DELETE)はジョブが添付したあと。消すのに失敗してもジョブは失敗にしない。
+- クライアント:
+  - `Aws::Lambda::Client.new(region: "ap-northeast-1", retry_mode: "standard", max_attempts: 1, http_open_timeout: 5, http_read_timeout: 100, credentials: …)`
+  - `Aws::S3::Client.new(region: …, retry_mode: "standard", max_attempts: 3, http_open_timeout: 5, http_read_timeout: 30, credentials: …)`
+  - テストでは `stub_responses: true` のクライアントを渡す(`Backup::Upload` と同じく注入する)。
+- Gemfile に `aws-sdk-lambda`(`require: false`)、テストに `json_schemer`。
+- 環境変数: `NBATO_PDF_ENGINE`・`NBATO_PDF_BUCKET`・`NBATO_PDF_FUNCTION`(`…:function:n-bato-pdf-renderer:live`)・`NBATO_PDF_AWS_ACCESS_KEY_ID`・`NBATO_PDF_AWS_SECRET_ACCESS_KEY`(秘密。`.kamal/secrets` は `NBATO_SECRETS_DIR` から読む書き方だけ)。
 
-### 5.2 PDF を作る記録 `PdfRendering`(長いイベント)
+### 5.2 印刷する書類の目録 `PrintDocument`
 
-`FilingDestinationSearch` と同じ形の「長いイベント(LE)」。頼まれた日時は `requested_at`、いまの状態は `status`。`docs/data-model.md` に足す。操作履歴には残さない(`self.audited = false`。元に戻す対象ではない)。
+6 つのコントローラーが持っている「書類を作るのに要る変数とテンプレート」を、書類ごとの小さいクラスに出す(`PrintDocument::Filing`・`::Statement`・`::Resolution`・`::RegistrationFiling`・`::Ledger`・`::FilingSample`)。それぞれ `title`・`filename`・`disposition`・`source_path`・`html`(`ApplicationController.renderer.render(template:, layout: "print", assigns:)`)を答える。
+
+- コントローラーはこれを作って `respond_with_pdf(document)` を呼ぶだけになる(5.4)。
+- 受け入れのタスク(8.2)と字の点検のタスク(4.9)は、`PrintDocument.all_for_acceptance`(すべての年度・決議・登記の、すべての種類)で同じ HTML を作る。**画面と受け入れで、作る HTML が同じ**になる。
+
+### 5.3 PDF を作る記録 `PdfRendering`(長いイベント)
+
+`FilingDestinationSearch` と同じ形の長いイベント(LE)。頼まれた日時は `requested_at`、いまの状態は `status`。`docs/data-model.md` に足す。操作履歴には残さない(`self.audited = false`)。
 
 | 列 | 型 | 意味 |
 |---|---|---|
 | `requested_at` | datetime, null: false | 頼まれた日時(出来事の日時) |
-| `requested_by_id` | integer(User) | 頼んだ人(#23 の「自分のジョブ」) |
-| `title` | string | 画面に出す書類の名前(例「事業報告書等一式 2024 年度」)。氏名は入れない |
-| `source_path` | string | 頼んだ画面の HTML の path(例 `/annual_reports/2024/pack`)。#23 の「元の画面へ」と「もう一度作る」に使う |
+| `requested_by_id` | integer(User) | 頼んだ人 |
+| `title` | string | 書類の名前(例「事業報告書等一式 2024 年度」)。氏名は入れない |
+| `source_path` | string | 元の画面の path(例 `/annual_reports/2024/pack`)。「元の画面へ」「もう一度作る」と、見てよいかの確かめ(5.4)に使う |
 | `filename`・`disposition` | string | いまの `send_data` と同じ値 |
-| `cache_key` | string(64), index | 2.2 |
+| `input_key` | string(64) | 2.2。部分の一意の索引(4.5) |
+| `renderer_key` | string | できたときの作り手(2.2)。`(input_key, renderer_key)` に索引 |
+| `engine` | string | `lambda` / `chrome` / `fake`(頼まれたときに決める) |
 | `html_bytes` | integer | |
-| `source_html` | binary(gzip) | 送る HTML。**done になったら消す**(DB とバックアップに中身を残しすぎない)。failed のものは 1 日で消す(毎時の掃除のジョブ) |
 | `status` | string | `queued` → `rendering` → `done` / `failed` |
-| `attempts` | integer | 試みた回数 |
-| `failure_code` | string | 4.4 の分類とコード(`input:TOO_MANY_PAGES` など) |
+| `attempts` | integer | 試みた回数(4.4・4.6) |
+| `failure_category`・`failure_code` | string | 4.4 の分類とコード |
 | `error_message` | text | 表の文 + `detail`。中身は入れない |
-| `engine` | string | 作ったエンジン(`lambda` / `chrome` / `fake`) |
-| `fallback_reason` | string | Chrome に回した理由 |
 | `started_at`・`finished_at` | datetime | |
-| `page_count`・`byte_size`・`duration_ms`・`peak_memory_mb` | integer | 4.2 |
+| `page_count`・`byte_size`・`duration_ms`・`peak_memory_mb`・`missing_glyphs` | integer | |
 | `cold_start` | boolean | |
-| `renderer_build` | string | Lambda のイメージの版・Chromium の版 |
 | `has_one_attached :pdf` | | できた PDF |
 
-- 作る入口: `PdfRendering.request!(html:, title:, source_path:, filename:, disposition:, by:)` → 使い回す・合流する・新しく作ってジョブを積む、のどれかをして記録を返す(4.5 の 1・2)。もう一度作る: `PdfRendering.request!(…, force: true)`(作れない入力の 1 時間の止めを外す)。
-- 状態を変えるのはジョブだけ(`start!`・`finish!(output)`・`fail!(error)`)。
-- 残すもの: 書類(`source_path`)ごとに一番新しい `done` は残す。それより古い `done` の PDF は 30 日で消す(9 章の決めていないこと)。
-- **EPIC #23(ジョブの進み具合)との関係**: ここでは画面を作らない。#23 が要るものを持たせておく。
+- **HTML は SQLite に入れない**(レビュー F3)。`storage/tmp/pdf/<id>.html.gz`(0600、本番の volume の中)に置き、done・failed になったら消す(毎時の掃除のジョブが、1 日より古い残りも消す)。理由: SQLite は消した行の中身が空きページに残る(`PRAGMA secure_delete` を切っているとき)。DB とそのバックアップに書類の中身を残さない。記録の列には中身を入れない。ファイルを消してもディスクから確実に消えるわけではないことは引き受ける(サーバーのディスクは暗号化された Lightsail のもの。未確認)。
+- 作る入口: `PdfRendering.request!(document, by:, force: false)` → 使い回す・合流する・新しく作ってジョブを積む、のどれかをして記録を返す。
+- 残すもの: 書類(`source_path`)ごとに一番新しい `done` は残す。それより古い `done` の PDF は 30 日で消す(10 章)。
+- **EPIC #23 との関係**: ここでは画面を作らない。#23 が要るものを持たせておく。
   - 動いている数: `status IN (queued, rendering)`。
-  - 確認待ちの数(できたが、頼んだ人がまだ開いていない): #23 で「開いた」という出来事(例 `PdfRendering::Opening`、E、`opened_at`)を足す。ここでは `requested_by`・`finished_at` を持つところまで。
-  - ほかのジョブ(AI の調べもの・仕訳の提案)と並べて出すために、`status`・`status_label`・`title`・`requested_by`・`requested_at`・`finished_at`・`result_path` の 7 つを、どの記録も同じ名前で答える約束(concern の名前は #23 で決める)にする。
+  - 確認待ちの数: #23 で「開いた」という出来事(例 `PdfRendering::Opening`、E)を足す。ここでは `requested_by`・`finished_at` まで。
+  - ほかのジョブ(AI の調べもの・仕訳の提案)と並べるため、`status`・`status_label`・`title`・`requested_by`・`requested_at`・`finished_at`・`result_path` を、どの記録も同じ名前で答える約束にする(concern の名前は #23 で決める)。
 
-### 5.3 ジョブ `PdfRenderingJob`
-
-```ruby
-class PdfRenderingJob < ApplicationJob
-  queue_as :pdf
-  limits_concurrency to: 1, key: ->(rendering) { rendering.cache_key }, duration: 5.minutes
-  # retry_on は分類ごと(4.4)。discard_on は input / config / internal
-  def perform(rendering) # 引数は記録だけ
-    return if rendering.done? || rendering.past_deadline?
-    rendering.start!
-    output = PdfRenderer.build(rendering.html, rendering:)
-    rendering.finish!(output)   # 添付・done・HTML を消す(1 つのトランザクション。添付のファイルは先に書く)
-    PdfRenderer.cleanup(rendering) # S3 の in・out を消す(失敗しても無視)
-  end
-end
-```
-
-- 添付してから done にする(done なのに PDF が無い、を作らない)。添付のファイルを書いたあと DB の更新で失敗したら、次の試みは S3 の出力を見つけて作らずに済む(4.5)。
-
-### 5.4 6 つのコントローラーの変わり方
-
-いまの `send_data PdfRenderer.render(html), …` を、共通の concern `PdfResponse` の 1 行にする。
+### 5.4 6 つのコントローラーの変わり方と、PDF の渡し方
 
 ```ruby
-format.pdf do
-  @pdf = true
-  respond_with_pdf render_to_string(:documents, formats: [ :html ]), title: @title, filename: "...", disposition: "inline"
-end
+format.pdf { respond_with_pdf PrintDocument::Statement.new(fiscal_year: @fiscal_year, kind: @kind) }
 ```
 
-`respond_with_pdf` は `PdfRendering.request!` を呼び、
+`respond_with_pdf`(concern `PdfResponse`)は `PdfRendering.request!` を呼び、
 
-- `done`(使い回し)→ すぐに PDF を出す(下の「渡し方」)。**元のデータが変わっていなければ、いまと同じく押してすぐ開く**。
+- `done`(使い回し)→ すぐに PDF を出す。**元のデータが変わっていなければ、いまと同じく押してすぐ開く**。
 - それ以外 → 待つ画面(`PdfRenderingsController#show`)へ送る。
 
-渡し方: PDF は **ログインした人だけ** に、`PdfRenderingsController#show`(`format.pdf`)から `send_data rendering.pdf.download` で出す。Active Storage の公開の URL(`rails_blob_path`・`url_for(attachment)`)は使わない(署名だけで、ログインなしに開ける。中身は役員の氏名・住所・金額)。
+渡し方:
 
-HTML を作るのは、いまと同じくリクエストの中(数十ミリ秒)。ジョブの中で作り直さない(コントローラーごとに用意する変数が違い、ジョブで再現するのは難しく、ずれの元になる)。cache_key は HTML から決まるので、「元のデータが変わったか」は HTML が変わったかで正しく分かる。HTML に毎回変わるもの(時刻・CSRF のトークン・CSP の nonce)が入らないことを、6 つの書類のテストで確かめる(同じデータで 2 回作って cache_key が同じ)。
+- PDF は `PdfRenderingsController#show`(`format.pdf`)から、**ログインした人だけ**に出す。`send_blob_stream`(Active Storage のストリームで送る。50MB をメモリに載せない)。Active Storage の公開の URL(`rails_blob_path`・`url_for(attachment)`)は使わない(署名だけで、ログインなしに開ける)。
+- **見てよいかの確かめ**(レビュー Q3): いまは、ログインした人はどの書類の画面も見られる(監査の役割も見られる)。そこで `show` は「ログインしている」+「`source_path` の画面をこの人が見てよい」で決める。見てよいかは、元のコントローラーと同じ条件をまとめた `PrintDocument#viewable_by?(user)` で答える。役割で見られる書類が変わったら、ここも変える(テストで、元の画面が見られない人には PDF も出さないことを確かめる)。記録の id は続き番号なので、id を変えて他の PDF を開けないことをこの確かめで守る。
+- HTML を作るのはリクエストの中(数十ミリ秒)。HTML に毎回変わるもの(時刻・CSRF のトークン・CSP の nonce)が入らないことを、6 つの書類のテストで確かめる(同じデータで 2 回作って `input_key` が同じ)。
 
-**見直し票で決めること(画面は作る前に案を出す。CLAUDE.md・ADR-0012)**:
+**見直し票で決めること**(画面は作る前に案を出す。CLAUDE.md・ADR-0012):
 
-1. PDF のリンク(いま `new_tab_link_to "PDF"`、別のタブ)を押したあと、別のタブに待つ画面を出すか、元の画面の中(リンクの所)に「作っています」→「開く」を出すか。
+1. PDF のリンク(いま `new_tab_link_to "PDF"`、別のタブ)を押したあと、別のタブに待つ画面を出すか、元の画面の中に「作っています」→「開く」を出すか。
 2. 待つ画面の文・待つ表示(`nb-waiting` + `auto-reload`、「あと何秒で読み込み直すか」)の使い方、3 分を超えたときの文。
-3. 失敗したときの文、「もう一度作る」と「HTML を開いてブラウザで印刷する」の出し方。
-4. できたあと自動で PDF を開くか、「開く」を押してもらうか(ブラウザのポップアップの止めに当たらないか)。
-5. 事業報告書等一式のように重いものの「作っています」の間に、ほかの書類を頼めるか(並べて待つ)。
-6. GET の PDF のリンクで記録を作ってよいか、POST のボタン(`button_to`)にするか(ADR-0008「出来事は create」との関係。おすすめは POST `/pdf_renderings` にし、コントローラーは `PdfRenderingsController#create`・`#show` の 2 つ。ただしボタンの見た目が変わる)。
-7. 様式の例(`FilingSamplesController`)の「ダウンロード」(attachment)も同じ流れにするか。中身が固定なので、1 回作れば以後は使い回しで、すぐに出る。
+3. 失敗したときの文、「もう一度作る」と「HTML を開いてブラウザで印刷する」の出し方。字が足りないかもしれないとき(4.9)の出し方。
+4. できたあと自動で PDF を開くか、「開く」を押してもらうか。
+5. 重いものを作っている間に、ほかの書類を頼めるか(並べて待つ)。
+6. GET の PDF のリンクで記録を作ってよいか、POST のボタンにするか(ADR-0008「出来事は create」。おすすめは POST `/pdf_renderings` で `PdfRenderingsController#create`・`#show`)。
+7. 様式の例(attachment)も同じ流れにするか。
 
-### 5.5 キュー
+### 5.5 キューと同時に動く数
 
-- `config/queue.yml` に `pdf` だけを受け持つワーカーを足す(スレッド 2)。いまのワーカー(`*`)は `pdf` を除く。Puma の中のまま。
-- Chrome で作るとき(4.7)は 1 つずつ。
+- Solid Queue は `*` から 1 つのキューを除けない(レビュー M5)。**いまのワーカー 1 つ(3 スレッド)のまま**、`queues` を並べて書く: `[default, pdf, active_storage_analysis, active_storage_purge]`(ほかのキューを足すときはここにも足す。`queue_as` で使うキューがすべて載っていることをテストで確かめる)。2GB のサーバーにワーカーのプロセスを足さない。
+- `PdfRenderingJob` に `limits_concurrency to: 2, key: "pdf-lambda", duration: 5.minutes`。同時に 2 つまで。3 つ目は Solid Queue の待ち(blocked)になり、スレッドをふさがない。だから 3 スレッドのうち 1 つは、いつも他のジョブに残る。
+- `PdfChromeRenderingJob` は `to: 1, key: "pdf-chrome"`(4.7)。
+- DB の接続の数(`pool`)は、Puma のスレッド + ワーカーのスレッド + 2(dispatcher・監督)以上にする(いまの `RAILS_MAX_THREADS` の既定 5 では足りない場合がある。デプロイの前に計算して `database.yml` で決める)。
+- Lambda を待つ間はトランザクションを開かない(4.6)。
 
 ## 6. AWS(CDK)
 
-`infra/lib/pdf-renderer.ts` に `PdfRenderer` の Construct を作り、`NBatoStack` から使う。cdk deploy・鍵の受け渡しは人に確かめる(ADR-0035。IAM ユーザーを足すこと自体は聞かない)。
+`infra/lib/pdf-renderer.ts` に Construct を作り、`NBatoStack` から使う。cdk deploy・鍵の受け渡しは人に確かめる(ADR-0035。IAM ユーザーを足すこと自体は聞かない)。
 
 ### 6.1 Lambda
 
-- `lambda.DockerImageFunction`、`DockerImageCode.fromImageAsset('../lambda/pdf-renderer', { platform: Platform.LINUX_AMD64 })`。cdk deploy がイメージを作って、CDK の bootstrap の ECR に置く(専用の ECR を作って自分で push するより、手順が 1 つで済む)。古いイメージは `cdk gc` で消す(9 章)。
-- `architecture: X86_64`・`memorySize: 2048`・`ephemeralStorageSize: 1024 MiB`・`timeout: 90s`・`retryAttempts: 0`(非同期で呼ばれても Lambda がやり直さない。保険)・`maxEventAge` 最短・環境変数 `PDF_BUCKET`・`NODE_OPTIONS=--enable-source-maps`。
-- 同じイメージで `pdf-renderer-large`(`memorySize: 4096`)。
-- 版とエイリアス: `currentVersion` に `live` のエイリアス。Rails は `:live` を呼ぶ。戻すときはエイリアスを前の版に向ける。
+- `lambda.DockerImageFunction`、`DockerImageCode.fromImageAsset('../lambda/pdf-renderer', { platform: Platform.LINUX_AMD64 })`。cdk deploy がイメージを作り、CDK の bootstrap の ECR に置く。古いイメージは `cdk gc` で消す(10 章)。
+- `architecture: X86_64`・`memorySize`: config.json(約 3008)・`ephemeralStorageSize: 1024 MiB`・`timeout`: config.json(90 秒)・`retryAttempts: 0`(非同期で呼ばれても Lambda がやり直さない保険)・環境変数 `PDF_BUCKET`。**関数は 1 つ**(レビュー Q5)。
+- 版とエイリアス: `currentVersion` に `live`。Rails は `:live` を呼ぶ。戻すときはエイリアスを前の版に向ける。
+- 予約の同時実行: アカウントに余裕があれば 3(4.8)。
 - ログ: `logGroup` を作り、保存は 30 日。
-- 網: 3.2 の 3(VPC・外へ出られないサブネット・S3 のゲートウェイのエンドポイント)。`ec2.Vpc({ natGateways: 0, subnetConfiguration: [{ subnetType: PRIVATE_ISOLATED }] })`。
-- 警報: `PeakRssMb > 60%`・エラーの数・`Throttles` が 0 より大きい。
+- **VPC には置かない**(3.2)。
+- 警報: `PeakRssMb > 50%`・`Errors`・`Throttles`。**AWS Budgets**: 月の見込みの数倍(例 5 ドル)で知らせる。宛先は運用の側で決める。
 
 ### 6.2 S3
 
-`s3.Bucket('PdfBucket', { blockPublicAccess: BLOCK_ALL, encryption: S3_MANAGED, enforceSSL: true, versioned: false, objectOwnership: BUCKET_OWNER_ENFORCED, lifecycleRules: [{ prefix: 'v1/', expiration: Duration.days(1) }], removalPolicy: DESTROY, autoDeleteObjects: false })`。
-
-- 中身は一時的なので、スタックを消すときは消してよい(バックアップのバケットは RETAIN のまま)。
+`s3.Bucket('PdfBucket', { blockPublicAccess: BLOCK_ALL, encryption: S3_MANAGED, enforceSSL: true, versioned: false, objectOwnership: BUCKET_OWNER_ENFORCED, lifecycleRules: [{ prefix: 'v1/', expiration: Duration.days(1), abortIncompleteMultipartUploadAfter: Duration.days(1) }], removalPolicy: DESTROY })`。
 
 ### 6.3 権限
 
-PDF 用の IAM ユーザー `PdfUser`(Rails):
+PDF 用の IAM ユーザー `PdfUser`(Rails)。**ListBucket は付けない**(HEAD を使わない。4.5):
 
 | 動作 | 対象 |
 |---|---|
-| `s3:PutObject` | `PdfBucket/v1/in/*` |
+| `s3:PutObject`・`s3:DeleteObject` | `PdfBucket/v1/in/*` |
 | `s3:GetObject`・`s3:DeleteObject` | `PdfBucket/v1/out/*` |
-| `s3:DeleteObject` | `PdfBucket/v1/in/*` |
-| `s3:ListBucket` | `PdfBucket`(条件 `s3:prefix` = `v1/out/*`。HEAD で 404 を受けるため) |
-| `lambda:InvokeFunction` | 2 つの関数の `live` エイリアスの ARN だけ |
+| `lambda:InvokeFunction` | 関数の `live` エイリアスの ARN だけ |
 
 Lambda の役割(ロール):
 
 | 動作 | 対象 |
 |---|---|
 | `s3:GetObject` | `PdfBucket/v1/in/*` |
-| `s3:PutObject`・`s3:GetObject` | `PdfBucket/v1/out/*` |
-| `s3:ListBucket` | `PdfBucket`(条件 `v1/out/*`) |
-| ログ・VPC | `AWSLambdaBasicExecutionRole`・`AWSLambdaVPCAccessExecutionRole` |
+| `s3:PutObject`(条件つきの書き込みに要るのはこれだけ [S3-cw])・`s3:GetObject` | `PdfBucket/v1/out/*` |
+| ログ | `AWSLambdaBasicExecutionRole` |
 
-- アクセスキーはスタックに入れない(`AWS::IAM::AccessKey` が 0 のまま)。`bin/infra-credentials keys` に PDF のユーザーを足す。
-- Output: `PdfBucketName`・`PdfFunctionAlias`・`PdfFunctionLargeAlias`・`PdfUserName`。
+- アクセスキーはスタックに入れない。`bin/infra-credentials keys` に PDF のユーザーを足す。
+- Output: `PdfBucketName`・`PdfFunctionAlias`・`PdfUserName`。
 
 ## 7. テスト
 
 ### 7.1 Lambda の中(`lambda/pdf-renderer/test/`、jest、CI で毎回)
 
-S3 は `aws-sdk-client-mock`、ブラウザは偽物の launcher を差し込んで:
+S3 は `aws-sdk-client-mock`、ブラウザは偽物の launcher を差し込む。要求・応答は ajv で `schema/*.v1.json` に照らす。
 
-- 要求の形が違う(版・キーの形・バケット・大きさ)→ `INVALID_REQUEST` / `UNSUPPORTED_PROTOCOL`。
-- 期限切れ → 作らずに `DEADLINE_EXCEEDED`。
-- 出力がある → 作らずに `reused: true`。メタデータのハッシュが違えば作り直す。
-- 入力が無い・ハッシュが違う・大きすぎる。
-- ページが多すぎる・PDF が大きすぎる。
-- 時間切れ(`getRemainingTimeInMillis` を小さくした偽物)→ `RENDER_TIMEOUT`、ブラウザを閉じ、`/tmp/chrome-*` が残らない。
-- ブラウザが落ちた → `BROWSER_CRASHED`。
-- **ログに中身が出ない**: HTML に目印の文字列(`CANARY-…`)を入れ、どの経路でもログ(console の全部)に出ないこと。エラーの `detail` にも出ないこと。
-- 予想していない例外は投げる(`FunctionError` になる)。
+- 要求の形が違う(版・キーの形・バケット・大きさ)→ `INVALID_REQUEST` / `UNSUPPORTED_PROTOCOL`。期限切れ → `DEADLINE_EXCEEDED`。
+- 入力が無い・ハッシュが違う・大きすぎる。ページが多すぎる・PDF が大きすぎる。
+- 出力の PUT が 412 → `reused: true`、ある方のキー。409 → `S3_ERROR`。S3 のどの失敗も `S3_ERROR`。
+- 残り時間から S3 の `requestTimeout`・`maxAttempts`、PDF の時間切れ(残り − 20 秒)を決めること。
+- 時間切れ → `RENDER_TIMEOUT`、ブラウザを閉じ、`/tmp/r-*` が残らない。ブラウザが落ちた → `BROWSER_CRASHED`。
+- 包みの外に例外が出ない(予想していない例外は `INTERNAL`、`detail` は種類の名前だけ)。
+- **旗の一覧が決めたとおり**(`--disable-web-security` が無いなど)。
+- `missing_glyphs`: coverage に無い字を入れた HTML で数と U+ が合う。
+- **ログに中身が出ない**: HTML に目印の文字列(`CANARY-…`)を入れ、どの経路でもログ・`detail` に出ない。
 
 ### 7.2 コンテナでの結合(手元・CI の手動の実行)
 
-- 本物のイメージを `docker run --network none` で、AWS の基本のイメージに入っている Runtime Interface Emulator を使って呼ぶ。S3 は MinIO(別の網で Lambda のコンテナとだけつなぐ。関数は `S3_ENDPOINT` を環境変数で受ける、テストのときだけ)。
-- `docker run --memory=1024m` で、本番の半分のメモリにして流す(4.2 の条件)。
+Lambda に近づけて動かす(レビュー M9):
+
+```
+docker run --read-only --tmpfs /tmp:size=1024m --ipc=none --user 993:990 --cpus=1.2 --memory=<関数のメモリ> \
+  -e HOME=/tmp -e TMPDIR=/tmp …(Runtime Interface Emulator)
+```
+
+- S3 は MinIO(このコンテナとだけつながる網)。関数は `S3_ENDPOINT` をテストのときだけ受ける。
+- **本物の Lambda でもストレスを流す**(P3 のあと、架空のデータで)。手元のコンテナと REPORT の値を比べる。
 
 ### 7.3 見比べ(ゴールデン)とストレス
 
-架空のデータ(PR #19 の `bin/demo`・`db/demo/seed.rb`)で、次を **いまの本番のイメージの Chrome(`docker compose`)** と **Lambda のイメージ** の両方で作って比べる。スクリプト `bin/pdf-golden`。
+架空のデータ(`bin/demo`・`db/demo/seed.rb`)で、**いまの本番のイメージの Chrome** と **Lambda のイメージ** の両方で作って比べる。スクリプト `bin/pdf-golden`。
 
-- 6 つの書類のすべての種類: 事業報告書等の 8 書類と一式・計算書類の各種類・決議の 3 書類・登記の 3 書類・総勘定元帳と 1 科目・様式の例。
+- 6 つの書類のすべての種類(`PrintDocument.all_for_acceptance` を架空のデータで)。
 - ストレス(作った HTML):
   - 300 ページの元帳(約 15,000 行の表)→ 作れる。301 ページ → `TOO_MANY_PAGES`。
-  - 1 つのセルにとても長い文・改ページをまたぐ長い表・ページをまたぐ行。
-  - `data:` の画像 20 枚(合わせて約 9MB の HTML)→ 作れる。11MB → `INPUT_TOO_LARGE`。
-  - 外字・旧字・記号(①〜⑳、全角数字、はしご高・たつさき などの異体字)。豆腐(□)にならないこと。
+  - **表の見出し(`thead`)がページごとにくり返されること**。
+  - **改ページを避ける行(`break-inside: avoid`)が 1 ページより長いとき**(行が切れずに消える・無限に送られることがないか)。
+  - **改ページの数**が両方で同じ(`break-before`・`break-after` の指定の数と PDF のページの区切り)。
+  - **長い名前**(法人名・役職・科目名・摘要がとても長い。表のセルからはみ出さないか)。
+  - 1 つのセルに長い文・ページをまたぐ長い表。
+  - `data:` の画像 20 枚(合わせて約 9MB)→ 作れる。11MB → `INPUT_TOO_LARGE`。
+  - 外字・旧字・記号(①〜⑳、全角数字、異体字)。
+  - PDF が 50〜150MB になるもの(4.10 の ②。上限を超えるものは `OUTPUT_TOO_LARGE` で止まり、メモリで落ちないこと)。
 - 比べ方(どれも満たすこと):
   - ページ数が同じ(`pdfinfo`)。
   - 文字が同じ(`pdftotext -layout` の空白をならしたもの)。
-  - フォント(`pdffonts`)が Noto Serif CJK JP / Noto Sans CJK JP だけで、ほかのフォント(Open Sans・DejaVu など)に落ちていない。すべて埋め込み。
-  - 見た目: `pdftoppm -r 100` で画像にし、ページごとに ImageMagick の `compare -metric AE -fuzz 10%` で違う画素が **0.5% 以下**(Chromium の版の違いで少しずれる分を見込む。閾値は P1 の結果で決め直す)。違ったページは差の画像を残して人が見る。
-  - メモリの山・時間を表にする(書類ごと)。
-- 実データでは比べない(このセッションは団体の情報を持たない)。本番での確かめは、架空の法人の「様式の例」で行う(8 章)。
+  - フォント(`pdffonts`)が Noto Serif CJK JP / Noto Sans CJK JP だけ。すべて埋め込み。`missing_glyphs` が 0。
+  - 見た目: `pdftoppm -r 100` で画像にし、ページごとに `compare -metric AE -fuzz 10%` で違う画素が 0.5% 以下(仮。P1 で決め直す)。違ったページは差の画像を残して人が見る。
+  - メモリの山・時間を表にする。
 
 ### 7.4 攻撃(通信の禁止の確かめ)
 
-HTML に次を入れ、**どれも外に出ず**(MinIO の外への接続が無い・`blocked_requests` が数える)、PDF は作れること:
-`<img src="http://169.254.169.254/latest/meta-data/">`、`<iframe src="https://example.com/">`、`<link rel=stylesheet href=…>`、CSS の `@import`・`url(http…)`・`@font-face`、`file:///etc/passwd`、`<meta http-equiv="refresh">`、`<script>`(動かない)、`fetch` を呼ぶ `onerror`。
+HTML に次を入れ、**どれにも要求が届かず**(待ち受けのサーバーに来ない・`blocked_requests` が数える)、PDF は作れること:
 
-### 7.5 負荷
+- `http://127.0.0.1:9001/2018-06-01/runtime/invocation/next`(Lambda の Runtime API)
+- `http://169.254.169.254/latest/meta-data/`、`https://example.com/`
+- `<img>`・`<iframe>`・`<link rel=stylesheet>`・CSS の `@import`・`url(http…)`・`@font-face`・`file:///etc/passwd`・`<meta http-equiv="refresh">`・`<script>`・`onerror` の `fetch`
 
-- 同時に 10(Rails の上限の 5 倍)を呼び、アカウントの上限に当たったときに 429 が出て、ジョブが待ってやり直し、全部できること。
-- 同じ温まった環境に 50 回続けて呼び、`/tmp` の空きとメモリの山が増えていかないこと(漏れの確かめ)。
-- p50・p95 の時間と、立ち上がり(cold start)の回数・時間を記録する。
+### 7.5 負荷と通信の切断
+
+- 同時に 10 を呼び、アカウントの上限に当たったら 429 → ジョブが待ってやり直し、全部できること。
+- 同じ温まった環境に 50 回続けて呼び、`/tmp` の空き・メモリの山・**プロセスの数**が増えていかないこと。
+- p50・p95 の時間と、立ち上がりの回数・時間を記録する。
+- **通信を切る実験**(レビュー F8): Rails と Lambda(手元では Runtime Interface Emulator)の間に toxiproxy を置き、Invoke の途中で切る・応答を遅らせる(読み取りの時間切れを起こす)。次の試みが出力を読んで終わること、2 回動いても出力が 1 つで、Rails のチェックサムの確かめが通ること。Rails のプロセスを Invoke の途中で止め、Solid Queue がもう一度動かしたときに 4.6 の条件で壊れないこと。
 
 ### 7.6 Rails(`bin/rails test`、Fake)
 
-- `PdfRendering.request!`: 使い回す・合流する(同時に 2 回でも 1 件、1 ジョブ)・新しく作る・作れない入力の 1 時間の止め・`force`。
-- ジョブ: 4.4 の表の行ごとに、`PdfRenderer::Fake` に失敗を仕込み、やり直す / やめる / Chrome に回す / 回さない、回数・待ちが表どおり。全体の期限。
-- `PdfRenderer::Lambda`: `stub_responses` の Lambda・S3 のクライアントで、手順(HEAD → PUT → Invoke → GET)、応答の形の確かめ、`FunctionError` の分類、ハッシュの違い、読み取りの時間切れのあと S3 の出力で済ませる。
-- SDK の設定: Lambda のクライアントの `max_attempts` が 1、読み取りの待ち時間が関数の時間切れより長いこと(設定の値どうしを比べるテスト)。
-- 6 つのコントローラー: `format.pdf` で `PdfRendering` ができ、2 回目は使い回し、ログインなしでは PDF を出さない、HTML に外の参照が無い、同じデータで cache_key が同じ。
-- ジョブの引数とログに HTML が入らない(目印の文字列で確かめる)。
+- **SDK の設定**: Lambda のクライアントの `config.max_attempts == 1`・`config.retry_mode == "standard"`、`config.http_read_timeout > CONFIG["timeout_seconds"]`。`AWS_MAX_ATTEMPTS=5` を環境に入れても 1 のまま(クライアントの値が勝つ)。
+- `PdfRendering.request!`: 使い回す(`renderer_key` が違えば使い回さない)・合流する(同時に 2 回でも 1 件)・新しく作る・作れない入力の 1 時間の止め・`force`。
+- 状態の移り変わり(4.6): ジョブを 2 つ同時・取ったあとに落ちた(借りの期限のあと取り直せる)・done のあとに fail! しても done のまま・終える条件が外れたら blob を消す。
+- ジョブ: 4.4 の表の行ごとに、Fake に失敗を仕込み、やり直す / やめる、回数(DB の `attempts`)・待ちの幅が表どおり。`expired` は警報を出さない。
+- `PdfRenderer::Lambda`: `stub_responses` で手順(GET out → PUT in → Invoke → GET out)、応答を json_schemer で確かめる、`FunctionError` の分類(本文をログに出さない)、`NoSuchKey`・403 を「まだ無い」とみなす、チェックサムが合わない → `broken`、読み取りの時間切れのあと出力で済ませる。
+- 6 つのコントローラー: `format.pdf` で記録ができ、2 回目は使い回し、ログインなし・元の画面を見られない人には PDF を出さない、HTML に外の参照が無い、同じデータで `input_key` が同じ。
+- `queue_as` で使うキューが `config/queue.yml` にすべて載っている。
+- ジョブの引数・ログ・DB の列に HTML が入らない(目印の文字列で確かめる)。
 
 ### 7.7 CDK(`infra/test`、jest)
 
-バケット(公開なし・SSE・TLS・1 日)、IAM ユーザーの権限がこの表の対象だけ(`*` の対象なし)、関数のメモリ・時間切れ・/tmp・アーキテクチャ・`retryAttempts: 0`・エイリアス、VPC に NAT が無い、ログの保存 30 日、アクセスキーが 0。
+バケット(公開なし・SSE・TLS・1 日・途中のマルチパート 1 日)、IAM ユーザーの権限がこの表の対象だけ(ListBucket が無い)、関数のメモリ・時間切れが config.json と同じ・/tmp・アーキテクチャ・`retryAttempts: 0`・エイリアス、関数が 1 つ、VPC が無い、ログの保存 30 日、Budgets、アクセスキーが 0。
 
-## 8. 切り替えの段取り・費用
+## 8. 切り替えの段取り・受け入れ・費用
 
-12/7〜12 月中は書面決議と登記の時期(7-5)。**この間にエンジンを切り替えない。** 切り替えたあとで不具合が出たら、すぐ Chrome に戻す(4.7)。
+12/7〜12 月中は書面決議と登記の時期(7-5)。**この間にエンジンを切り替えない。** 切り替えたあとで不具合が出たら、すぐ手で Chrome に戻す(4.7)。
+
+### 8.1 段取り
 
 | 段 | すること | 出すもの | 人に確かめること |
 |---|---|---|---|
-| P0 | この設計を別の Agent に敵対的にレビューさせ、直す | この文書・ADR-0037 | 設計の要点(開発QAボード) |
-| P1 | Lambda の中身とテスト。手元のコンテナで 7.1〜7.5 を通す(AWS は使わない)。メモリ・時間を測ってメモリの値を決める | `lambda/pdf-renderer/`、`bin/pdf-golden`、測った表 | — |
-| P2 | Rails の流れ(`PdfRendering`・ジョブ・`PdfResponse`・待つ画面)。**エンジンは `chrome` のまま** | Rails の PR | 見直し票(5.4 の 7 つ)を先に。マイグレーションを含むので運用の連絡帳で前に知らせる |
-| P3 | CDK(6 章)。`cdk diff` を見せる | infra の PR | cdk deploy・鍵の受け渡し・本番の秘密に入れること |
-| P4 | 本番で、架空の法人の「様式の例」だけを Lambda で作って確かめる(実データを使わない。`bin/prod-runner` のスクリプトか、管理用のタスク) | 確かめた結果の数 | 本番での実行 |
-| P5 | `NBATO_PDF_ENGINE=lambda`(`NBATO_PDF_FALLBACK=chrome`)でデプロイ。**12/3 までに P1〜P4 が通ったときだけ**、12/7 の前に切り替える。通らなければ 1 月の 2 週目以降 | デプロイ | 運用の連絡帳に書く。理事長が出先で使う時間を避ける |
-| P6 | 数週間、Chrome に戻った件数(`fallback_reason`)が 0 なら、Rails のイメージから Chromium と swap を外す相談 | 別の Issue | 外すこと |
+| P0 | 敵対的なレビュー(1 回目は済み)。9 章の質問を人に聞く | この文書・ADR-0037 | 9 章の答え |
+| P1 | Lambda の中身とテスト。手元のコンテナで 7.1〜7.5 と実験 ①〜④ を通す(AWS は使わない) | `lambda/pdf-renderer/`、`bin/pdf-golden`、測った表 | — |
+| P2 | Rails の流れ(`PrintDocument`・`PdfRendering`・ジョブ・待つ画面)。**エンジンは `chrome` のまま** | Rails の PR | 見直し票(5.4 の 7 つ)を先に。マイグレーションを含むので運用の連絡帳で前に知らせる |
+| P3 | CDK。アカウントの上限(同時実行・メモリ)を確かめ、`cdk diff` を見せる。本物の Lambda で架空のデータのストレス(7.2)と、S3 の 403・412・409 の扱い(4.5)を確かめる | infra の PR | cdk deploy・鍵の受け渡し・本番の秘密に入れること |
+| P4 | 本番で、架空の法人の「様式の例」を Lambda で作る(作り手 `renderer_key` もこれで分かる) | 確かめた結果の数 | 本番での実行 |
+| P5 | **受け入れ**(8.2)を運用の側が流す | 数だけの表 | 運用の側での実行 |
+| P6 | `NBATO_PDF_ENGINE=lambda` でデプロイ。**12/3 までに P1〜P5 が通ったときだけ** 12/7 の前に切り替える。通らなければ 1 月の 2 週目以降 | デプロイ | 運用の連絡帳に書く。理事長が出先で使う時間を避ける |
+| P7 | 数週間、手で Chrome に戻さなかったら、Rails のイメージから Chromium と swap を外す相談 | 別の Issue | 外すこと |
 
-- 12/7〜12/31 にエンジンが `lambda` のとき: 失敗(`failed`)・Chrome に戻った件数を毎朝運用の側で見てもらう(見方は #23 の画面ができるまで、`bin/kamal app exec` のタスクで出す)。
+- デプロイのたび(Lambda のイメージを変えたとき): P4 と同じく様式の例を 1 件作り、新しい作り手を Rails に覚えさせる(2.2)。
 
-### 費用(見込み)
+### 8.2 受け入れ: 本番で、ありうるすべての書類が作れることを確かめる
+
+- このセッションは道具を作る: `PdfAcceptance.run!(engine:)`(`PrintDocument.all_for_acceptance` = **6 つの書類のすべての種類 × すべての年度・すべての決議・すべての登記の申請**)。1 つずつ HTML を作って Lambda で PDF にし、**読んですぐ捨てる**(添付しない・記録を作らない・S3 も消す)。
+- 運用の側が `bin/prod-runner --dry-run` で流す(DB に書かない。S3 には一時的に書く)。Chrome のページ数を比べるため、同じものを本番の Chrome でも 1 つずつ作る(同時に 1 つ。昼間を避ける)。
+- **結果は数だけ**: 書類の種類・年度(または記録の id)ごとに、ページ数(Lambda / Chrome)・大きさ・メモリの山(REPORT)・時間・`missing_glyphs`。氏名・中身は出さない。
+- **切り替えの条件**(どれも満たすこと):
+  - すべての書類が作れた(失敗 0)。
+  - ページ数が Chrome とすべて同じ。
+  - `missing_glyphs` がすべて 0(0 でなければ U+ を見てフォントを足すか決める)。
+  - **いちばん重い実際の書類のメモリの山が、関数のメモリの 50% 以下**。
+  - 字の点検(4.9 の `pdf:coverage`)で、足りない字が 0。
+
+### 8.3 費用(見込み)
 
 | もの | 見込み | 出どころ |
 |---|---|---|
-| Lambda | 月 200 件 × 5 秒 × 2GB = 2,000 GB 秒。無料枠(月 100 万件・40 万 GB 秒)の中。無料枠がなくても 1 GB 秒 0.0000166667 ドルで 0.04 ドルほど | [L-price](us-east-1 の値。ap-northeast-1 の値は未確認) |
-| ECR | イメージ 1 つ 0.5〜1GB × 残す 3 つ、1GB 月 0.10 ドル → 0.3 ドルほど。ECR から Lambda への転送は同じリージョンなら 0 | [ECR-price] |
-| S3 | 数 MB を数分。ほぼ 0 | |
-| CloudWatch Logs | 1 件 1 行。ほぼ 0 | |
-| VPC | NAT なし・ゲートウェイ型のエンドポイントは 0 | |
+| Lambda | 月 200 件 × 5 秒 × 3GB = 3,000 GB 秒。無料枠(月 100 万件・40 万 GB 秒)の中。無料枠がなくても 1 GB 秒 0.0000166667 ドルで 0.05 ドルほど。受け入れ(8.2)は 1 回数百件で同じ程度 | [L-price](us-east-1 の値。ap-northeast-1 は未確認。このアカウントで無料枠が使えるかも未確認) |
+| ECR | イメージ 0.5〜1GB × 残す 3 つ → 0.3 ドルほど。同じリージョンの Lambda への転送は 0 | [ECR-price] |
+| S3・CloudWatch Logs・Budgets の警報 | ほぼ 0(Budgets の警報は 2 つまで無料、未確認) | |
 | **合わせて** | **月 1 ドルより少ない** | |
 
-## 9. 危ないこと・決めていないこと(大きい順)
+## 9. 人に聞くこと(レビュー Q1)
 
-1. **新しいアカウントの上限**(危ない・高): 新しい AWS のアカウントは、同時実行とメモリの上限が下げられている [L-quota]。上限が 10 などだと、予約の同時実行が付けられず、`pdf-renderer-large`(4096MB)が作れないかもしれない。→ P3 の前に `aws lambda get-account-settings` と Service Quotas を見る。足りなければ Rails の 2 本の制限だけで守り、large は上限の中の最大にする。
-2. **Lambda の Chromium のメモリと 100MB の不具合の原因が分かっていない**(危ない・高): 原因は推測(4.1)。→ P1 で `docker --memory` の半分のメモリでストレスを通すこと・メモリの山を毎回記録すること・警報を条件にする。`--disable-dev-shm-usage` が要るか・効くかは未確認。
-3. **見た目の違い**(中): `@sparticuz/chromium` の Chromium と Debian の Chromium の版の違いで、改ページの位置がずれると、ページ数が変わる(所轄庁の書類で困る)。→ フォントのファイルを同じにする(1.2)・7.3 のページ数と画像の見比べ・ずれたら Chromium の版を寄せるか、CSS の改ページを明示する。閾値 0.5% は仮。
-4. **12 月の時期**(中): 12/3 までに P1〜P4 が通らなければ 1 月に回す(7-5 のとおり)。P2(流れだけ・Chrome のまま)を先に出すので、12 月に変わるのは「待つ画面が出る」ことだけになる。それも見直し票の合意が 12/3 までにできなければ、P2 の本番への反映も 1 月に回す(要相談)。
-5. **通信の禁止の旗が効くか**(中): `--proxy-server`・`--host-resolver-rules`・`setOfflineMode`・要求の止めの組み合わせが、`@sparticuz/chromium` の single-process で効くかは未確認。→ 7.4 で確かめる。VPC に置けば網の上でも止まる(3.2 の 3)。VPC に置くと立ち上がりが遅くならないかも P1 で測る。
-6. **Active Storage の公開の URL**(中、この Issue の外): いまの証憑の画面は `url_for(file)`(ログインなしで開ける署名の URL)を使っている。PDF は 5.4 のとおりログインした人だけに出すが、証憑の方は別の Issue で見直す。
-7. **PDF を何日残すか**(低): 5.2 の「書類ごとに新しい 1 つは残し、古いものは 30 日で消す」は仮。人に聞く。
-8. **KMS にするか**(低): SSE-S3 にした(2.5)。監査で鍵の使い方を残したいなら KMS。人に聞く。
-9. **ECR の古いイメージ**(低): `fromImageAsset` は bootstrap の ECR に置き、自動では消えない。`cdk gc` を月に 1 回か、専用の ECR + ライフサイクル(新しい 3 つを残す)に変える。
-10. **ページ数の数え方**(低): 4.6 の `/Count` の読み取りが Chromium の出す PDF でいつも正しいかは未確認。P1 で `pdfinfo` と比べる。
-11. **cache_key に入らない違い**(低): 同じ HTML でもフォントや Chromium を変えると見た目が変わりうる。`RENDERER_GENERATION` を上げ忘れると、古い見た目の PDF が使い回される。→ フォント・Chromium を変える PR の確認項目に入れる。
-12. **JS を止めたまま `document.fonts.ready` を待てるか**(低): フォントは手元にあるので待たなくてよい見込みだが、未確認。
+過去に Lambda 上の Chromium で困ったときのことを教えてください。原因を当てずに実験で確かめるため、分かる範囲でかまいません。
+
+1. 関数のメモリをいくつにしていましたか(既定の 128MB のままだったか)。
+2. 止まったときのエラーの文(`Target closed`・`Protocol error`・`Runtime.ExitError`・`signal: killed`・`Task timed out` など)と、REPORT の行の `Max Memory Used` の値。
+3. 使っていた Puppeteer(か Playwright)と Chromium の包み(`chrome-aws-lambda`・`@sparticuz/chromium` など)の版、Node の版。
+4. 「100MB」は何で測った値でしたか(REPORT・`process.memoryUsage().heapUsed`・RSS・PDF の大きさ)。
+5. PDF をどう返していましたか(Lambda の応答に base64 で入れた・S3 に置いた・API Gateway 越し)。
+6. 「やり直しが適切でない」は、何がやり直していましたか(SDK・API Gateway・非同期の呼び出し・自分のコード)。そのとき何が起きましたか(二重にできた・いつまでも終わらない・費用が増えた)。
+
+レビューが挙げた原因の候補(4.1 の表と同じ): 既定の 128MB / Puppeteer の WebSocket の `maxPayload` 100MiB / 応答の 6MB の上限 / `heapUsed` と RSS の取り違え / /tmp 512MB / `/dev/shm`。答えに合わせて、4.10 の実験 ①〜④ の順番と重みを決める。
+
+## 10. 危ないこと・決めていないこと(大きい順)
+
+1. **新しいアカウントの上限**(高): 同時実行とメモリの上限が下げられていると、約 3008MB や予約の同時実行が付けられない([L-quota])。→ P3 の前に確かめる。メモリが足りなければ上限の中で最大にし、8.2 の 50% の条件を満たすか確かめる。
+2. **100MB の不具合の原因が分かっていない**(高): 9 章で聞き、4.10 の実験で確かめる。ストリームの受け取り・REPORT を正にすること・本番の受け入れ(8.2)で抑える。
+3. **見た目の違い**(中): Chromium の版の違いで改ページがずれると、ページ数が変わる。→ フォントのファイルを同じにする・7.3 のストレス・8.2 で実データのページ数を Chrome と比べる。閾値 0.5% は仮。
+4. **12 月の時期**(中): 12/3 までに P1〜P5 が通らなければ 1 月。P2(流れだけ・Chrome のまま)の本番への反映も、見直し票の合意が間に合わなければ 1 月(要相談)。
+5. **通信の禁止を Chromium の中だけで守る**(中): VPC をやめた(Q6)ので、要求の止めと JS を止めることが破られると外に出られる。→ 7.4 の攻撃のテスト・旗の一覧のテスト・Chromium の版を追う。
+6. **作り手が分かるまで古い PDF が使い回される**(中): デプロイのあと、最初の 1 件までは前のビルドの PDF を出す(2.2)。→ デプロイの手順に様式の例を 1 件作ることを入れる。
+7. **403 を「まだ無い」とみなす**(中): 本当の権限の誤りを隠すかもしれない(4.5)。→ P3 で確かめ、PUT・Invoke の `config` で出ることをテストで守る。
+8. **Active Storage の公開の URL**(中、この Issue の外): 証憑の画面は `url_for(file)`(ログインなしで開ける署名の URL)を使っている。別の Issue で見直す。
+9. **PDF を何日残すか**(低): 5.3 の「書類ごとに新しい 1 つは残し、古いものは 30 日」は仮。人に聞く。
+10. **ECR の古いイメージ**(低): `cdk gc` を月に 1 回か、専用の ECR + ライフサイクル。
+11. **ページ数・字の点検の正しさ**(低): `/Count` の読み取りと `coverage.bin` の作り方を、P1 で `pdfinfo`・`pdffonts` と比べる。
+12. **Puppeteer の detached の起こし方**(低): 4.3。P1 で確かめる。
 
 ## 出どころ(2026-11-24 に読んだもの)
 
-- [L-quota] AWS Lambda「Lambda quotas」 https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html — メモリ 128〜10,240MB、1,769MB で vCPU 1 つ分、時間切れ最大 1,800 秒、同期の要求・応答 6MB、非同期 1MB、/tmp 512〜10,240MB、コンテナイメージ 10GB、同時実行の既定 1,000、「新しいアカウントは同時実行とメモリの上限が下げられている」。
-- [L-retry] AWS Lambda「Understanding retry behavior in Lambda」 https://docs.aws.amazon.com/lambda/latest/dg/invocation-retries.html — 直接呼んだときは Lambda はやり直さない、非同期は既定で 2 回やり直す、キューで何時間も待つことがある、やり直すなら同じ要求を何度受けても害のない作りにする。
-- [SP] Sparticuz/chromium の README https://github.com/Sparticuz/chromium — 最低 512MB・1600MB 以上をすすめる、Lambda にフォントは無い、フォントの探す場所、npm の包みは x64 だけ、arm64 は v135 から、Playwright で /tmp が溜まる・呼び出しごとの `--user-data-dir`、ページを閉じてから `browser.close()` を待つ。旗の一覧は `source/index.ts`(`--single-process`・`--no-zygote`・`--disable-web-security` など。`--disable-dev-shm-usage` は無い)。npm の版は registry.npmjs.org で確かめた(`@sparticuz/chromium` 153.0.0、`puppeteer-core` 25.18.1)。
-- [L-price] AWS Lambda の料金 https://aws.amazon.com/lambda/pricing/ — 無料枠 月 100 万件・40 万 GB 秒、x86 1 GB 秒 0.0000166667 ドル(us-east-1)。
-- [ECR-price] Amazon ECR の料金 https://aws.amazon.com/ecr/pricing/ — 1GB 月 0.10 ドル、同じリージョンの Lambda への転送は 0。
-- Ruby の AWS SDK の既定(`http_read_timeout` 60 秒、`http_open_timeout` 15 秒、`retry_mode` legacy・`retry_limit` 3、`NetworkingError` をやり直す): このリポジトリが使う `aws-sdk-core` 3.272.0 のソース(`seahorse/client/plugins/net_http.rb`・`aws-sdk-core/plugins/retry_errors.rb`・`plugins/retries/error_inspector.rb`)で確かめた。
-- [S3-lc] S3 のライフサイクルの消去が期限のあと非同期に行われること: 未確認(S3 の文書「Expiring objects」で P3 の前に確かめる)。
-- [S3-cons] S3 の strong read-after-write consistency: https://aws.amazon.com/s3/consistency/ (本文は未確認)。
-- Lambda の `/dev/shm` が無い・小さいことによる Chromium の不具合は、Web の検索ではユーザーの報告だけで、AWS の文書では確かめられなかった(未確認)。
+- [L-quota] AWS Lambda「Lambda quotas」 https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html — メモリ 128〜10,240MB、1,769MB で vCPU 1 つ分、時間切れ最大 1,800 秒、同期の要求・応答 6MB、非同期 1MB、/tmp 512〜10,240MB、イメージ 10GB、同時実行の既定 1,000、「新しいアカウントは同時実行とメモリの上限が下げられている」。
+- [L-retry] AWS Lambda「Understanding retry behavior」 https://docs.aws.amazon.com/lambda/latest/dg/invocation-retries.html — 直接呼んだときは Lambda はやり直さない、非同期は既定で 2 回、キューで何時間も待つことがある。
+- [SP] Sparticuz/chromium の README https://github.com/Sparticuz/chromium と `source/index.ts` — 最低 512MB・1600MB 以上をすすめる、Lambda にフォントは無い、フォントの探す場所、npm の包みは x64 だけ、/tmp が溜まる・呼び出しごとの `--user-data-dir`、ページを閉じてから `browser.close()` を待つ、旗の一覧(`--single-process`・`--no-zygote`・`--disable-web-security` など)。npm の版は registry.npmjs.org(`@sparticuz/chromium` 153.0.0、`puppeteer-core` 25.18.1)。
+- [S3-cw] Amazon S3「How to prevent object overwrites with conditional writes」 https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html — `If-None-Match: *` は同じキーがあれば 412、同時なら先に終わった 1 つが勝つ、DELETE が先に済むと 409 で PutObject はやり直してよい、要る権限は `s3:PutObject`、途中のマルチパートを AbortIncompleteMultipartUpload で消すことをすすめる。
+- [L-price] https://aws.amazon.com/lambda/pricing/ — 無料枠 月 100 万件・40 万 GB 秒、x86 1 GB 秒 0.0000166667 ドル(us-east-1)。
+- [ECR-price] https://aws.amazon.com/ecr/pricing/ — 1GB 月 0.10 ドル、同じリージョンの Lambda への転送は 0。
+- Ruby の AWS SDK の既定: このリポジトリの `aws-sdk-core` 3.272.0 のソースで確かめた。`retry_mode` の既定は `standard`(`AWS_RETRY_MODE`・共有の設定・defaults_mode が無ければ)、`max_attempts` の既定は 3(`AWS_MAX_ATTEMPTS`・共有の設定が無ければ)、`http_read_timeout` 60 秒、`http_open_timeout` 15 秒、`NetworkingError` はやり直しの対象(`plugins/retry_errors.rb`・`plugins/retries/error_inspector.rb`・`seahorse/client/plugins/net_http.rb`)。**1 回目の版でこれを `legacy`・`retry_limit 3` と書いたのは誤り**(`legacy` になるのは defaults_mode が legacy のとき)。
+- Solid Queue の `shutdown_timeout`(5 秒)・`process_alive_threshold`(5 分)・`*` から除けないこと・`limits_concurrency` を 1 つのクラスに 2 つ書けないこと: レビューの指摘による。P2 の前に使う版のソースで確かめる(未確認)。
+- S3 のライフサイクルの消去が期限のあと非同期に行われること・Lightsail のディスクの暗号化: 未確認。
+- Lambda の `/dev/shm` による Chromium の不具合: Web の検索ではユーザーの報告だけ(未確認)。
+
+## レビューへの対応(1 回目、2026-11-24)
+
+| ID | 指摘 | 対応 |
+|---|---|---|
+| M1 | SDK の既定の書き違い | 直した(4.1・出どころ)。`retry_mode: "standard", max_attempts: 1` を明示し、Rails のテストで `max_attempts == 1`・読み取りの待ち > 関数の時間切れ・環境変数に負けないことを確かめる(5.1・7.6) |
+| M2 | PDF のバイト列が毎回違い、out の上書きでハッシュが合わなくなる | out は `If-None-Match: *` で書き、412 はある方を使う・409 はやり直す(4.5)。Rails は `checksum_mode: ENABLED` で S3 のチェックサムを確かめる。「チェックサムが合わない → broken」の行を足した。Lambda の HEAD での使い回しはやめた |
+| M3 | 状態の移り変わりの排他 | 条件つきの UPDATE(`status`・`attempts`・借りの期限)、各段の前の `reload`、fail! は done を上書きしない(4.6)。テスト(7.6・7.5) |
+| M4 | DEADLINE_EXCEEDED の分類 | `expired` を足した。failed・Chrome に回さない・警報なし(4.4) |
+| M5 | `*` からキューを除けない | ワーカーは 1 つのまま、キューを並べて書く。テストで `queue_as` を確かめる(5.5) |
+| M6 | `limits_concurrency` を 2 つ書けない | Chrome は別のジョブ `PdfChromeRenderingJob`(4.7・5.5) |
+| M7 | `retry_on` は宣言ごとに数える | 分類ごとの例外の下位クラス + `rescue_from` 1 か所 + DB の `attempts` + `retry_job`。ゆらぎは自分で 1 回だけ(4.4・5.1) |
+| M8 | Lambda の中の S3 の時間切れ | 残り時間から `requestTimeout`・`maxAttempts` を決め、PDF は残り − 20 秒、S3 の失敗はいつも `S3_ERROR`(4.3・7.1) |
+| M9 | 手元のコンテナを Lambda に近づける | `--read-only`・`--tmpfs /tmp:size=1024m`・`--ipc=none`・root でない・`--cpus=1.2`・`HOME=/tmp`。本物の Lambda でのストレスも足した(7.2) |
+| M10 | 豆腐を見つける | `missing_glyphs`・`missing_codepoints`(U+ だけ)を応答に。運用の側の `pdf:coverage`(件数と U+ だけ)(4.9) |
+| M11 | 本番ですべての書類が作れることを確かめる | `PdfAcceptance` を運用の側が `bin/prod-runner` で流す。数だけ、Chrome とページ数を比べる、いちばん重いものが 50% 以下を条件に(8.2)。HTML を画面と同じに作るため `PrintDocument` を足した(5.2) |
+| Q1 | 過去の構成 | 9 章「人に聞くこと」。原因の候補と実験 ①〜④(4.10)。REPORT を正にした |
+| Q2 | 呼び出しごとの片づけ | `TMPDIR=/tmp/r-<uuid>`、detached で起こしてプロセスグループごと SIGKILL、50 回でプロセスが増えないこと、旗の一覧のテスト(4.3・7.1・7.5) |
+| Q3 | 鍵に作り手を入れる・見てよいかの確かめ | `renderer_key`(エンジン・ビルド・フォントの digest)を使い回しの条件に(2.2)。`PdfRenderingsController#show` の確かめを書いた(5.4) |
+| Q4 | 同時に動く数・接続の数・トランザクション | `limits_concurrency to: 2, key: "pdf-lambda"`、pool ≥ スレッド + 2、Lambda を待つ間はトランザクションを開かない(5.5・4.6) |
+| Q5 | 関数は 1 つ | 約 3008MB の 1 つ。重い入力は同じ関数で 1 回だけやり直す(4.2・6.1) |
+| Q6 | VPC をやめる | やめた。要求の止め(data: だけ)と JS を止める。攻撃のテストに `127.0.0.1:9001`。Budgets と同時に動く数の上限(3.2・6.1・7.4) |
+| Q7 | HEAD と ListBucket をやめる | GetObject の `NoSuchKey`・403 を「まだ無い」に。ListBucket を付けない。P3 で確かめる(4.5・6.3) |
+| Q8 | 自動で Chrome に回さない | 手のスイッチだけ。ブラウザの印刷の逃げ道を書いた(4.7) |
+| Q9 | Schema を 1 か所に | `lambda/pdf-renderer/schema/{request,response}.v1.json` を両方のテストで使う。`missing_glyphs`・`font_digest`・`additionalProperties: false`(2.3) |
+| F1 | 途中のマルチパート | ライフサイクルに足した(2.4・6.2) |
+| F2 | SSE-S3 でよい | そのまま(2.4) |
+| F3 | HTML を SQLite に入れない | `storage/tmp/pdf/` の一時ファイルに。`secure_delete` のことを書いた(5.3) |
+| F4 | ハンドラーを包む・FunctionError の本文 | 包む・種類の名前だけ・Rails は本文をログに出さない(2.3) |
+| F5 | Chromium を作るときに取り出す | 1.2 |
+| F6 | 基本のイメージを固定・フォントの digest | ダイジェストで固定、`font_digest` を応答に(1.2・2.3) |
+| F7 | 50MB をメモリに載せない | Rails は `response_target` の Tempfile で受け、`send_blob_stream` で渡す。Lambda はストリームで /tmp に書く(4.1・5.1・5.4) |
+| F8 | ストレスの追加・通信を切る実験 | `thead` のくり返し・1 ページより長い避ける行・改ページの数・長い名前、toxiproxy で切る実験(7.3・7.5) |
+| F9 | (この回の連絡に中身が書かれていなかった) | 中身を確かめてから対応する。分かり次第この行を直す |
+| F10 | 二重に作らない守りを 3 つに | 使い回し・部分の一意の索引・条件つきの書き込み(4.5) |
