@@ -23,7 +23,7 @@ for arg in "$@"; do
     --no-reset) reset=0 ;;
     --reset-only) serve=0 ;;
     --stop)
-      if [ -f "$PIDFILE" ]; then kill "$(cat "$PIDFILE")" && echo "止めました(pid $(cat "$PIDFILE"))"; else echo "動いていません"; fi
+      if [ -f "$PIDFILE" ]; then pid="$(cat "$PIDFILE")"; kill "$pid" && echo "止めました(pid $pid)"; else echo "動いていません"; fi
       exit 0 ;;
     *) server_args+=("$arg") ;;
   esac
