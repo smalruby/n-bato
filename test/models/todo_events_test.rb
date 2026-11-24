@@ -87,6 +87,32 @@ class TodoEventsTest < ActiveSupport::TestCase
     assert_empty ModelVerification.mismatches
   end
 
+  test "B1: 操作の外で状態を変えても、やることの列とイベントは 1 つの操作になる" do
+    assert_difference -> { AuditOperation.count }, 1 do
+      Todo::StatusChange.change!(@todo, status: "doing", by: @user)
+    end
+    assert_equal %w[Todo Todo::StatusChange], AuditOperation.last.audit_changes.map(&:auditable_type)
+  end
+
+  test "B1: 決まりで済みにするのは、何件でも 1 つの操作(範囲 todos_auto)。元に戻しても食い違わない" do
+    AnnualReport.create!(fiscal_year: 2024, submitted_on: Date.new(2026, 11, 24))
+    @todo.update!(done_rule: "annual_report_submitted")
+    other = Todo.create!(title: "もう一つ", fiscal_year: 2024, done_rule: "annual_report_submitted")
+    assert_difference -> { AuditOperation.count }, 1 do
+      Todo.refresh_auto!
+    end
+    op = AuditOperation.last
+    assert_equal "todos_auto", op.scope
+    assert_equal 4, op.audit_changes.size
+    assert_equal [ true, true ], [ @todo.reload.done?, other.reload.done? ]
+    assert_no_difference -> { AuditOperation.count } do
+      Todo.refresh_auto!
+    end
+    Audit.undo!(op.user, "todos_auto")
+    assert_equal [ "todo", "todo" ], [ @todo.reload.status, other.reload.status ]
+    assert_empty ModelVerification.mismatches
+  end
+
   test "照合: 列を直接書き換えると食い違いが出る" do
     Todo::StatusChange.change!(@todo, status: "wait", waiting_on: "返事")
     @todo.update_columns(status: "done")

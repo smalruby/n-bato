@@ -15,11 +15,13 @@ class IncomingRequest::Settlement < ApplicationRecord
     raise ArgumentError, "もう解決にしてあります" if request.resolved?
     raise ArgumentError, "まだ済んでいないやることがあります" unless request.all_done? || force
 
-    transaction do
-      request.apply_state!(status: "resolved", resolved_on: on)
-      settlement = create!(incoming_request: request, settled_by: by, settled_on: on)
-      Audit.label!("依頼「#{request.title}」を解決にした")
-      settlement
+    Audit.operation do
+      transaction do
+        request.apply_state!(status: "resolved", resolved_on: on)
+        settlement = create!(incoming_request: request, settled_by: by, settled_on: on)
+        Audit.label!("依頼「#{request.title}」を解決にした")
+        settlement
+      end
     end
   end
 end

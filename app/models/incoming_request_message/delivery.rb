@@ -13,9 +13,11 @@ class IncomingRequestMessage::Delivery < ApplicationRecord
   def self.deliver!(message, masked_body:, send_attachments:, reply:, at: Time.current)
     raise ArgumentError, "送る前の下書きではありません" unless message.draft?
 
-    transaction do
-      create!(message:, masked_body:, send_attachments:, delivered_at: at)
-      IncomingRequestMessage.write!(message.incoming_request, role: "assistant", body: reply.fetch("reply"), proposal: reply)
+    Audit.operation do
+      transaction do
+        create!(message:, masked_body:, send_attachments:, delivered_at: at)
+        IncomingRequestMessage.write!(message.incoming_request, role: "assistant", body: reply.fetch("reply"), proposal: reply)
+      end
     end
   end
 end

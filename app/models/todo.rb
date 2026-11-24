@@ -56,10 +56,13 @@ class Todo < ApplicationRecord
   def resume_rule_label = RESUME_RULES.fetch(resume_rule)
 
   # 決まりに合う「待ち」のやることを作業中に戻す。戻したやることを返す。
+  # 操作の外(rake など)で呼ばれても、メモと状態の変化を 1 つの操作にする(入れ子なら外側の操作にまとめる)。
   def self.resume!(rule, note:)
-    where(status: "wait", resume_rule: rule).to_a.each do |t|
-      t.update!(note: [ t.note.presence, note ].compact.join("\n"))
-      Todo::StatusChange.change!(t, status: "doing", note:, automatic: true)
+    Audit.operation do
+      where(status: "wait", resume_rule: rule).to_a.each do |t|
+        t.update!(note: [ t.note.presence, note ].compact.join("\n"))
+        Todo::StatusChange.change!(t, status: "doing", note:, automatic: true)
+      end
     end
   end
 
@@ -115,11 +118,18 @@ class Todo < ApplicationRecord
     end
   end
 
+  # 画面を開いたとき(GET)に呼ぶ。何件済みにしても 1 つの操作にし、範囲は todos_auto にする(docs/adr/0034)。
+  # やることの画面の「元に戻す」では戻さない(戻しても、次に開いたときにまた済みになるため)。
+  AUTO_SCOPE = "todos_auto"
   def self.refresh_auto!
-    unfinished.where.not(done_rule: "").find_each do |t|
-      next unless (why = t.auto_done_reason)
+    Audit.operation(scope: AUTO_SCOPE) do
+      done = unfinished.where.not(done_rule: "").to_a.filter_map do |t|
+        next unless (why = t.auto_done_reason)
 
-      Todo::StatusChange.change!(t, status: "done", note: why, automatic: true)
+        Todo::StatusChange.change!(t, status: "done", note: why, automatic: true)
+      end
+      Audit.label!("決まりで、やることを #{done.size} 件済みにした") if done.size > 1
+      done
     end
   end
 

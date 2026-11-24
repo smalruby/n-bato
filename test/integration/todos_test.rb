@@ -87,6 +87,20 @@ class TodosTest < ActionDispatch::IntegrationTest
     assert_equal "auto", t.done_by
   end
 
+  test "B1: 一覧を開いて自動で済みになっても、やることの画面の元に戻すでは戻らず、食い違わない" do
+    t = Todo.create!(title: "提出する", fiscal_year: 2024, kind: "window", done_rule: "annual_report_submitted")
+    AnnualReport.create!(fiscal_year: 2024, submitted_on: Date.new(2026, 11, 24))
+    assert_difference -> { AuditOperation.count }, 1 do
+      get todos_path
+    end
+    assert t.reload.done?
+    assert_equal [ "todos_auto" ], AuditOperation.where(id: AuditOperation.maximum(:id)).pluck(:scope)
+    post undo_path(format: :json), params: { scope: "todos" }, as: :json
+    assert t.reload.done?
+    assert_equal 1, t.status_changes.count
+    assert_empty ModelVerification.mismatches
+  end
+
   test "監査の役割は、やることを見るだけ" do
     users(:one).update!(role: "auditor")
     req = IncomingRequest.create!(title: "依頼C")

@@ -25,12 +25,15 @@ class Todo::StatusChange < ApplicationRecord
     state = Todo.state_for(change)
     return if state.except("done_at") == todo.attributes.slice(*Todo::STATE_COLUMNS).except("done_at")
 
-    transaction do
-      # やることを先に書く(元に戻すの表示が「状態 未着手 → 作業中」になるように)
-      todo.apply_state!(state)
-      change.save!
-      Audit.label!("やること「#{todo.title}」を#{todo.status_label}にした")
-      change
+    # 操作の外(rake など)で呼ばれても、列とイベントを 1 つの操作にする(入れ子なら外側の操作にまとめる)
+    Audit.operation do
+      transaction do
+        # やることを先に書く(元に戻すの表示が「状態 未着手 → 作業中」になるように)
+        todo.apply_state!(state)
+        change.save!
+        Audit.label!("やること「#{todo.title}」を#{todo.status_label}にした")
+        change
+      end
     end
   end
 end

@@ -17,20 +17,22 @@ class IncomingRequestMessage::Adoption < ApplicationRecord
 
     request = message.incoming_request
     p = message.proposal || {}
-    transaction do
-      attrs = (p["request"] || {}).slice("title", "counterpart", "received_on", "due_on").reject { |_, v| v.blank? }
-      attrs = attrs.to_h { |k, v| [ k, k.end_with?("_on") ? (Date.iso8601(v) rescue nil) : v ] }.compact
-      request.update!(attrs) if attrs.any?
-      created = create_todos(request, p["todos_new"])
-      updated = Array(p["todos_update"]).filter_map do |u|
-        todo = request.todos.find_by(id: u["id"]) or next
-        status = u["status"].presence_in(Todo::STATUSES.keys) or next
-        Todo::StatusChange.change!(todo, status:, waiting_on: u["waiting_on"].to_s, note: u["done_note"].to_s, by:, at:)
-        todo
+    Audit.operation do
+      transaction do
+        attrs = (p["request"] || {}).slice("title", "counterpart", "received_on", "due_on").reject { |_, v| v.blank? }
+        attrs = attrs.to_h { |k, v| [ k, k.end_with?("_on") ? (Date.iso8601(v) rescue nil) : v ] }.compact
+        request.update!(attrs) if attrs.any?
+        created = create_todos(request, p["todos_new"])
+        updated = Array(p["todos_update"]).filter_map do |u|
+          todo = request.todos.find_by(id: u["id"]) or next
+          status = u["status"].presence_in(Todo::STATUSES.keys) or next
+          Todo::StatusChange.change!(todo, status:, waiting_on: u["waiting_on"].to_s, note: u["done_note"].to_s, by:, at:)
+          todo
+        end
+        create!(message:, adopted_by: by, adopted_at: at)
+        Audit.label!("依頼「#{request.title}」: AI の案で、やることを #{created.size} 件作り、#{updated.size} 件直した")
+        [ created, updated ]
       end
-      create!(message:, adopted_by: by, adopted_at: at)
-      Audit.label!("依頼「#{request.title}」: AI の案で、やることを #{created.size} 件作り、#{updated.size} 件直した")
-      [ created, updated ]
     end
   end
 
