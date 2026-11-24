@@ -42,11 +42,11 @@ class TodosTest < ActionDispatch::IntegrationTest
              "todos_update" => [] }
     fake = FakeClient.new(json)
     msg = req.messages.last
-    Requests::Organizer.new(req, client: fake).call(msg.tap { it.update!(masked_body: Masker.new.mask(it.body).text) })
+    Requests::Organizer.new(req, client: fake).call(msg, masked_body: Masker.new.mask(msg.body).text)
     assert_no_match "0852-55-5169", fake.sent.first[:text]
     assert_equal 0, req.todos.count, "決めるまでは記録しない"
 
-    post incoming_request_message_apply_path(req, req.messages.last)
+    post incoming_request_message_adoption_path(req, req.messages.last)
     assert_equal 2, req.reload.todos.count
     assert_equal "書類の差し替え依頼", req.title
     assert_equal Date.new(2023, 12, 7), req.received_on
@@ -57,13 +57,13 @@ class TodosTest < ActionDispatch::IntegrationTest
   test "一覧: 依頼・義務・手続きを年度をまたいで出し、開くと年度を切り替える" do
     req = IncomingRequest.create!(title: "依頼A", counterpart: "松江市")
     t = req.todos.create!(title: "2023年度の名簿を直す", fiscal_year: 2023, kind: "screen", target: "people")
-    req.todos.create!(title: "年度なしの確認", kind: "ask", status: "wait", waiting_on: "本人の返事")
+    Todo::StatusChange.change!(req.todos.create!(title: "年度なしの確認", kind: "ask"), status: "wait", waiting_on: "本人の返事")
     get todos_path
     assert_select "tr.nb-todo-group th", text: /依頼A/
     assert_select ".nb-ychip", text: /2023/
     assert_select "td", text: /待ち: 本人の返事/
 
-    get open_todo_path(t)
+    get todo_path(t)
     assert_redirected_to people_path(year: 2023)
     follow_redirect!
     assert_equal 2023, users(:one).reload.working_year
@@ -76,11 +76,11 @@ class TodosTest < ActionDispatch::IntegrationTest
   test "状態を変える(待ち・済み)と、自動で済み" do
     req = IncomingRequest.create!(title: "依頼B")
     t = req.todos.create!(title: "提出する", fiscal_year: 2024, kind: "window", done_rule: "annual_report_submitted")
-    patch todo_path(t), params: { status: "wait", waiting_on: "監事の返事" }
+    post todo_status_changes_path(t), params: { status: "wait", waiting_on: "監事の返事" }
     assert_equal [ "wait", "監事の返事" ], [ t.reload.status, t.waiting_on ]
-    patch todo_path(t), params: { status: "done", done_note: "出した" }
+    post todo_status_changes_path(t), params: { status: "done", done_note: "出した" }
     assert t.reload.done?
-    patch todo_path(t), params: { status: "todo" }
+    post todo_status_changes_path(t), params: { status: "todo" }
     AnnualReport.create!(fiscal_year: 2024, submitted_on: Date.new(2026, 11, 24)) rescue skip("事業報告書を作れない")
     Todo.refresh_auto!
     assert t.reload.done?
@@ -93,7 +93,7 @@ class TodosTest < ActionDispatch::IntegrationTest
     t = req.todos.create!(title: "見るだけ", kind: "ask")
     get todos_path
     assert_select "a", text: /AI と依頼を整理する/, count: 0
-    patch todo_path(t), params: { status: "done" }
+    post todo_status_changes_path(t), params: { status: "done" }
     assert_not t.reload.done?
   end
 

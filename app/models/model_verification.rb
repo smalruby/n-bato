@@ -5,7 +5,26 @@ module ModelVerification
 
   # 食い違いの一覧(文字列)。空なら一致。
   def mismatches
-    voucher_mismatches + member_application_mismatches + registration_filing_mismatches + registration_mismatches + person_history_mismatches
+    voucher_mismatches + member_application_mismatches + registration_filing_mismatches + registration_mismatches + person_history_mismatches +
+      todo_mismatches + incoming_request_mismatches
+  end
+
+  # やること: 状態・待つもの・済みの日時とひとことが、最後の状態の変化と同じか(docs/adr/0034)
+  def todo_mismatches
+    Todo.includes(:status_changes).filter_map do |t|
+      diff = t.state_mismatches
+      "やること ##{t.id}: #{diff.join('・')} が状態の変化と違う(いまの状態 #{t.status} / イベントから #{t.derived_state['status']})" if diff.any?
+    end
+  end
+
+  # 依頼: 状態と解決した日が「解決にした」と同じか
+  def incoming_request_mismatches
+    IncomingRequest.includes(:settlement).filter_map do |r|
+      want = r.derived_state
+      next if [ r.status, r.resolved_on ] == want.values_at("status", "resolved_on")
+
+      "依頼 ##{r.id}: いまの状態 #{r.status}・#{r.resolved_on.inspect} / イベントから #{want['status']}・#{want['resolved_on'].inspect}"
+    end
   end
 
   def voucher_mismatches

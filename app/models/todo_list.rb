@@ -77,7 +77,7 @@ class TodoList
 
       items = r.todos.map do |t|
         Item.new(status: t.status, fiscal_year: t.fiscal_year, title: t.title, kind_label: t.kind_label, assignee: t.assignee,
-                 due_on: t.due_on, path: @h.open_todo_path(t), todo: t,
+                 due_on: t.due_on, path: @h.todo_path(t), todo: t,
                  note: [ (t.status == "wait" && t.waiting_on.present? ? "待ち: #{t.waiting_on}" : nil), (t.done? ? t.done_note.presence : nil) ].compact.join(" "))
       end
       Group.new(key: "request-#{r.id}", source: "request", title: r.title, note: [ r.counterpart.presence, ("#{r.done_count} / #{r.todos.size} 済み" if r.todos.any?) ].compact.join("・"),

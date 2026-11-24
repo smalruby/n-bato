@@ -1,4 +1,7 @@
 # やること(デザインシステム「やること」)。年度ごとのデータセットの外に置く。1 件の対象は 1 つの年度か年度なし。
+# 長いイベント(docs/adr/0034)。状態の変化(作業中・待ち・済み・未着手に戻す)は詳細のイベント Todo::StatusChange。
+# status・waiting_on・done_at・done_by・done_note は「いまの状態」で、Todo::StatusChange.change! だけが書き換える(照合は model:verify)。
+# 題・期限・メモなどの中身は、ふつうに直してよい(操作履歴に残る)。
 class Todo < ApplicationRecord
   STATUSES = { "todo" => "未着手", "doing" => "作業中", "wait" => "待ち", "done" => "済み" }.freeze
   KINDS = { "screen" => "画面", "document" => "書類", "ask" => "人に聞く", "window" => "電話・窓口" }.freeze
@@ -33,7 +36,11 @@ class Todo < ApplicationRecord
     "registration_completed" => "登記の申請が完了したら"
   }.freeze
 
+  # いまの状態の列。直接は書き換えない(Todo::StatusChange.change! を使う)
+  STATE_COLUMNS = %w[status waiting_on done_at done_by done_note].freeze
+
   belongs_to :incoming_request, optional: true
+  has_many :status_changes, -> { order(:changed_at, :id) }, class_name: "Todo::StatusChange", dependent: :restrict_with_error
 
   validates :title, presence: true
   validates :status, inclusion: { in: STATUSES.keys }
@@ -41,6 +48,7 @@ class Todo < ApplicationRecord
   validates :target, inclusion: { in: TARGETS.keys }
   validates :done_rule, inclusion: { in: DONE_RULES.keys }
   validates :resume_rule, inclusion: { in: RESUME_RULES.keys }
+  validate :state_written_by_status_change
 
   scope :unfinished, -> { where.not(status: "done") }
 
@@ -50,8 +58,40 @@ class Todo < ApplicationRecord
   # 決まりに合う「待ち」のやることを作業中に戻す。戻したやることを返す。
   def self.resume!(rule, note:)
     where(status: "wait", resume_rule: rule).to_a.each do |t|
-      t.update!(status: "doing", waiting_on: "", note: [ t.note.presence, note ].compact.join("\n"))
+      t.update!(note: [ t.note.presence, note ].compact.join("\n"))
+      Todo::StatusChange.change!(t, status: "doing", note:, automatic: true)
     end
+  end
+
+  # 状態の変化から決まる、いまの状態(docs/adr/0005)。change: 最後の変化(まだ保存していないものでもよい)。無ければ未着手。
+  def self.state_for(change)
+    st = change&.status || "todo"
+    done = st == "done"
+    { "status" => st, "waiting_on" => st == "wait" ? change.waiting_on.to_s : "",
+      "done_at" => done ? change.changed_at : nil, "done_by" => done ? (change.automatic ? "auto" : "user") : "",
+      "done_note" => done ? change.note.to_s : "" }
+  end
+
+  def latest_status_change = status_changes.max_by { [ it.changed_at, it.id.to_i ] }
+  def derived_state = Todo.state_for(latest_status_change)
+
+  # いまの状態の列を書き換える。呼ぶのは Todo::StatusChange.change! だけ。
+  def apply_state!(state)
+    @applying_state = true
+    update!(state)
+  ensure
+    @applying_state = false
+  end
+
+  # いまの状態の列が、状態の変化と食い違っている列の名前(model:verify)。done_by は「自動かどうか」だけを比べる。
+  def state_mismatches
+    want = derived_state
+    keys = %w[status]
+    keys << "waiting_on" if want["status"] == "wait"
+    keys.push("done_at", "done_note") if want["status"] == "done"
+    diff = keys.reject { Audit.dump(self[it]).to_s == Audit.dump(want[it]).to_s }
+    diff << "done_by" if want["status"] == "done" && (done_by == "auto") != (want["done_by"] == "auto")
+    diff
   end
 
   def kind_label = KINDS.fetch(kind)
@@ -79,10 +119,24 @@ class Todo < ApplicationRecord
     unfinished.where.not(done_rule: "").find_each do |t|
       next unless (why = t.auto_done_reason)
 
-      t.update!(status: "done", done_at: Time.current, done_by: "auto", done_note: why)
+      Todo::StatusChange.change!(t, status: "done", note: why, automatic: true)
     end
   end
 
   # 締めた年度を直すときの理由の欄に、最初から入れておく文
   def reason_hint = [ incoming_request&.title, title ].compact.join(": ")
+
+  private
+
+  # いまの状態の列は、状態の変化からだけ書く(作るときは未着手のまま)。元に戻す・やり直すは検証を通さずに書くので止めない。
+  def state_written_by_status_change
+    return if @applying_state
+
+    if new_record?
+      fresh = STATE_COLUMNS.all? { Audit.dump(self[it]).to_s == Audit.dump(Todo.state_for(nil)[it]).to_s }
+      errors.add(:base, "やることは未着手で作ってください(状態を変えるときは Todo::StatusChange.change!)") unless fresh
+    elsif (changed = STATE_COLUMNS & changed_attribute_names_to_save).any?
+      errors.add(:base, "#{changed.join('・')} は直接書き換えません。Todo::StatusChange.change!(やること, status: …) を使ってください")
+    end
+  end
 end

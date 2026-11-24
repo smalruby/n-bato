@@ -30,8 +30,11 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | Consent | 同意 | E | 1 人の 1 つの決議への同意 | — | 書面決議の同意 | consented_on | 待 |
 | Department | 部門 | R | 年度ごとの部門 1 つ | 年度と部門コードが同じ | 事業①〜⑨・管理 | — | 待 |
 | FiscalPeriod | 年度 | R | 4/1〜3/31 の 1 年 | 開始年が同じ | 事業年度 | 締めた日(「年度を締める」イベントへ分ける) | 待 |
-| IncomingRequest | 依頼 | LE | 外から届いた 1 つの依頼 | — | メール・郵便などの依頼 | 受け取った日・期限・解決した日 | 待 |
-| IncomingRequestMessage | 依頼の対話の発言 | E | 1 回の発言 | — | 人・AI の発言 | 送った日時・決めた日時(分ける) | 待 |
+| IncomingRequest | 依頼 | LE | 外から届いた 1 つの依頼 | — | メール・郵便などの依頼。いまの状態(status・resolved_on)は「解決にした」から決まる(docs/adr/0034) | received_on(届いた日)・due_on(期限)は中身の日付 | 済 |
+| IncomingRequest::Settlement | 依頼の解決 | E | 1 つの依頼の解決 | 依頼が同じ(1 つに 1 つ) | やることが全部済んで解決にした(済んでいなくても解決にするときは force)。元に戻せる | settled_on | 済 |
+| IncomingRequestMessage | 依頼の対話の発言 | E | 1 回の発言 | — | 人・AI の発言。人の発言は送るまで下書き(下書きだけは消せる。docs/adr/0034) | written_at | 済 |
+| IncomingRequestMessage::Delivery | 依頼の対話を AI に送った | E | 1 つの人の発言の送信 | 発言が同じ(1 つに 1 つ) | 伏せた文と、添付を送ったか。AI の返事の発言も同じときに書く | delivered_at | 済 |
+| IncomingRequestMessage::Adoption | AI の案を決めた | E | 1 つの AI の発言の案の決定 | 発言が同じ(1 つに 1 つ) | 「この案で決める」。依頼の中身を直し、やることを作り、状態を変える。元に戻せる | adopted_at | 済 |
 | JournalEntry | 仕訳 | E | 1 件の取引(借方・貸方とも 1 科目) | 伝票番号と行番号 | 会計王の仕訳・承認でできた仕訳 | entry_date(取引日)。approved_at は承認のイベントへ移す | 待 |
 | JournalEntry::Cancellation | 仕訳の取消 | E | 1 件の仕訳の取消 | 仕訳が同じ(1 仕訳に 1 つ) | 記帳した仕訳の誤りを取り消す(理由は必須。docs/adr/0026) | cancelled_at | 済 |
 | JournalProposal | AI の仕訳の提案 | E | 証憑から AI が出した 1 件の仕訳の案 | — | AI の提案(Claude API・Claude Code)・取消のあとの提案のし直し(reproposed_from) | proposed_at(中身の日付: entry_date) | 済 |
@@ -71,7 +74,8 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | Session | ログインのセッション | システム | 1 回のログイン | — | ログイン | verified_at(本人を確かめ直した日時) | — |
 | SiwakeImport | 仕訳の取り込み | E | 1 回の会計王のファイルの取り込み | — | 会計王の SIWAKE ファイル | exported_at(ファイルを書き出した日時) | 待 |
 | SlackPost | Slack への送信 | E | 1 回の送信 | — | 期限のリマインド・記録の知らせ | posted_at | 待 |
-| Todo | やること | LE | 1 つのやること | — | 依頼から作ったやること | 期限・済んだ日時(状態の変化はイベントへ) | 待 |
+| Todo | やること | LE | 1 つのやること | — | 依頼から作ったやること。いまの状態(status・waiting_on・done_at・done_by・done_note)は最後の状態の変化から決まり、直接は書き換えない(docs/adr/0034) | due_on(期限)は中身の日付 | 済 |
+| Todo::StatusChange | やることの状態の変化 | E | 1 回の状態の変化 | — | 作業中にした・待ちにした・済みにした・未着手に戻した。決まりで変えたときは automatic。元に戻せる | changed_at | 済 |
 | User | 利用者 | R | ログインする 1 人 | メールアドレスが同じ | 事務・監査 | — | 待 |
 | Voucher | 証憑の処理 | LE | 1 つの証憑(領収書・請求書など)の受け取りから記帳まで | — | 領収書・通帳・請求書・メモ | issued_on(中身の日付)。いまの状態は提案のイベントから決まる | 済 |
 
@@ -90,6 +94,11 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | 年度 | FiscalPeriod | 開始年で表す(2024 年度 = 2024-04-01〜2025-03-31) |
 | 科目・部門 | Account・Department | 年度ごと |
 | やること | Todo・IncomingRequest | |
+| 作業中にする・待ち・済みにする・未着手に戻す | Todo::StatusChange.change! | 元に戻せる。いまの状態と同じなら何もしない |
+| (自動で済み・登記の完了で作業中に戻る) | Todo.refresh_auto!・Todo.resume! | 中で Todo::StatusChange.change!(automatic: true) |
+| 全部済みました。依頼を解決にする | IncomingRequest::Settlement.settle! | 元に戻せる |
+| AI に送る | IncomingRequestMessage::Delivery.deliver! | AI を呼ぶのは Requests::Organizer。返事が来てから記録する |
+| この案で決める | IncomingRequestMessage::Adoption.adopt! | 元に戻せる |
 | 入会申込 | MemberApplication | |
 | 設定 › 提出先 | FilingDestination | 年度に依存しない。書類の宛先・手続きの説明の {所轄庁} は確認済みの所轄庁から |
 | この内容で確認済みにする | FilingDestination::Confirmation.confirm! | 中身を直すと確認済みでなくなる |
@@ -155,3 +164,21 @@ erDiagram
 
 - 人の住所・氏名: いまの値 = 取り消していない最後の出来事(無ければ記録の始まり)。日が分からない出来事は、分かっている範囲の初めの日(月の 1 日・年度の 4/1)と精度を持ち、推測で日を埋めない。登記すべき事項では「日が不明」と出す。
 - 登記の申請のいまの状態: 取下げ → 完了 → 補正 → 受付 → 申請 の順にイベントがあるかで決まる。照合は `bin/rails model:verify`(登記の事由の登記した日・入会申込の状態・氏名の出来事のつながりも)。
+
+## やること・依頼の ER 図
+
+```mermaid
+erDiagram
+  IncomingRequest ||--o{ IncomingRequestMessage : "対話の発言"
+  IncomingRequestMessage ||--o| "IncomingRequestMessage::Delivery" : "AI に送った(人の発言)"
+  IncomingRequestMessage ||--o| "IncomingRequestMessage::Adoption" : "この案で決めた(AI の発言)"
+  IncomingRequest ||--o{ Todo : "やること"
+  Todo ||--o{ "Todo::StatusChange" : "状態の変化"
+  IncomingRequest ||--o| "IncomingRequest::Settlement" : "解決にした"
+  User ||--o{ "Todo::StatusChange" : "変えた人"
+  User ||--o{ "IncomingRequestMessage::Adoption" : "決めた人"
+```
+
+- やることのいまの状態: 最後の状態の変化(changed_at・id の順)の状態。変化が無ければ未着手。待ちなら待つもの、済みなら済んだ日時・ひとこと・自動かどうかも、その変化から。照合は `bin/rails model:verify`。
+- 依頼のいまの状態: 「解決にした」があれば解決(解決した日はその日付)、無ければ進行中。
+- 状態の変化・解決・案の決定は、ふつうの操作なので元に戻せる(元に戻すと、そのイベントも消える。docs/adr/0034)。

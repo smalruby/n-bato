@@ -202,18 +202,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
     t.index ["year"], name: "index_fiscal_periods_on_year", unique: true
   end
 
+  create_table "incoming_request_message_adoptions", force: :cascade do |t|
+    t.integer "message_id", null: false
+    t.integer "adopted_by_id"
+    t.datetime "adopted_at", null: false
+    t.index ["adopted_by_id"], name: "index_incoming_request_message_adoptions_on_adopted_by_id"
+    t.index ["message_id"], name: "index_incoming_request_message_adoptions_on_message_id", unique: true
+  end
+
+  create_table "incoming_request_message_deliveries", force: :cascade do |t|
+    t.integer "message_id", null: false
+    t.text "masked_body", default: "", null: false
+    t.boolean "send_attachments", default: false, null: false
+    t.datetime "delivered_at", null: false
+    t.index ["message_id"], name: "index_incoming_request_message_deliveries_on_message_id", unique: true
+  end
+
   create_table "incoming_request_messages", force: :cascade do |t|
     t.integer "incoming_request_id", null: false
     t.string "role", null: false
     t.text "body", default: "", null: false
-    t.text "masked_body", default: "", null: false
-    t.boolean "send_attachments", default: false, null: false
-    t.datetime "sent_at"
     t.json "proposal"
-    t.datetime "applied_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "written_at", null: false
     t.index ["incoming_request_id"], name: "index_incoming_request_messages_on_incoming_request_id"
+  end
+
+  create_table "incoming_request_settlements", force: :cascade do |t|
+    t.integer "incoming_request_id", null: false
+    t.integer "settled_by_id"
+    t.date "settled_on", null: false
+    t.index ["incoming_request_id"], name: "index_incoming_request_settlements_on_incoming_request_id", unique: true
+    t.index ["settled_by_id"], name: "index_incoming_request_settlements_on_settled_by_id"
   end
 
   create_table "incoming_requests", force: :cascade do |t|
@@ -703,6 +722,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
     t.index ["key"], name: "index_slack_posts_on_key", unique: true
   end
 
+  create_table "todo_status_changes", force: :cascade do |t|
+    t.integer "todo_id", null: false
+    t.string "status", null: false
+    t.string "waiting_on", default: "", null: false
+    t.text "note", default: "", null: false
+    t.boolean "automatic", default: false, null: false
+    t.integer "changed_by_id"
+    t.datetime "changed_at", null: false
+    t.index ["changed_by_id"], name: "index_todo_status_changes_on_changed_by_id"
+    t.index ["todo_id"], name: "index_todo_status_changes_on_todo_id"
+  end
+
   create_table "todos", force: :cascade do |t|
     t.integer "incoming_request_id"
     t.integer "position", default: 0, null: false
@@ -767,7 +798,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
   add_foreign_key "filing_destination_confirmations", "users", column: "confirmed_by_id"
   add_foreign_key "filing_destination_searches", "users", column: "requested_by_id"
   add_foreign_key "fiscal_periods", "users", column: "closed_by_id"
+  add_foreign_key "incoming_request_message_adoptions", "incoming_request_messages", column: "message_id"
+  add_foreign_key "incoming_request_message_adoptions", "users", column: "adopted_by_id"
+  add_foreign_key "incoming_request_message_deliveries", "incoming_request_messages", column: "message_id"
   add_foreign_key "incoming_request_messages", "incoming_requests"
+  add_foreign_key "incoming_request_settlements", "incoming_requests"
+  add_foreign_key "incoming_request_settlements", "users", column: "settled_by_id"
   add_foreign_key "journal_entries", "accounts", column: "credit_account_id"
   add_foreign_key "journal_entries", "accounts", column: "debit_account_id"
   add_foreign_key "journal_entries", "departments", column: "credit_department_id"
@@ -828,5 +864,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
   add_foreign_key "resolutions", "people", column: "minutes_author_id"
   add_foreign_key "resolutions", "people", column: "proposer_id"
   add_foreign_key "sessions", "users"
+  add_foreign_key "todo_status_changes", "todos"
+  add_foreign_key "todo_status_changes", "users", column: "changed_by_id"
   add_foreign_key "todos", "incoming_requests"
 end

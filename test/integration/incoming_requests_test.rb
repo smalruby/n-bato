@@ -1,0 +1,109 @@
+require "test_helper"
+
+# 依頼の画面の出来事(送る・決める・解決にする・送付状・下書きを消す)。docs/adr/0034。データは架空。
+class IncomingRequestsTest < ActionDispatch::IntegrationTest
+  class FakeClient
+    def initialize(json) = @json = json
+
+    def complete_json(**)
+      raise Bookkeeper::Client::Error, "試しの失敗" if @json == :error
+
+      @json
+    end
+  end
+
+  REPLY = { "reply" => "整理しました", "request" => { "title" => "", "counterpart" => "", "received_on" => "", "due_on" => "" },
+            "todos_new" => [ { "title" => "架空の書類を出す", "fiscal_year" => 2024, "kind" => "document", "assignee" => "理事長", "due_on" => "", "target" => "", "done_rule" => "", "note" => "" } ],
+            "todos_update" => [] }.freeze
+
+  setup { sign_in }
+
+  def with_ai(json)
+    before = ENV["ANTHROPIC_API_KEY"]
+    ENV["ANTHROPIC_API_KEY"] = "test-key"
+    Bookkeeper::Client.define_singleton_method(:new) { |*| FakeClient.new(json) }
+    yield
+  ensure
+    Bookkeeper::Client.singleton_class.send(:remove_method, :new)
+    before ? ENV["ANTHROPIC_API_KEY"] = before : ENV.delete("ANTHROPIC_API_KEY")
+  end
+
+  def without_ai
+    before = ENV["ANTHROPIC_API_KEY"]
+    ENV.delete("ANTHROPIC_API_KEY")
+    skip "credentials に鍵がある環境では確かめない" if Bookkeeper::Client.configured?
+    yield
+  ensure
+    before ? ENV["ANTHROPIC_API_KEY"] = before : ENV.delete("ANTHROPIC_API_KEY")
+  end
+
+  test "下書き → AI に送る → この案で決める → 全部済んだら解決 → 送付状" do
+    post incoming_requests_path, params: { body: "架空の役所からの依頼の文" }
+    req = IncomingRequest.last
+    draft = req.messages.drafts.last
+    with_ai(REPLY) { post incoming_request_message_delivery_path(req, draft), params: { send_attachments: "1" } }
+    assert_redirected_to incoming_request_path(req, anchor: "thread-end")
+    assert draft.reload.sent?
+    assert draft.send_attachments
+    reply = req.messages.last
+    assert_equal "整理しました", reply.body
+
+    get incoming_request_path(req)
+    assert_select ".nb-msg--user", text: /架空の役所からの依頼の文/
+    assert_select "form[action=?]", incoming_request_message_adoption_path(req, reply)
+
+    post incoming_request_message_adoption_path(req, reply)
+    assert_redirected_to incoming_request_path(req, anchor: "todos")
+    todo = req.reload.todos.sole
+    post incoming_request_message_adoption_path(req, reply)
+    assert_equal "この案はもう決めてあります", flash[:alert]
+
+    post incoming_request_settlement_path(req)
+    assert_equal "まだ済んでいないやることがあります", flash[:alert]
+    post todo_status_changes_path(todo), params: { status: "done", done_note: "出した" }
+    post incoming_request_settlement_path(req)
+    assert_match "解決にしました", flash[:notice]
+    assert req.reload.resolved?
+
+    with_ai({ "text" => "架空の送付状" }) { post incoming_request_cover_letter_path(req) }
+    assert_redirected_to incoming_request_path(req, anchor: "cover")
+    assert_equal "架空の送付状", req.reload.cover_letter
+    with_ai(:error) { post incoming_request_cover_letter_path(req) }
+    assert_match "下書きを作れませんでした", flash[:alert]
+    assert_empty ModelVerification.mismatches
+  end
+
+  test "AI の鍵が無い・AI に送れないときは、下書きのまま" do
+    post incoming_requests_path, params: { body: "架空の依頼" }
+    req = IncomingRequest.last
+    draft = req.messages.drafts.last
+    without_ai { post incoming_request_message_delivery_path(req, draft) }
+    assert_match "ANTHROPIC_API_KEY", flash[:alert]
+    without_ai { post incoming_request_cover_letter_path(req) }
+    assert_match "ANTHROPIC_API_KEY", flash[:alert]
+    with_ai(:error) { post incoming_request_message_delivery_path(req, draft) }
+    assert_match "AI に送れませんでした", flash[:alert]
+    assert draft.reload.draft?
+  end
+
+  test "空の文は受け付けない。下書きを消すと、何も無い依頼は消える" do
+    post incoming_requests_path, params: { body: " " }
+    assert_redirected_to new_incoming_request_path
+    post incoming_requests_path, params: { body: "架空の依頼" }
+    req = IncomingRequest.last
+    post incoming_request_messages_path(req), params: { body: "" }
+    assert_equal "書いてから送ってください", flash[:alert]
+    post incoming_request_messages_path(req), params: { body: "もう一つの下書き" }
+    delete incoming_request_message_path(req, req.messages.drafts.last)
+    assert_redirected_to incoming_request_path(req)
+    delete incoming_request_message_path(req, req.messages.drafts.last)
+    assert_redirected_to todos_path
+    assert_not IncomingRequest.exists?(req.id)
+  end
+
+  test "状態の分からない変化は受け付けない" do
+    todo = Todo.create!(title: "架空のやること")
+    post todo_status_changes_path(todo), params: { status: "nope" }
+    assert_equal "状態が分かりません", flash[:alert]
+  end
+end
