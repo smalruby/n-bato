@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# 架空のデータだけの手元の環境(issue #14)。AI が自分でログインして画面を確かめるためのもの。
+#
+#   bin/demo               架空のデータを入れ直して、http://localhost:3300 でサーバーを動かす(前に出したまま)
+#   bin/demo -d            同じ。サーバーは裏で動かす(止めるのは bin/demo --stop)
+#   bin/demo --no-reset    データはそのままで、サーバーだけ動かす
+#   bin/demo --reset-only  データを入れ直すだけ
+#   bin/demo --stop        裏で動かしたサーバーを止める
+#
+# DB は storage/demo.sqlite3、添付は storage/demo_files(実データの development.sqlite3 には触らない)。
+# ログイン: ai@example.com / パスワードは tmp/demo_password(git 管理外。無ければ乱数で作る。NBATO_DEMO_PASSWORD でも決められる)。
+# 外へは送らない: Anthropic・Slack・バックアップの鍵の環境変数を外して動かす(credentials も読まない。config/environments/development.rb)。
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PORT="${NBATO_DEMO_PORT:-3300}"
+PIDFILE="tmp/pids/demo.pid"
+reset=1
+serve=1
+server_args=()
+for arg in "$@"; do
+  case "$arg" in
+    --no-reset) reset=0 ;;
+    --reset-only) serve=0 ;;
+    --stop)
+      if [ -f "$PIDFILE" ]; then kill "$(cat "$PIDFILE")" && echo "止めました(pid $(cat "$PIDFILE"))"; else echo "動いていません"; fi
+      exit 0 ;;
+    *) server_args+=("$arg") ;;
+  esac
+done
+
+export NBATO_DEMO=1 RAILS_ENV=development
+unset ANTHROPIC_API_KEY SLACK_BOT_TOKEN SLACK_CHANNEL_ID SLACK_OFFICERS_CHANNEL_ID \
+  NBATO_BACKUP_BUCKET NBATO_BACKUP_AWS_ACCESS_KEY_ID NBATO_BACKUP_AWS_SECRET_ACCESS_KEY
+
+if [ "$reset" = 1 ]; then
+  bin/rails demo:reset
+fi
+
+if [ "$serve" = 1 ]; then
+  bin/rails tailwindcss:build >/dev/null 2>&1 || bin/rails tailwindcss:build
+  echo "http://localhost:$PORT にログイン: ai@example.com / パスワードは $( [ -n "${NBATO_DEMO_PASSWORD:-}" ] && echo NBATO_DEMO_PASSWORD || echo tmp/demo_password )"
+  exec bin/rails server -p "$PORT" -P "$PIDFILE" ${server_args[@]+"${server_args[@]}"}
+fi

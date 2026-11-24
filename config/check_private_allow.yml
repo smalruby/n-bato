@@ -28,6 +28,18 @@
   rules: [phone, zip]
   files: ['test/**/*.rb']
   reason: 架空の電話番号・郵便番号(000 で始まる、実在しない番号)
+- pattern: '0{3}-0{4}-[0-9]{2,4}|〒?0{3}-0{4}'
+  rules: [phone, zip]
+  files: ['db/demo/*.rb']
+  reason: 架空のデータの環境(bin/demo)の電話番号・郵便番号(000 で始まる、実在しない番号)
+- pattern: '架空市[^\s"]*'
+  rules: [address]
+  files: ['db/demo/*.rb']
+  reason: 架空のデータの環境(bin/demo)の住所(架空市は実在しない)
+- pattern: '(見本|架空|例示|仮名)　\S+'
+  rules: [name]
+  files: ['db/demo/*.rb', 'test/system/*.rb']
+  reason: 架空のデータの環境(bin/demo)の氏名(氏は 見本・架空・例示・仮名 だけにして、架空と分かるようにした)
 - text: 島根県テスト市
   files: ['test/**/*.rb']
   reason: 架空の住所(テスト市は実在しない)
