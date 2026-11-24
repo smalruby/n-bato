@@ -20,7 +20,10 @@ decision-makers: 理事長(ユーザー)・Claude
 採用:「バックエンドを 100%」。
 
 * 測り方: `COVERAGE=1 bin/rails test`(simplecov。結果は coverage/、git 管理外)。ビュー・JavaScript・アセット・設定・マイグレーション・rake のタスクは対象外。
-* 実機が要るところ(パスキーの端末など)だけ `# :nocov:` で囲み、理由をコメントに書く。
+  * 測り始めるのは `test/simplecov_start.rb` で、`config/boot.rb` から読む(アプリを読み込む前)。`bin/rails test` は test:prepare(tailwindcss:build)でテストより先にアプリを読み込むので、test_helper で測り始めると、そのとき読み込んだファイルが 0% になる(issue #6)。
+  * 並列のテスト(`parallelize`)も、SimpleCov の rails のプロファイル(merge_subprocesses)が子ごとに測ってまとめる。並列と 1 つのプロセスで同じ数値になる。
+* 実機が要るところ(パスキーの端末など)だけ `# simplecov:disable` / `# simplecov:enable` で囲み、理由をコメントに書く(SimpleCov 1.3 で `# :nocov:` は非推奨)。偽物(DI)でテストできるところは外さない。
+* CI の test のジョブは `COVERAGE=1` で流し、100% を下回ると失敗にする(`minimum_coverage line: 100`)。一部のファイルだけ流すときは COVERAGE を付けない。
 * イミュータブルデータモデルに移した業務から順に 100% にする(移す順は ADR-0002)。
 
 ### 理由
@@ -31,3 +34,5 @@ decision-makers: 理事長(ユーザー)・Claude
 ### 確かめ方
 
 移した業務のファイルが 100% であることを、移すたびに確かめて記録する(2026-11-23 の会計: 証憑・AI の提案・承認・却下・取り下げ・照合で 100%。全体は 89.8%)。
+
+2026-11-24: バックエンドの全体で 100%(4,287 行。並列・1 つのプロセス・CI と同じ eager_load のどれでも同じ)。外す印(simplecov:disable)は 0 か所。これより後は CI が下回りを止める(issue #6)。

@@ -19,6 +19,7 @@ NPO 法人の事務を何でも引き受ける「スーパー事務員」アプ�
 ```bash
 bin/setup --skip-server        # 依存の導入と DB 準備
 bin/rails test                 # テスト(必ず通してからコミット)
+COVERAGE=1 bin/rails test      # カバレッジ(バックエンドが 100% を下回ると失敗。CI も同じ。docs/adr/0025)
 bin/rails test:system          # ブラウザのテスト(Playwright の Chromium。版は .playwright-version。HEADFUL=1 で窓を出す)
 bin/demo                       # 架空のデータだけの環境を作り直して http://localhost:3300 で動かす(-d 裏で / --no-reset / --reset-only / --stop)
 bin/pw-check URL [--screenshot [PATH]] [--width 390] [--full]  # 画面を Playwright で開いて確かめる(localhost ならログインも自動。写しは tmp/screenshots/)
