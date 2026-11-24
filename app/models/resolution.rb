@@ -21,7 +21,6 @@ class Resolution < ApplicationRecord
   validates :title, :proposed_on, presence: true
   validate { items.select(&:marked_for_destruction?).filter_map(&:destroy_blocked_reason).uniq.each { errors.add(:base, it.message) } }
 
-  def self.model_name_label = "決議"
   EDIT_INSTEAD = "代わりに: 件名・提案日・議案の中身は「編集」で直せます。"
 
   scope :recent, -> { order(proposed_on: :desc, id: :desc) }

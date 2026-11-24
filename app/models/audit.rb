@@ -218,8 +218,7 @@ module Audit
     op.audit_changes.filter_map { it.auditable_class.try(:audit_state_owner, it) }.uniq.each do |record|
       next if (diff = record.state_mismatches).empty?
 
-      name = record.class.try(:model_name_label) || record.class.model_name.human
-      raise Conflict, "#{name}(##{record.id})の#{diff.join("・")}が、そのあと別の操作で変わっています"
+      raise Conflict, "#{record.class.model_name.human}(##{record.id})の#{diff.join("・")}が、そのあと別の操作で変わっています"
     end
   end
 

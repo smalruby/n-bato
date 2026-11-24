@@ -12,8 +12,6 @@ class Todo::StatusChange < ApplicationRecord
 
   validates :status, inclusion: {in: Todo::STATUSES.keys}
 
-  def self.model_name_label = "やることの状態の変化"
-
   def self.audit_state_owner(change) = Todo.find_by(id: change.value("todo_id"))
 
   def status_label = Todo::STATUSES.fetch(status)

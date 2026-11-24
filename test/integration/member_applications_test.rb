@@ -59,6 +59,12 @@ class MemberApplicationsTest < ActionDispatch::IntegrationTest
     assert_equal ["会員　花子さんの入会を認めた(2026年度の正会員)", "final", "member_applications"], [op.label, op.kind, op.scope]
   end
 
+  test "変更の記録の画面に、出来事の日本語の名前が出る(models.ja.yml。#38)" do
+    post member_application_approval_path(@app), params: {fiscal_year: 2026, joined_on: "2026-12-02"}
+    get changes_path(year: 2026)
+    assert_select "td", text: "入会を認めた"
+  end
+
   test "古い送り先(approve・reject)は無い" do
     assert_raises(ActionController::RoutingError) { Rails.application.routes.recognize_path("/member_applications/#{@app.id}/approve", method: :post) }
     assert_raises(ActionController::RoutingError) { Rails.application.routes.recognize_path("/member_applications/#{@app.id}/reject", method: :post) }

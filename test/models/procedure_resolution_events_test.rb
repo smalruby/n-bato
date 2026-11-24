@@ -103,7 +103,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     ProcedureStep::StatusChange.change!(step, status: "open")
     ProcedureStep::StatusChange.change!(step.reload, status: "done", on: Date.new(2026, 4, 10))
     error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "procedure:#{@run.id}") }
-    assert_match "手続きの手順(##{step.id})のstatus", error.message
+    assert_match "手順(##{step.id})のstatus", error.message # 操作履歴の表示(models.ja.yml の procedure_step)と同じ名前(#38)
     assert_equal "done", step.reload[:status]
     assert_empty ModelVerification.mismatches
   end

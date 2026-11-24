@@ -8,8 +8,6 @@ class Person::NameChange < ApplicationRecord
 
   validates :name, presence: true
 
-  def self.model_name_label = "氏名の変更"
-
   def occurred_on = changed_on
 
   # 氏と名に分ける(全角・半角の空白で区切る。区切れないときは nil)

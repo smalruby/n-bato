@@ -10,8 +10,6 @@ class Person::ChangeCancellation < ApplicationRecord
   belongs_to :canceller, class_name: "User", optional: true
   validates :reason, presence: true
 
-  def self.model_name_label = "住所・氏名の出来事の取消"
-
   def self.cancel!(change, by:, reason:, at: Time.current)
     reason = reason.to_s.strip
     raise ArgumentError, "取り消す理由を書いてください" if reason.empty?
@@ -29,7 +27,7 @@ class Person::ChangeCancellation < ApplicationRecord
       registration&.destroy!
       change.person.address_changes.reset
       change.person.name_changes.reset
-      Audit.final!("#{person.name}の#{change.class.model_name_label}(#{change.date_label})を取り消した: #{reason}")
+      Audit.final!("#{person.name}の#{change.class.model_name.human}(#{change.date_label})を取り消した: #{reason}")
       cancellation
     end
   end

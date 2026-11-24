@@ -8,8 +8,6 @@ class RegistrationFiling::Correction < ApplicationRecord
   belongs_to :recorded_by, class_name: "User", optional: true
   validates :note, presence: true
 
-  def self.model_name_label = "登記の申請の補正"
-
   def self.record!(filing, noticed_on:, note:, by: nil)
     note = note.to_s.strip
     raise ArgumentError, "求められたことを書いてください" if note.empty?

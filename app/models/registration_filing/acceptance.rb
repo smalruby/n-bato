@@ -7,8 +7,6 @@ class RegistrationFiling::Acceptance < ApplicationRecord
   belongs_to :registration_filing
   belongs_to :recorded_by, class_name: "User", optional: true
 
-  def self.model_name_label = "登記の申請の受付"
-
   def self.accept!(filing, accepted_on:, receipt_number: "", by: nil)
     raise ArgumentError, "まだ申請していません" unless filing.status == "submitted"
 
