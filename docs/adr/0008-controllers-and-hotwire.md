@@ -26,7 +26,9 @@ decision-makers: 理事長(ユーザー)・Claude
 
 * 例: 承認は POST /journal_proposals/:id/approval → JournalProposals::ApprovalsController#create。却下は /rejection。
 * コントローラーがするのは、①パラメーターを確かめる、②イベントの入口(リソースなら save)を呼ぶ、③画面に渡す変数を用意する、の 3 つ。
-* 画面の部分的な更新は Turbo Stream で返す。自動保存・元に戻すの仕組み(Stimulus)は、そのまま使う。
+* 画面の返し方は、いまは 2 つ: 出来事は送ったあと別の画面に移る(PRG。ADR-0033)、入力は自動保存の JSON(`AutosaveResponse`)。自動保存・元に戻すの仕組み(Stimulus)は、そのまま使う。
+* 画面の一部だけを書き換える必要のある画面ができたら、そのときに Turbo Stream を使う(ジョブの進み具合の知らせ #23 で Action Cable を使うときの見込み)。
+  * 2026-11-25 に直した。はじめは「画面の部分的な更新は Turbo Stream で返す」と書いていたが、Turbo Stream を使っている画面が無く、実装と食い違っていたため(開発QAボード 第8回 8-8、Issue #28)。
 
 ### 結果
 
@@ -35,4 +37,4 @@ decision-makers: 理事長(ユーザー)・Claude
 
 ### 確かめ方
 
-移した業務から順に、独自のアクション(member の post など)をルートから無くす。
+移した業務から順に、独自のアクション(member の post など)をルートから無くす。新しく足すのは禁止(レビューで Must。開発QAボード 第8回 8-1、Issue #28)。
