@@ -9,8 +9,8 @@ class ProcedureSteps::StatusChangesController < ApplicationController
   def create
     status = params[:status].presence_in(NOTICES.keys) or return back(alert: "状態が分かりません")
 
-    if status == "done" && @step[:status] != "done" && (reason = @step.blocked_reason)
-      return back(alert: reason)
+    if status == "done" && @step[:status] != "done" && (blocked = @step.complete_blocked_reason)
+      return back(alert: blocked.message)
     end
 
     changed = ProcedureStep::StatusChange.change!(@step, status:, on: completed_on, reason: params[:reason].to_s, by: Current.user)

@@ -38,8 +38,8 @@ class VouchersController < ApplicationController
   end
 
   def destroy
-    if @voucher.journal_proposals.exists?
-      redirect_to @voucher, alert: "AI の提案がある証憑は削除できません(提案は記録として残します)。記帳しないときは「記帳しない」にしてください"
+    if (blocked = @voucher.destroy_blocked_reason)
+      redirect_to @voucher, alert: blocked.message
     else
       @voucher.destroy!
       redirect_to vouchers_path, notice: "証憑を削除しました"

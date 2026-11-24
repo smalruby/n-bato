@@ -634,3 +634,20 @@ textarea.nb-input { height: auto; padding: var(--space-2) var(--space-3); border
 .nb-crumb [aria-current="page"] { color: var(--ink); overflow-wrap: anywhere; }
 .nb-crumb-sep { color: var(--ink-muted); }
 .nb-crumb-bar { padding: var(--space-2) var(--space-4) 0; }
+
+/* DisabledAction — いまは使えない操作と、その理由(見直し第22回)。灰色のボタン(aria-disabled)+ 丸の (i) + 説明(Excel の ScreenTip)。
+   説明は guide の線(説明だと分かる色)。位置は Stimulus の info-tip が決める(画面の端からはみ出さない)。 */
+.nb-disabled-action, .nb-info { display: inline-flex; align-items: center; gap: var(--space-2); vertical-align: middle; }
+.nb-btn[aria-disabled="true"], .nb-btn[aria-disabled="true"]:hover { color: var(--ink-muted); background: var(--readonly-fill); border-color: var(--grid-line); cursor: not-allowed; filter: none; }
+.nb-info-tip { position: relative; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 16px; height: 16px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--guide-line); background: var(--sheet); color: var(--guide-line); font-family: var(--font-num); font-size: 11px; font-weight: 700; line-height: 1; cursor: help; }
+.nb-info-tip::after { content: ""; position: absolute; inset: -6px; } /* 押せる広さ(スマホ)を 28px に */
+.nb-info-tip:hover, .nb-info-tip[aria-expanded="true"] { background: var(--guide-fill); }
+.nb-info-tip:focus-visible { outline: 2px solid var(--select); outline-offset: 1px; }
+.nb-tip { position: fixed; z-index: 40; box-sizing: border-box; width: max-content; max-width: min(360px, calc(100vw - 2 * var(--space-5))); display: grid; gap: var(--space-1);
+  padding: var(--space-3) var(--space-4); background: var(--sheet); color: var(--ink); border: 1px solid var(--guide-line); border-radius: var(--radius-2); box-shadow: var(--shadow-pop);
+  font-family: var(--font-ui); font-size: 12px; font-weight: 400; line-height: 18px; text-align: left; white-space: normal; }
+.nb-tip[hidden] { display: none; }
+.nb-tip-title { font-weight: 700; }
+.nb-tip-sub { color: var(--ink-muted); font-size: 11px; }
+.nb-tip a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }

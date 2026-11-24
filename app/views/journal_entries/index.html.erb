@@ -13,7 +13,7 @@
     <div class="nb-toolbar">
       <% if @year %>
         <% if @working_period&.provisional? %>
-          <button type="button" class="nb-btn" disabled title="会計王へ書き出せるのは、<%= @working_period.previous.fiscal_year.label %>を締めたあとです"><%= icon(:export) %>新規分を SIWAKE で書き出す</button>
+          <%= disabled_action "新規分を SIWAKE で書き出す", @working_period.siwake_export_blocked_reason, icon: :export %>
         <% else %>
           <%= link_to fiscal_year_siwake_export_path(@year, only: "new"), class: "nb-btn" do %><%= icon(:export) %>新規分を SIWAKE で書き出す<% end %>
         <% end %>

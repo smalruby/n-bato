@@ -167,7 +167,9 @@ class ProcedureResolutionEventsFlowTest < ActionDispatch::IntegrationTest
     assert_equal "もう記録に反映してあります", flash[:alert]
     # 反映した議案のある決議の同意は、取り消せない(ボタンはそのまま。押すとわけを出す)
     post resolution_consent_cancellation_path(resolution, resolution.consents.sole)
-    assert_equal "記録に反映した議案があるので、同意の記録は取り消せません", flash[:alert]
+    assert_equal resolution.consents.sole.cancel_blocked_reason.message, flash[:alert]
+    get resolution_path(resolution)
+    assert_select ".nb-disabled-action button[aria-disabled=true]", text: "取り消す"
     assert resolution.reload.established?
 
     delete resolution_path(resolution)

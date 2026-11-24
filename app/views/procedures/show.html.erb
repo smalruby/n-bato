@@ -65,7 +65,7 @@
             </ul></div>
         <% end %>
         <% if @step.wait_items.any? %>
-          <div><h3>返事を待つもの</h3>
+          <div id="waits"><h3>返事を待つもの</h3>
             <ul class="nb-check">
               <% @step.wait_items.each do |label| %>
                 <% checked = @step.checked?(label) %>
@@ -87,21 +87,28 @@
         <% case @step.status %>
         <% when "done", "skipped" %>
           <span class="nb-btn-note"><%= step_meta(@step) %></span>
-          <% if @step.persisted? && @step[:status] != "open" && !defn.final? %><%= button_to "済みを取り消す", procedure_step_status_changes_path(@run, @step.key), params: { status: "open" }, class: "nb-btn", form: { style: "display:inline" } %><% end %>
+          <%# 取り消せない(final を済みにした・ほかの記録から済み)ときは、灰色のボタンと (i) で理由を出す(デザインシステム DisabledAction) %>
+          <% if (blocked = @step.reopen_blocked_reason) %>
+            <%= disabled_action "済みを取り消す", blocked %>
+          <% elsif @step.persisted? && @step[:status] != "open" %>
+            <%= button_to "済みを取り消す", procedure_step_status_changes_path(@run, @step.key), params: { status: "open" }, class: "nb-btn", form: { style: "display:inline" } %>
+          <% end %>
         <% else %>
-          <% reason = @step.blocked_reason %>
-          <% if defn.final? %>
+          <% blocked = @step.complete_blocked_reason %>
+          <% label = defn.final? ? (defn.final_label || "#{defn.title}を記録する") : "この手順を済みにする" %>
+          <% if blocked %>
+            <%= disabled_action label, blocked %>
+          <% elsif defn.final? %>
             <%= form_with url: procedure_step_status_changes_path(@run, @step.key), style: "display:inline-flex;gap:4px;align-items:center",
                   data: { controller: "confirm-twice", action: "submit->confirm-twice#check" } do |f| %>
               <%= hidden_field_tag :status, "done", id: nil %>
-              <%= f.date_field :completed_on, value: Date.current, class: "nb-input nb-num", style: "width:140px;border-color:var(--grid-line-strong)", "aria-label": "日付", disabled: reason.present? %>
-              <%= f.button defn.final_label || "#{defn.title}を記録する", class: "nb-btn nb-btn--danger", disabled: reason.present?,
-                    data: { confirm_twice_target: "button", armed_label: "もう一度押すと記録します" } %>
+              <%= f.date_field :completed_on, value: Date.current, class: "nb-input nb-num", style: "width:140px;border-color:var(--grid-line-strong)", "aria-label": "日付" %>
+              <%= f.button label, class: "nb-btn nb-btn--danger", data: { confirm_twice_target: "button", armed_label: "もう一度押すと記録します" } %>
             <% end %>
-            <span class="nb-btn-note"><%= reason || "取り消せません" %></span>
+            <span class="nb-btn-note">取り消せません</span>
           <% else %>
-            <%= button_to "この手順を済みにする", procedure_step_status_changes_path(@run, @step.key), params: { status: "done" }, class: "nb-btn nb-btn--primary", disabled: reason.present?, form: { style: "display:inline" } %>
-            <span class="nb-btn-note"><%= reason || "元に戻せます" %></span>
+            <%= button_to label, procedure_step_status_changes_path(@run, @step.key), params: { status: "done" }, class: "nb-btn nb-btn--primary", form: { style: "display:inline" } %>
+            <span class="nb-btn-note">元に戻せます</span>
           <% end %>
           <% if defn.optional? %>
             <%= form_with url: procedure_step_status_changes_path(@run, @step.key), style: "display:inline-flex;gap:4px" do |f| %>

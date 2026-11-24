@@ -48,7 +48,7 @@
   </div>
 </div>
 
-<h2 class="section-title">AI の仕訳提案</h2>
+<h2 class="section-title" id="proposals">AI の仕訳提案</h2>
 <% if @proposals.empty? %>
   <p class="text-stone-500 text-sm mb-4">まだ提案はありません。<%= link_to "自分で仕訳を入力する", new_journal_entry_path, class: "underline" %></p>
 <% end %>
@@ -98,5 +98,9 @@
 <div class="flex gap-2 mt-6">
   <%= link_to "一覧へ", vouchers_path, class: "btn-secondary" %>
   <% unless @voucher.status.in?(%w[booked rejected]) %><%= button_to "記帳しない", reject_voucher_path(@voucher), class: "btn-danger" %><% end %>
-  <%= button_to "削除", @voucher, method: :delete, class: "btn-danger", form: { data: { turbo_confirm: "削除しますか？" } } %>
+  <% if (blocked = @voucher.destroy_blocked_reason) %>
+    <%= disabled_action "削除", blocked %>
+  <% else %>
+    <%= button_to "削除", @voucher, method: :delete, class: "btn-danger", form: { data: { turbo_confirm: "削除しますか？" } } %>
+  <% end %>
 </div>

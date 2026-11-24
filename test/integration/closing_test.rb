@@ -18,7 +18,8 @@ class ClosingTest < ActionDispatch::IntegrationTest
 
   test "提出を記録するまでは締められず、締めると次の年度の期首の残高ができる" do
     get procedure_path(@run, step: "close_year")
-    assert_match "提出した日を先に記録してください", response.body
+    assert_select ".nb-disabled-action button[aria-disabled=true]", text: "この年度を締める"
+    assert_select ".nb-tip", text: /まだ締められません.*提出した日がまだ記録されていません/
 
     AnnualReport::Milestone.record!(@report, "submitted", on: Date.new(2026, 11, 24))
     post procedure_step_status_changes_path(@run, "close_year"), params: {status: "done", completed_on: "2026-11-25"}

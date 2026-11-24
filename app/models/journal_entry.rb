@@ -45,6 +45,22 @@ class JournalEntry < ApplicationRecord
   # 取り消せるか(会計王から取り込んだ仕訳は会計王で直す)
   def cancellable? = !imported? && !cancelled?
 
+  # 書き換え・削除できないときの理由(BlockedReason)。できるなら nil。仕訳の画面・表と、コントローラーの断りの文で使う。
+  def edit_blocked_reason
+    if imported?
+      BlockedReason.new(title: "この仕訳は直せません", reason: "会計王から取り込んだ仕訳は、会計王が正(帳簿の元)なので、ここでは書き換えも削除もできません。",
+        what: "会計王から取り込みました#{"(#{siwake_import.filename})" if siwake_import&.filename.present?}",
+        link_label: "取り込みを見る", link_target: siwake_import, alternative: "代わりに: 会計王で直して、取り込み直してください。")
+    elsif cancelled?
+      BlockedReason.new(title: "この仕訳は直せません", reason: "取り消した仕訳は、取り消した記録として残すので、書き換えも削除もできません(帳簿には数えません)。",
+        what: "#{cancellation.cancelled_at.strftime("%Y/%m/%d")} に取り消しました")
+    elsif proposal_approval
+      BlockedReason.new(title: "この仕訳は直せません", reason: "AI の提案を承認して記帳した仕訳は、承認の記録として残すので、書き換えも削除もできません。",
+        what: "証憑の AI の提案を承認して記帳しました", link_label: "証憑を見る", link_target: journal_proposal&.voucher,
+        alternative: "代わりに: 「取り消す」を押すと、証憑の画面に正しい提案がもう一度出ます。")
+    end
+  end
+
   before_create :assign_slip_number, unless: :slip_number?
   def fiscal_year_object = FiscalYear.new(fiscal_year)
 

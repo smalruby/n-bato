@@ -19,6 +19,15 @@ class Voucher < ApplicationRecord
   def status_label = STATUSES[status]
   def open_proposals = journal_proposals.pending
 
+  # 消せないときの理由(BlockedReason)。消せるなら nil。証憑の画面と、消そうとして断るときの文で使う。
+  def destroy_blocked_reason
+    return unless (count = journal_proposals.count).positive?
+
+    BlockedReason.new(title: "この証憑は消せません", reason: "AI の提案は記録として残すので、提案のある証憑は消せません。",
+      what: "AI の仕訳の提案が #{count} 件あります", link_label: "提案を見る", link_target: "#proposals",
+      alternative: ("代わりに: 記帳しないときは「記帳しない」を押してください。" unless status.in?(%w[booked rejected])))
+  end
+
   # 証憑は長いイベント(docs/data-model.md)。いまの状態(status)を書き換えてよいのは、詳細のイベントの作る入口だけ。
   # AI の作業中・エラー・記帳しない は、提案のイベントからは決まらない状態なので、そのまま残す。
   MANUAL_STATUSES = %w[proposing error rejected].freeze
