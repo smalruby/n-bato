@@ -110,7 +110,8 @@ jobs:
 
   # ブラウザを動かすテスト(test/system、Playwright の Chromium。issue #14)。速い bin/rails test とは分けて流す
   system_test:
-    runs-on: ubuntu-latest
+    # Playwright 1.58 は ubuntu 26.04(いまの ubuntu-latest)の Chromium に対応していない。版を上げるまで 24.04 に固定する
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
