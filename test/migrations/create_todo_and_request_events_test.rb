@@ -8,7 +8,8 @@ class CreateTodoAndRequestEventsMigrationTest < ActiveSupport::TestCase
   # 使い捨てのデータベースは、テストのトランザクションに入れない(テストのデータベースには書かない)
   self.use_transactional_tests = false
 
-  class Scratch < ActiveRecord::Base
+  # 使い捨ての SQLite につなぐので、アプリの接続(ApplicationRecord)とは分ける
+  class Scratch < ActiveRecord::Base # standard:disable Rails/ApplicationRecord
     self.abstract_class = true
   end
 

@@ -23,7 +23,7 @@ class IncomingRequestMessage::Adoption < ApplicationRecord
       # 画面からはリクエストのトランザクションの中で呼ぶ。途中で失敗したら(コントローラーで rescue しても)途中までの変更を残さないよう、
       # 入れ子でも自分のセーブポイントを作る
       transaction(requires_new: true) do
-        attrs = (p["request"] || {}).slice("title", "counterpart", "received_on", "due_on").reject { |_, v| v.blank? }
+        attrs = (p["request"] || {}).slice("title", "counterpart", "received_on", "due_on").compact_blank
         attrs = attrs.to_h { |k, v| [ k, k.end_with?("_on") ? (Date.iso8601(v) rescue nil) : v ] }.compact
         request.update!(attrs) if attrs.any?
         created = create_todos(request, p["todos_new"])
