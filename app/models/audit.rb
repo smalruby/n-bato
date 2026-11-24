@@ -141,6 +141,7 @@ module Audit
       op = AuditOperation.create!(user:, scope:, kind:, target:, label:)
       Current.audit_operation = op
       yield
+      check_states!(target)
       op
     ensure
       Current.audit_operation = nil
@@ -184,6 +185,18 @@ module Audit
     end
   rescue *REVERT_ERRORS => e
     raise Conflict, "#{change.model_label}をやり直せませんでした(#{e.message})"
+  end
+
+  # 元に戻す・やり直すのあと、いまの状態の列を持つ記録(やること・依頼)が、イベントから決まる状態と合っているか確かめる。
+  # 列だけを見る check_unchanged! では、別の操作で同じ状態に戻ったとき(A → B → A)に気付けないため(docs/adr/0034)。
+  # 記録の種類は audit_state_owner(change) で、確かめる記録(state_mismatches を持つ)を返す。
+  def check_states!(op)
+    op.audit_changes.filter_map { it.auditable_class.try(:audit_state_owner, it) }.uniq.each do |record|
+      next if (diff = record.state_mismatches).empty?
+
+      name = record.class.try(:model_name_label) || record.class.model_name.human
+      raise Conflict, "#{name}(##{record.id})の#{diff.join('・')}が、そのあと別の操作で変わっています"
+    end
   end
 
   # 戻す前に、そのあと別の操作で変わっていないか確かめる。

@@ -10,6 +10,7 @@ class IncomingRequest::Settlement < ApplicationRecord
   belongs_to :settled_by, class_name: "User", optional: true
 
   def self.model_name_label = "依頼の解決"
+  def self.audit_state_owner(change) = IncomingRequest.find_by(id: change.value("incoming_request_id"))
 
   def self.settle!(request, force: false, by: Current.user, on: Date.current)
     raise ArgumentError, "もう解決にしてあります" if request.resolved?

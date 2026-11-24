@@ -132,6 +132,28 @@ class TodoEventsTest < ActiveSupport::TestCase
     assert_equal "active", op.reload.state
   end
 
+  def op_in(scope, &) = Audit.operation(user: @user, scope:) { ApplicationRecord.transaction(&) }
+
+  test "B3: 別の画面で同じ状態に戻ったあとに、古い操作を元に戻すと Conflict(列と最後の変化が食い違うため)" do
+    op_in("todos") { Todo::StatusChange.change!(@todo, status: "doing", by: @user) }
+    op_in("incoming_request_messages") { Todo::StatusChange.change!(@todo.reload, status: "wait", waiting_on: "返事", by: @user) }
+    op_in("incoming_request_messages") { Todo::StatusChange.change!(@todo.reload, status: "doing", by: @user) }
+    error = assert_raises(Audit::Conflict) { Audit.undo!(@user, "todos") }
+    assert_match "やること", error.message
+    assert_equal [ "doing", 3 ], [ @todo.reload.status, @todo.status_changes.count ]
+    assert_empty ModelVerification.mismatches
+  end
+
+  test "B3: 元に戻したあと、別の画面で同じ状態に戻ってから、やり直すと Conflict" do
+    op_in("todos") { Todo::StatusChange.change!(@todo, status: "doing", by: @user, at: 1.hour.ago) }
+    Audit.undo!(@user, "todos")
+    op_in("incoming_request_messages") { Todo::StatusChange.change!(@todo.reload, status: "wait", waiting_on: "返事", by: @user) }
+    op_in("incoming_request_messages") { Todo::StatusChange.change!(@todo.reload, status: "todo", by: @user) }
+    assert_raises(Audit::Conflict) { Audit.redo!(@user, "todos") }
+    assert_equal [ "todo", 2 ], [ @todo.reload.status, @todo.status_changes.count ]
+    assert_empty ModelVerification.mismatches
+  end
+
   test "照合: 列を直接書き換えると食い違いが出る" do
     Todo::StatusChange.change!(@todo, status: "wait", waiting_on: "返事")
     @todo.update_columns(status: "done")

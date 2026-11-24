@@ -20,9 +20,9 @@ module ModelVerification
   # 依頼: 状態と解決した日が「解決にした」と同じか
   def incoming_request_mismatches
     IncomingRequest.includes(:settlement).filter_map do |r|
-      want = r.derived_state
-      next if [ r.status, r.resolved_on ] == want.values_at("status", "resolved_on")
+      next if r.state_mismatches.empty?
 
+      want = r.derived_state
       "依頼 ##{r.id}: いまの状態 #{r.status}・#{r.resolved_on.inspect} / イベントから #{want['status']}・#{want['resolved_on'].inspect}"
     end
   end

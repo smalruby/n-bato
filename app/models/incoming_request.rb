@@ -27,6 +27,15 @@ class IncomingRequest < ApplicationRecord
   # いまの状態は「解決にした」があるかで決まる(docs/adr/0005)
   def derived_state = { "status" => settlement ? "resolved" : "open", "resolved_on" => settlement&.settled_on }
 
+  # いまの状態の列が「解決にした」と食い違っている列の名前(model:verify・元に戻すのあと)
+  def state_mismatches
+    want = derived_state
+    STATE_COLUMNS.reject { Audit.dump(self[it]).to_s == Audit.dump(want[it]).to_s }
+  end
+
+  # 元に戻す・やり直すのあとに、状態を確かめる依頼(Audit.check_states!)
+  def self.audit_state_owner(change) = find_by(id: change.auditable_id)
+
   # 下書きを消したあと、何も残っていない依頼は消してよい(まだ何も始まっていない)
   def discardable? = messages.none? && todos.none? && settlement.nil?
 

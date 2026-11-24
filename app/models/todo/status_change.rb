@@ -13,6 +13,8 @@ class Todo::StatusChange < ApplicationRecord
 
   def self.model_name_label = "やることの状態の変化"
 
+  def self.audit_state_owner(change) = Todo.find_by(id: change.value("todo_id"))
+
   def status_label = Todo::STATUSES.fetch(status)
 
   # status: todo・doing・wait・done。waiting_on は待ちのとき、note は済みのときのひとこと(決まりで変えたときは理由)。
