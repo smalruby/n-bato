@@ -1,0 +1,110 @@
+name: Restore
+
+# 書く前のバックアップ(storage/backups/)を、本番の本体の DB に戻す(bin/prod-restore)。docs/deploy.md
+#
+#   gh workflow run restore.yml --ref main -f backup=production-YYYYMMDD-HHMMSS.sqlite3
+#
+# - 起動するのは開発の Claude(ユーザーに確かめてから)。そのあと **理事長が GitHub の画面で承認する**
+#   (Environment「production-restore」の Required reviewers。AI は承認しない)。
+# - Actions から流すのは、新しいコンテナを起こすので ghcr.io のトークンが要り、Mac はそれを持たないため
+#  (開発QAボード 第9回 r9-ghcr: actions-only)。トークンはこのジョブの GITHUB_TOKEN(ジョブが終われば使えなくなる)。
+# - DEPLOY_FREEZE では止めない(戻しは、止めている時期にも使う逃げ道のため)。
+# - Deploy と同じ順番待ち(concurrency deploy-production)に並ぶので、デプロイと重ならない。サーバーの側でも
+#   Kamal のロックを取る(bin/prod-restore)。
+# - 要約に書くのは、戻した名前と /up の結果だけ。
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup:
+        description: 戻すバックアップの名前(production-YYYYMMDD-HHMMSS.sqlite3。一覧は bin/prod-backup --list)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    name: 戻してよいかを理事長が確かめる
+    runs-on: ubuntu-latest
+    # Environment「production-restore」: main だけ・承認者は理事長・秘密は置かない。承認されるとこのジョブが動く
+    environment: production-restore
+    steps:
+      - name: 名前の形と main であることを確かめる
+        env:
+          BACKUP: ${{ inputs.backup }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "${REF}" != "refs/heads/main" ]; then
+            echo "::error::戻しは main から起動します(いま: ${REF})"
+            exit 1
+          fi
+          if ! [[ "${BACKUP}" =~ ^production-[0-9]{8}-[0-9]{6}\.sqlite3$ ]]; then
+            echo "::error::名前の形が違います(production-YYYYMMDD-HHMMSS.sqlite3)"
+            exit 1
+          fi
+          echo "### 戻す: \`${BACKUP}\`(承認された)" >> "$GITHUB_STEP_SUMMARY"
+
+  restore:
+    name: 本番の DB を戻す(bin/prod-restore)
+    needs: approve
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://n-bato.smalruby.app
+    permissions:
+      contents: read
+      packages: read # ghcr.io/smalruby/n-bato を取ってくる(GITHUB_TOKEN)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/kamal-setup
+        with:
+          known-hosts: ${{ vars.NBATO_SSH_KNOWN_HOSTS }}
+
+      - name: bin/prod-restore
+        env:
+          BACKUP: ${{ inputs.backup }}
+          # 承認のあとなので、名前の入れ直しの代わりに同じ名前を渡す
+          NBATO_RESTORE_CONFIRMED: ${{ inputs.backup }}
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          NBATO_MAIL_FROM: ${{ secrets.NBATO_MAIL_FROM }}
+          NBATO_BACKUP_BUCKET: ${{ secrets.NBATO_BACKUP_BUCKET }}
+          NBATO_BACKUP_AWS_ACCESS_KEY_ID: ${{ secrets.NBATO_BACKUP_AWS_ACCESS_KEY_ID }}
+          NBATO_BACKUP_AWS_SECRET_ACCESS_KEY: ${{ secrets.NBATO_BACKUP_AWS_SECRET_ACCESS_KEY }}
+          NBATO_SSH_PRIVATE_KEY: ${{ secrets.NBATO_SSH_PRIVATE_KEY }}
+          KAMAL_REGISTRY_USERNAME: ${{ github.actor }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in RAILS_MASTER_KEY ANTHROPIC_API_KEY SMTP_USERNAME SMTP_PASSWORD NBATO_MAIL_FROM \
+                      NBATO_BACKUP_BUCKET NBATO_BACKUP_AWS_ACCESS_KEY_ID NBATO_BACKUP_AWS_SECRET_ACCESS_KEY \
+                      NBATO_SSH_PRIVATE_KEY KAMAL_REGISTRY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Environment production の Secrets に ${name} がありません(docs/deploy.md)"
+              missing=1
+            fi
+          done
+          [ "${missing}" -eq 0 ] || exit 1
+
+          trap 'bin/kamal registry logout --skip-local || echo "::warning::サーバーの ghcr.io からの logout に失敗した(トークンはジョブの終わりで使えなくなる)"' EXIT
+
+          # bin/prod-restore は、置き換えて /up が 200 になったときだけ成功で終わる
+          status=0
+          bin/prod-restore "${BACKUP}" || status=$?
+          if [ "${status}" -eq 0 ]; then up="200"; else up="確かめられなかった(戻しが途中で止まったか /up が 200 にならない。このジョブのログと bin/kamal app logs で確かめる)"; fi
+          echo "### 戻した: \`${BACKUP}\` / /up: ${up}" >> "$GITHUB_STEP_SUMMARY"
+          exit "${status}"
