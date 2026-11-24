@@ -10,11 +10,17 @@ class ProcedureScreensTest < ActionDispatch::IntegrationTest
 
   test "一覧: 操作している年度の手続きと、始められる手続き" do
     last_year = FiscalYear.current.year - 1
-    ProcedureRun.create!(kind: "annual_report", period: last_year)
     get year_switch_path(last_year)
     get procedures_path
     assert_response :success
-    assert_match "事業報告書等の提出", response.body
+    assert_match "まだ始めた手続きはありません", response.body
+    assert_select "form[action=?]", procedures_path(kind: "annual_report", period: last_year), 1, "まだ始めていなければ「始める」に出す"
+
+    run = ProcedureRun.create!(kind: "annual_report", period: last_year)
+    get procedures_path
+    assert_select "a.nb-proc-name[href=?]", procedure_path(run), text: "事業報告書等の提出"
+    assert_select ".nb-next a[href=?]", procedure_path(run, step: run.next_step.key)
+    assert_select "form[action=?]", procedures_path(kind: "annual_report", period: last_year), 0, "始めた手続きは「始める」に出さない"
   end
 
   test "メモは自動保存、済みを取り消す、対象外にする" do
