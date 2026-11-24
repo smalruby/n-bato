@@ -46,8 +46,8 @@
 - 一覧の `index` は、絞り込みのクエリを覚える(`remember_list_url`)。詳しい画面にはパンくず(`crumbs`)を付ける(ADR-0033)。
 - 監査の役割は閲覧だけ。`ApplicationController#read_only_for_auditor` が GET 以外を止める。止めないコントローラーは `READ_ONLY_ALLOWED` に足す。
 - 締めた年度を変えるときは理由を書いてもらう(`ClosedYearGuard#closed_year_reason_ok?`、モデルでは `Audit.reason!`・`FiscalPeriod.changed_after_close!`)。
-- **7 つの外のアクション(開発QAボード 第8回 8-1)**: 新しく足すのは禁止(レビューで Must)。いま残っているもの(`vouchers#propose`・`reject`、`registration_filings#include`・`exclude`、`fiscal_periods#start_next`・`reopen`、`people#apply_to_years`・`accounts#apply_to_years`、`undo#undo`・`redo`、`assistant#perform`、`passkeys` の `*_options`・`verify*` など)は、その業務をイミュータブルデータモデルに移すときに一緒に直す。モデルを移し終えた入会(`member_applications#approve`・`reject`)は、すぐ直す(#36)。
-- **操作履歴の名前を付ける場所(開発QAボード 第8回 8-4)**: `Audit.label!`・`Audit.final!` は入口(モデル)で呼ぶ。rake や AI から同じ出来事を起こしても、同じ名前が付くようにするため(ADR-0004)。いまコントローラーで付けているところ(`journal_entries`・`people`・`accounts`・`member_applications`・`fiscal_periods`・`procedure_steps`・`filing_destinations`・`passkeys` など)は、その業務を移すときに入口へ移す。新しくコントローラーで付けるのは、レビューで Must。
+- **7 つの外のアクション(開発QAボード 第8回 8-1)**: 新しく足すのは禁止(レビューで Must)。いま残っているもの(`vouchers#propose`・`reject`、`registration_filings#include`・`exclude`、`fiscal_periods#start_next`・`reopen`、`people#apply_to_years`・`accounts#apply_to_years`、`undo#undo`・`redo`、`assistant#perform`、`passkeys` の `*_options`・`verify*` など)は、その業務をイミュータブルデータモデルに移すときに一緒に直す。モデルを移し終えた入会は、`member_applications/approval`・`rejection` の create に直した(#36)。
+- **操作履歴の名前を付ける場所(開発QAボード 第8回 8-4)**: `Audit.label!`・`Audit.final!` は入口(モデル)で呼ぶ。rake や AI から同じ出来事を起こしても、同じ名前が付くようにするため(ADR-0004)。いまコントローラーで付けているところ(`journal_entries`・`people`・`accounts`・`fiscal_periods`・`procedure_steps`・`filing_destinations`・`passkeys` など)は、その業務を移すときに入口へ移す。新しくコントローラーで付けるのは、レビューで Must。
 
 **要確認**
 

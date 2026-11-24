@@ -11,7 +11,7 @@ class MemberApplication::Approval < ApplicationRecord
 
   def self.model_name_label = "入会を認めた"
 
-  def self.approve!(application, fiscal_year:, joined_on:, person: nil, by: nil, at: Time.current)
+  def self.approve!(application, fiscal_year:, joined_on:, by:, person: nil, at: Time.current)
     raise ArgumentError, "届いた申込ではありません" unless application.received?
     raise ArgumentError, "#{fiscal_year}年度は締めてあります。年度の締めを解いてから認めてください" if FiscalPeriod.for(fiscal_year)&.closed?
 
@@ -21,7 +21,7 @@ class MemberApplication::Approval < ApplicationRecord
       person.memberships.find_or_create_by!(fiscal_year:, kind: "regular") { it.joined_on = joined_on }
       approval = create!(member_application: a, approver: by, person:, fiscal_year:, joined_on:, approved_at: at)
       a.update!(status: "approved", person:, fiscal_year:, joined_on:, decided_on: at.to_date)
-      Audit.final!
+      Audit.final!("#{a.name}さんの入会を認めた(#{fiscal_year}年度の正会員)")
       approval
     end
   end
