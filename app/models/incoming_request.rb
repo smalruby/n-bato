@@ -3,7 +3,7 @@
 # status・resolved_on は「いまの状態」で、IncomingRequest::Settlement.settle! だけが書き換える(照合は model:verify)。
 # 題・相手・届いた日・期限・送付状の下書きは中身で、AI の案を決めたとき(IncomingRequestMessage::Adoption)などに直す。
 class IncomingRequest < ApplicationRecord
-  STATUSES = { "open" => "進行中", "resolved" => "解決" }.freeze
+  STATUSES = {"open" => "進行中", "resolved" => "解決"}.freeze
   STATE_COLUMNS = %w[status resolved_on].freeze
 
   has_many :todos, -> { order(:position, :id) }, dependent: :destroy
@@ -11,7 +11,7 @@ class IncomingRequest < ApplicationRecord
   has_one :settlement, class_name: "IncomingRequest::Settlement", dependent: :restrict_with_error
 
   validates :title, presence: true
-  validates :status, inclusion: { in: STATUSES.keys }
+  validates :status, inclusion: {in: STATUSES.keys}
   validate :state_written_by_settlement
 
   scope :ordered, -> { order(Arel.sql("status = 'resolved', due_on IS NULL, due_on, id")) }
@@ -25,7 +25,7 @@ class IncomingRequest < ApplicationRecord
   def audit_fiscal_year = nil
 
   # いまの状態は「解決にした」があるかで決まる(docs/adr/0005)
-  def derived_state = { "status" => settlement ? "resolved" : "open", "resolved_on" => settlement&.settled_on }
+  def derived_state = {"status" => settlement ? "resolved" : "open", "resolved_on" => settlement&.settled_on}
 
   # いまの状態の列が「解決にした」と食い違っている列の名前(model:verify・元に戻すのあと)
   def state_mismatches
@@ -55,7 +55,7 @@ class IncomingRequest < ApplicationRecord
     if new_record?
       errors.add(:base, "依頼は進行中で作ってください(解決は IncomingRequest::Settlement.settle!)") unless status == "open" && resolved_on.nil?
     elsif (changed = STATE_COLUMNS & changed_attribute_names_to_save).any?
-      errors.add(:base, "#{changed.join('・')} は直接書き換えません。IncomingRequest::Settlement.settle!(依頼) を使ってください")
+      errors.add(:base, "#{changed.join("・")} は直接書き換えません。IncomingRequest::Settlement.settle!(依頼) を使ってください")
     end
   end
 end

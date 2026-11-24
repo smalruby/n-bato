@@ -37,6 +37,6 @@ class Backup::SnapshotTest < ActiveSupport::TestCase
     out = Pathname(Dir.mktmpdir).join("b.tar.gz")
     Backup::Archive.create!(storage_dir: @storage, out_path: out.to_s)
     names = Zlib::GzipReader.open(out.to_s) { |gz| Gem::Package::TarReader.new(gz).map(&:full_name) }
-    assert_equal [ "production.sqlite3" ], names
+    assert_equal ["production.sqlite3"], names
   end
 end

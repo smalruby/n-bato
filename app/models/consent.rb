@@ -3,15 +3,16 @@
 # 取り消したあとは、同じ人の同意をもう一度記録できる(取り消していない同意は 1 人 1 つ)。
 class Consent < ApplicationRecord
   include EventRecord
+
   event_of :consented_on, entry: :record!
 
-  VIAS = { "paper" => "書面", "email" => "電子メール" }.freeze
+  VIAS = {"paper" => "書面", "email" => "電子メール"}.freeze
   belongs_to :resolution
   belongs_to :person
   has_one :cancellation, class_name: "Consent::Cancellation", dependent: :restrict_with_error
 
   validates :consented_on, presence: true
-  validates :via, inclusion: { in: VIAS.keys }
+  validates :via, inclusion: {in: VIAS.keys}
   validate :one_active_consent_per_person, on: :create
 
   scope :active, -> { where.not(id: Consent::Cancellation.select(:consent_id)) }

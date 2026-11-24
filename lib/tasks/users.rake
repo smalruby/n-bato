@@ -14,9 +14,9 @@ namespace :users do
   task roles: :environment do
     user = User.find_by!(email_address: ENV.fetch("EMAIL"))
     user.roles = ENV.fetch("ROLES").split(",")
-    abort "役割は #{User::ROLES.keys.join(' / ')} から選んでください" if user.roles.empty?
+    abort "役割は #{User::ROLES.keys.join(" / ")} から選んでください" if user.roles.empty?
     user.role = user.roles.first unless user.can_use?(user.role)
     user.save!
-    puts "#{user.email_address}: #{user.roles.map { User::ROLES[it] }.join('・')}(いまは#{user.role_label})"
+    puts "#{user.email_address}: #{user.roles.map { User::ROLES[it] }.join("・")}(いまは#{user.role_label})"
   end
 end

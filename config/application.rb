@@ -25,7 +25,7 @@ module NBato
     config.i18n.default_locale = :ja
     # 画像の変換(サムネイル)は使わない
     config.active_storage.variant_processor = :disabled
-    config.i18n.available_locales = [ :ja, :en ]
+    config.i18n.available_locales = [:ja, :en]
     # config.eager_load_paths << Rails.root.join("extras")
   end
 end

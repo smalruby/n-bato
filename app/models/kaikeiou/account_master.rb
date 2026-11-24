@@ -17,9 +17,9 @@ module Kaikeiou
       rows.drop(header_index + 1).filter_map do |row|
         next if row.compact.empty?
 
-        level = col.(row, "階層レベル").to_i
-        kind = col.(row, "科目種類").to_s
-        name = col.(row, "勘定科目正式名称").to_s
+        level = col.call(row, "階層レベル").to_i
+        kind = col.call(row, "科目種類").to_s
+        name = col.call(row, "勘定科目正式名称").to_s
         if kind == "2"
           groups[level] = name.delete("【】（）《》").strip
           groups.delete_if { |l, _| l > level }
@@ -28,8 +28,8 @@ module Kaikeiou
         next unless kind == "0"
 
         Entry.new(
-          code: Integer(col.(row, "勘定科目コード")), name: name, short_name: col.(row, "勘定科目略式名称"),
-          nature_code: Integer(col.(row, "科目性格コード")), nature_name: col.(row, "科目性格名称"),
+          code: Integer(col.call(row, "勘定科目コード")), name: name, short_name: col.call(row, "勘定科目略式名称"),
+          nature_code: Integer(col.call(row, "科目性格コード")), nature_name: col.call(row, "科目性格名称"),
           kind:, level:, group_name: groups[level - 1]
         )
       end
@@ -42,8 +42,8 @@ module Kaikeiou
         next if row.compact.empty?
         next unless row[columns.index("部門タイプ")] == "0"
 
-        { code: Integer(row[columns.index("部門コード")]), name: row[columns.index("部門略式名称")],
-          full_name: row[columns.index("部門正式名称")] }
+        {code: Integer(row[columns.index("部門コード")]), name: row[columns.index("部門略式名称")],
+         full_name: row[columns.index("部門正式名称")]}
       end
     end
 

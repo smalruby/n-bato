@@ -5,7 +5,7 @@ class Passkey < ApplicationRecord
 
   validates :external_id, :public_key, presence: true
   validates :external_id, uniqueness: true
-  validates :name, length: { maximum: 60 }
+  validates :name, length: {maximum: 60}
 
   scope :ordered, -> { order(:created_at, :id) }
 

@@ -15,7 +15,7 @@ module ModelVerification
       next if s.state_mismatches.empty?
 
       want = s.derived_state
-      "手順 ##{s.id}: いまの状態 #{s[:status]}・#{s.completed_on.inspect} / イベントから #{want['status']}・#{want['completed_on'].inspect}"
+      "手順 ##{s.id}: いまの状態 #{s[:status]}・#{s.completed_on.inspect} / イベントから #{want["status"]}・#{want["completed_on"].inspect}"
     end
   end
 
@@ -23,7 +23,7 @@ module ModelVerification
   def annual_report_mismatches
     AnnualReport.includes(:milestones).filter_map do |r|
       diff = r.state_mismatches
-      "事業報告 #{r.fiscal_year}年度: #{diff.join('・')} が節目の記録と違う" if diff.any?
+      "事業報告 #{r.fiscal_year}年度: #{diff.join("・")} が節目の記録と違う" if diff.any?
     end
   end
 
@@ -38,7 +38,7 @@ module ModelVerification
   def todo_mismatches
     Todo.includes(:status_changes).filter_map do |t|
       diff = t.state_mismatches
-      "やること ##{t.id}: #{diff.join('・')} が状態の変化と違う(いまの状態 #{t.status} / イベントから #{t.derived_state['status']})" if diff.any?
+      "やること ##{t.id}: #{diff.join("・")} が状態の変化と違う(いまの状態 #{t.status} / イベントから #{t.derived_state["status"]})" if diff.any?
     end
   end
 
@@ -48,7 +48,7 @@ module ModelVerification
       next if r.state_mismatches.empty?
 
       want = r.derived_state
-      "依頼 ##{r.id}: いまの状態 #{r.status}・#{r.resolved_on.inspect} / イベントから #{want['status']}・#{want['resolved_on'].inspect}"
+      "依頼 ##{r.id}: いまの状態 #{r.status}・#{r.resolved_on.inspect} / イベントから #{want["status"]}・#{want["resolved_on"].inspect}"
     end
   end
 
@@ -64,7 +64,7 @@ module ModelVerification
     MemberApplication.includes(:approval, :rejection).flat_map do |a|
       list = []
       list << "入会申込 ##{a.id}: いまの状態 #{a.status} / イベントから #{a.derived_status}" unless a.status == a.derived_status
-      if (e = a.approval) && [ a.person_id, a.fiscal_year, a.joined_on ] != [ e.person_id, e.fiscal_year, e.joined_on ]
+      if (e = a.approval) && [a.person_id, a.fiscal_year, a.joined_on] != [e.person_id, e.fiscal_year, e.joined_on]
         list << "入会申込 ##{a.id}: 認めたときの人・年度・入会日がイベントと違う"
       end
       list
@@ -82,7 +82,9 @@ module ModelVerification
   def registration_mismatches
     Registration.includes(registration_filing: :completion).filter_map do |r|
       expected = r.registration_filing&.completion&.completed_on
-      "登記の事由 ##{r.id}: 登記した日 #{r.registered_on.inspect} / 申請の完了から #{expected.inspect}" unless r.registered_on == expected || (r.registered_on && expected.nil? && r.registration_filing.nil?)
+      # 申請を入れずに登記した日だけを書いたものは、食い違いとしない
+      ok = r.registered_on == expected || (r.registered_on && expected.nil? && r.registration_filing.nil?)
+      "登記の事由 ##{r.id}: 登記した日 #{r.registered_on.inspect} / 申請の完了から #{expected.inspect}" unless ok
     end
   end
 

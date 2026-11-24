@@ -5,9 +5,9 @@ module Wareki
   def date(date, zen: false)
     return "" unless date
 
-    era, base = date >= Date.new(2019, 5, 1) ? [ "令和", 2018 ] : [ "平成", 1988 ]
+    era, base = (date >= Date.new(2019, 5, 1)) ? ["令和", 2018] : ["平成", 1988]
     y = date.year - base
-    text = "#{era}#{y == 1 ? '元' : y}年#{date.month}月#{date.day}日"
+    text = "#{era}#{(y == 1) ? "元" : y}年#{date.month}月#{date.day}日"
     zen ? zenkaku(text) : text
   end
 

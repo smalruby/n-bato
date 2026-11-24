@@ -17,7 +17,7 @@ module Backup
     Dir.mktmpdir("n-bato-backup") do |tmp|
       path = File.join(tmp, "storage.tar.gz")
       Archive.create!(storage_dir:, out_path: path)
-      (upload || Upload.new).put!(path, key: "#{PREFIX}#{now.utc.strftime('%Y-%m-%dT%H%MZ')}.tar.gz")
+      (upload || Upload.new).put!(path, key: "#{PREFIX}#{now.utc.strftime("%Y-%m-%dT%H%MZ")}.tar.gz")
     end
   end
 end

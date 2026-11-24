@@ -42,11 +42,11 @@ class Kaikeiou::SiwakeFileTest < ActiveSupport::TestCase
   end
 
   test "書き出した日時が読めなければ nil" do
-    assert_nil Kaikeiou::SiwakeFile.new(header: { "RTNDATE" => "20261399", "RTNTIME" => "120000" }).exported_at
+    assert_nil Kaikeiou::SiwakeFile.new(header: {"RTNDATE" => "20261399", "RTNTIME" => "120000"}).exported_at
     assert_nil Kaikeiou::SiwakeFile.new.exported_at
   end
 
   test "行の終わりのカンマのあとは空の列" do
-    assert_equal [ [ "1", false ], [ "", false ] ], Kaikeiou::SiwakeFile.send(:parse_fields, "1,")
+    assert_equal [["1", false], ["", false]], Kaikeiou::SiwakeFile.send(:parse_fields, "1,")
   end
 end

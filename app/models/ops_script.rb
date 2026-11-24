@@ -47,10 +47,10 @@ class OpsScript
   private
 
   def header(snapshot_name)
-    @out.puts "== prod-runner: #{@apply ? '本番流し(書き込む)' : '試し流し(最後に巻き戻す)'}"
+    @out.puts "== prod-runner: #{@apply ? "本番流し(書き込む)" : "試し流し(最後に巻き戻す)"}"
     @out.puts "== スクリプト: #{@name}"
     @out.puts "== 日時: #{Time.current.iso8601}"
-    @out.puts "== 書く前のバックアップ: #{snapshot_name || '(試し流しなので取らない)'}"
+    @out.puts "== 書く前のバックアップ: #{snapshot_name || "(試し流しなので取らない)"}"
     @out.puts "== 戻すとき: bin/prod-restore #{snapshot_name}" if snapshot_name
     @out.puts
   end
@@ -59,7 +59,7 @@ class OpsScript
     @out.puts
     @out.puts "== 操作履歴に残った変更: #{summary.values.sum} 件"
     summary.sort.each { |(type, event), count| @out.puts "==   #{type} #{event}: #{count}" }
-    @out.puts "== #{@apply ? '書き込んだ' : '巻き戻した(何も書いていない)'}"
+    @out.puts "== #{@apply ? "書き込んだ" : "巻き戻した(何も書いていない)"}"
   end
 
   # 試し流しのときだけ、ジョブを積まず(試しの入れ物に入れる)、メールを送らない。

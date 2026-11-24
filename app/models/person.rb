@@ -8,6 +8,7 @@
 # メール・電話・メモは年度ごとの記録(person_years)。
 class Person < ApplicationRecord
   include YearRecords
+
   encrypts :address, :email, :phone
   year_records :person_years, %i[email phone notes]
 
@@ -50,19 +51,19 @@ class Person < ApplicationRecord
   end
 
   # 住所・氏名の移り変わり(画面の表)。記録の始まり → 出来事を日付の順に。取り消したものも出す。
-  History = Struct.new(:on, :precision, :kind, :address, :name, :change, keyword_init: true)
+  History = Struct.new(:on, :precision, :kind, :address, :name, :change)
 
   def history
-    rows = (address_changes.to_a + name_changes.to_a).sort_by { [ it.occurred_on, it.class.name, it.id ] }
+    rows = (address_changes.to_a + name_changes.to_a).sort_by { [it.occurred_on, it.class.name, it.id] }
     cur_address = address_at_start
     cur_name = name_at_start
-    [ History.new(kind: :start, address: cur_address, name: cur_name) ] + rows.map do |c|
+    [History.new(kind: :start, address: cur_address, name: cur_name)] + rows.map do |c|
       unless c.cancelled?
         cur_address = c.address if c.is_a?(Person::AddressChange)
         cur_name = c.display_name if c.is_a?(Person::NameChange)
       end
       History.new(on: c.occurred_on, precision: c.date_precision, kind: c.is_a?(Person::AddressChange) ? :address : :name,
-                  address: cur_address, name: cur_name, change: c)
+        address: cur_address, name: cur_name, change: c)
     end
   end
 

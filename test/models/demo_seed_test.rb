@@ -3,7 +3,7 @@ require Rails.root.join("db/demo/seed").to_s
 
 # 架空のデータの種(bin/demo、issue #14)は、日付をきょうから決める。年度の初め・総会の前・年度の後半のどの日に流しても入ること
 class DemoSeedTest < ActiveSupport::TestCase
-  [ Date.new(2027, 4, 2), Date.new(2027, 6, 10), Date.new(2026, 11, 24), Date.new(2027, 3, 30) ].each do |day|
+  [Date.new(2027, 4, 2), Date.new(2027, 6, 10), Date.new(2026, 11, 24), Date.new(2027, 3, 30)].each do |day|
     test "#{day} に流しても入り、いまの状態がイベントと合う" do
       travel_to day do
         seed = Demo.seed!(password: "demo-test", today: day)

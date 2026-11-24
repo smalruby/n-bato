@@ -1,6 +1,7 @@
 # 法務局から補正を求められた(イベント。日付は noticed_on)。何度でも起こりうる。docs/adr/0031
 class RegistrationFiling::Correction < ApplicationRecord
   include EventRecord
+
   event_of :noticed_on, entry: :record!
 
   belongs_to :registration_filing
@@ -17,7 +18,7 @@ class RegistrationFiling::Correction < ApplicationRecord
     transaction do
       event = create!(registration_filing: filing, noticed_on:, note:, recorded_by: by)
       filing.advance_status!
-      Audit.final!("登記の申請で補正を求められた(#{noticed_on.strftime('%Y/%m/%d')}): #{note}")
+      Audit.final!("登記の申請で補正を求められた(#{noticed_on.strftime("%Y/%m/%d")}): #{note}")
       event
     end
   end

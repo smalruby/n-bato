@@ -20,7 +20,7 @@ Rails.application.configure do
   if Rails.root.join("tmp/caching-dev.txt").exist?
     config.action_controller.perform_caching = true
     config.action_controller.enable_fragment_cache_logging = true
-    config.public_file_server.headers = { "cache-control" => "public, max-age=#{2.days.to_i}" }
+    config.public_file_server.headers = {"cache-control" => "public, max-age=#{2.days.to_i}"}
   else
     config.action_controller.perform_caching = false
   end
@@ -38,7 +38,7 @@ Rails.application.configure do
   config.action_mailer.perform_caching = false
 
   # Set localhost to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
+  config.action_mailer.default_url_options = {host: "localhost", port: 3000}
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
@@ -74,7 +74,7 @@ Rails.application.configure do
   if ENV["NBATO_DEMO"].present?
     # 外へ送る鍵の環境変数は、どう起動しても(bin/demo を使わなくても)ここで消す
     %w[ANTHROPIC_API_KEY SLACK_BOT_TOKEN SLACK_CHANNEL_ID SLACK_OFFICERS_CHANNEL_ID
-       NBATO_BACKUP_BUCKET NBATO_BACKUP_AWS_ACCESS_KEY_ID NBATO_BACKUP_AWS_SECRET_ACCESS_KEY].each { ENV.delete(it) }
+      NBATO_BACKUP_BUCKET NBATO_BACKUP_AWS_ACCESS_KEY_ID NBATO_BACKUP_AWS_SECRET_ACCESS_KEY].each { ENV.delete(it) }
     # cookie の署名の鍵を、実データの開発サーバ(tmp/local_secret.txt)と別にする。
     # cookie はポートで分かれないので、同じ鍵だとデモのログインの cookie が :3000 でも通ってしまう
     demo_secret = Rails.root.join("tmp/demo_secret")

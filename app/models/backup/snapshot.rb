@@ -15,12 +15,12 @@ class Backup::Snapshot
   # 写して、写しの名前を返す。新しい KEEP 世代より古いものは消す。
   def create!(now: Time.current, keep: KEEP)
     @dir.mkpath
-    name = "production-#{now.in_time_zone('Tokyo').strftime('%Y%m%d-%H%M%S')}.sqlite3"
+    name = "production-#{now.in_time_zone("Tokyo").strftime("%Y%m%d-%H%M%S")}.sqlite3"
     path = @dir.join(name)
     raise ArgumentError, "#{name} はもうある" if path.exist?
 
     db = SQLite3::Database.new(@storage_dir.join(PRIMARY).to_s, readonly: true)
-    db.execute("VACUUM INTO ?", [ path.to_s ])
+    db.execute("VACUUM INTO ?", [path.to_s])
     db.close
     names.reverse.drop(keep).each { @dir.join(it).delete }
     name

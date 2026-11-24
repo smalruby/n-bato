@@ -2,6 +2,7 @@
 # 入れた登記の事由を「登記した」にし、登記の完了を待っているやること(resume_rule = registration_completed)を作業中に戻す。
 class RegistrationFiling::Completion < ApplicationRecord
   include EventRecord
+
   event_of :completed_on, entry: :complete!
 
   belongs_to :registration_filing
@@ -16,8 +17,8 @@ class RegistrationFiling::Completion < ApplicationRecord
       event = create!(registration_filing: filing, completed_on:, recorded_by: by)
       filing.registrations.each { it.update!(registered_on: completed_on) }
       filing.advance_status!
-      resumed = Todo.resume!("registration_completed", note: "登記が完了した(#{completed_on.strftime('%Y/%m/%d')})")
-      Audit.final!("登記が完了した(#{completed_on.strftime('%Y/%m/%d')})#{"。待っていたやること #{resumed.size} 件を作業中にした" if resumed.any?}")
+      resumed = Todo.resume!("registration_completed", note: "登記が完了した(#{completed_on.strftime("%Y/%m/%d")})")
+      Audit.final!("登記が完了した(#{completed_on.strftime("%Y/%m/%d")})#{"。待っていたやること #{resumed.size} 件を作業中にした" if resumed.any?}")
       event
     end
   end

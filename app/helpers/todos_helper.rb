@@ -4,9 +4,13 @@ module TodosHelper
     return tag.span("年度なし", class: "nb-ychip is-none") unless year
 
     hue = FiscalPeriod.hue(year)
-    short = year >= 2019 ? "R#{year == 2019 ? '元' : year - 2018}" : "H#{year - 1988}"
+    short = if year >= 2019
+      "R#{(year == 2019) ? "元" : year - 2018}"
+    else
+      "H#{year - 1988}"
+    end
     tag.span(class: "nb-ychip", style: "--year-ink:var(--year-#{hue}-ink);--year-fill:var(--year-#{hue}-fill)", title: FiscalYear.new(year).wareki_label) do
-      safe_join([ year.to_s, " ", tag.small(short) ])
+      safe_join([year.to_s, " ", tag.small(short)])
     end
   end
 

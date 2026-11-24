@@ -8,12 +8,12 @@ class AssistantTest < ActionDispatch::IntegrationTest
     FiscalPeriod.find_or_create_by!(year: 2025)
   end
 
-  def answer(text, kind: "none") = { "answer" => text, "action" => { "kind" => kind } }
+  def answer(text, kind: "none") = {"answer" => text, "action" => {"kind" => kind}}
   def receipt = fixture_file_upload("receipt.png", "image/png")
 
   test "聞いたことが空なら AI を呼ばない" do
     with_fake_claude(answer("x")) do |api|
-      post assistant_path, params: { q: "  " }
+      post assistant_path, params: {q: "  "}
       assert_equal "聞きたいことを書いてください。", response.parsed_body["answer"]
       assert_empty api.requests
     end
@@ -21,7 +21,7 @@ class AssistantTest < ActionDispatch::IntegrationTest
 
   test "画面の使い方を添えて聞き、答えを返す。画面の名前の形が違えば default" do
     with_fake_claude(answer("左のメニューから開きます")) do |api|
-      post assistant_path, params: { q: "仕訳の直し方は?", screen: "Journal-Entries!" }
+      post assistant_path, params: {q: "仕訳の直し方は?", screen: "Journal-Entries!"}
       assert_equal "左のメニューから開きます", response.parsed_body["answer"]
       assert_nil response.parsed_body["action"]
       system = api.requests.sole[:system_].first[:text]
@@ -32,21 +32,21 @@ class AssistantTest < ActionDispatch::IntegrationTest
 
   test "画像なしで仕訳を頼まれたら、画像を添えるよう案内する" do
     with_fake_claude(answer("仕訳します", kind: "journal_from_receipt")) do
-      post assistant_path, params: { q: "仕訳して", screen: "journal_entries" }
+      post assistant_path, params: {q: "仕訳して", screen: "journal_entries"}
       assert_equal "仕訳します\n画像を添えてください", response.parsed_body["answer"]
       assert_nil response.parsed_body["action"]
     end
   end
 
   test "画像つきの頼みは操作の案にし、実行すると証憑を登録して AI 仕訳の案を作る" do
-    with_fake_claude(answer("仕訳します", kind: "journal_from_receipt"), { "entries" => [], "questions" => [ "金額が読めません" ] }) do |api|
-      post assistant_path, params: { q: "仕訳して", screen: "journal_entries", image: receipt }
+    with_fake_claude(answer("仕訳します", kind: "journal_from_receipt"), {"entries" => [], "questions" => ["金額が読めません"]}) do |api|
+      post assistant_path, params: {q: "仕訳して", screen: "journal_entries", image: receipt}
       body = response.parsed_body
       assert_match "証憑として登録", body.dig("action", "label")
       assert_equal "image", api.requests.first[:messages].first[:content].last[:type]
 
       assert_difference -> { Voucher.count }, 1 do
-        post assistant_perform_path, params: { token: body.dig("action", "token") }
+        post assistant_perform_path, params: {token: body.dig("action", "token")}
       end
       voucher = Voucher.last
       assert response.parsed_body["ok"]
@@ -59,7 +59,7 @@ class AssistantTest < ActionDispatch::IntegrationTest
 
   test "AI のエラーは答えの欄で知らせる" do
     with_fake_claude(FakeClaudeApi.reply("", stop_reason: :refusal)) do
-      post assistant_path, params: { q: "仕訳して" }
+      post assistant_path, params: {q: "仕訳して"}
       assert_match "AI に聞けませんでした(AI が回答を断りました)", response.parsed_body["answer"]
     end
   end
@@ -67,16 +67,16 @@ class AssistantTest < ActionDispatch::IntegrationTest
   test "監査の役割には操作の案を出さず、実行もさせない" do
     users(:one).update!(role: "auditor")
     with_fake_claude(answer("仕訳します", kind: "journal_from_receipt")) do
-      post assistant_path, params: { q: "仕訳して", image: receipt }
+      post assistant_path, params: {q: "仕訳して", image: receipt}
       assert_nil response.parsed_body["action"]
-      post assistant_perform_path, params: { token: "x" }
+      post assistant_perform_path, params: {token: "x"}
       assert_response :forbidden
     end
   end
 
   test "画像でも PDF でもないファイルでは、仕訳の案を出さずに理由を答える" do
     with_fake_claude(answer("仕訳します", kind: "journal_from_receipt")) do
-      post assistant_path, params: { q: "仕訳して", image: fixture_file_upload("siwake_sample.txt", "text/plain") }
+      post assistant_path, params: {q: "仕訳して", image: fixture_file_upload("siwake_sample.txt", "text/plain")}
       assert_nil response.parsed_body["action"]
       assert_equal "仕訳します\n画像（JPEG・PNG など）か PDF を添えてください", response.parsed_body["answer"]
     end
@@ -84,16 +84,16 @@ class AssistantTest < ActionDispatch::IntegrationTest
 
   test "実行で証憑を保存できなければ、理由を 422 で返し、証憑を残さない" do
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("memo"), filename: "memo.txt", content_type: "text/plain")
-    token = Assistant::Action.verifier.generate({ "kind" => "journal_from_receipt", "blob" => blob.signed_id, "year" => 2025 })
+    token = Assistant::Action.verifier.generate({"kind" => "journal_from_receipt", "blob" => blob.signed_id, "year" => 2025})
     assert_no_difference -> { Voucher.count } do
-      post assistant_perform_path, params: { token: }
+      post assistant_perform_path, params: {token:}
     end
     assert_response :unprocessable_entity
     assert_match "画像（JPEG・PNG など）か PDF にしてください", response.parsed_body["message"]
   end
 
   test "書き換えた操作の案は実行しない" do
-    post assistant_perform_path, params: { token: "書き換えた" }
+    post assistant_perform_path, params: {token: "書き換えた"}
     assert_response :unprocessable_entity
     assert_match "操作の案が正しくありません", response.parsed_body["message"]
   end

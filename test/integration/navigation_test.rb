@@ -2,7 +2,10 @@ require "test_helper"
 
 # ブラウザの「戻る」を使わなくてよい画面(見直し第21回、docs/adr/0033)
 class NavigationTest < ActionDispatch::IntegrationTest
-  setup { ensure_organization; sign_in }
+  setup {
+    ensure_organization
+    sign_in
+  }
 
   test "詳しい画面の題の上にパンくずがあり、一覧へ最後の絞り込みのまま戻れる" do
     person = Person.create!(name: "行き　来")
@@ -20,8 +23,8 @@ class NavigationTest < ActionDispatch::IntegrationTest
   end
 
   test "作る画面にもパンくずがある" do
-    { new_person_path => "会員・役員", new_voucher_path => "証憑・AI 仕訳", new_journal_entry_path => "仕訳",
-      new_resolution_path => "決議", new_siwake_import_path => "会計(年度)", member_applications_path => "会員・役員" }.each do |path, up|
+    {new_person_path => "会員・役員", new_voucher_path => "証憑・AI 仕訳", new_journal_entry_path => "仕訳",
+     new_resolution_path => "決議", new_siwake_import_path => "会計(年度)", member_applications_path => "会員・役員"}.each do |path, up|
       get path
       assert_response :success
       assert_select "nav.nb-crumb a", text: up

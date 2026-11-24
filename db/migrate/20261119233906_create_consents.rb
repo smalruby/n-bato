@@ -8,6 +8,6 @@ class CreateConsents < ActiveRecord::Migration[8.1]
       t.string :note, null: false, default: ""
       t.timestamps
     end
-    add_index :consents, [ :resolution_id, :person_id ], unique: true
+    add_index :consents, [:resolution_id, :person_id], unique: true
   end
 end

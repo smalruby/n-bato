@@ -8,7 +8,8 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
   # 使い捨てのデータベースは、テストのトランザクションに入れない(テストのデータベースには書かない)
   self.use_transactional_tests = false
 
-  class Scratch < ActiveRecord::Base
+  # 使い捨ての SQLite につなぐので、アプリの接続(ApplicationRecord)とは分ける
+  class Scratch < ActiveRecord::Base # standard:disable Rails/ApplicationRecord
     self.abstract_class = true
   end
 
@@ -36,8 +37,8 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
 
   def insert(table, attrs)
     now = "2026-11-20 01:00:00"
-    attrs = { "created_at" => now, "updated_at" => now }.merge(attrs.transform_keys(&:to_s)) if @conn.column_exists?(table, :updated_at)
-    @conn.execute("INSERT INTO #{table} (#{attrs.keys.join(', ')}) VALUES (#{attrs.values.map { @conn.quote(it) }.join(', ')})")
+    attrs = {"created_at" => now, "updated_at" => now}.merge(attrs.transform_keys(&:to_s)) if @conn.column_exists?(table, :updated_at)
+    @conn.execute("INSERT INTO #{table} (#{attrs.keys.join(", ")}) VALUES (#{attrs.values.map { @conn.quote(it) }.join(", ")})")
     @conn.select_value("SELECT last_insert_rowid()")
   end
 
@@ -54,17 +55,17 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
   test "いまの列からイベントを作る(おかしな行も)" do
     run = insert(:procedure_runs, kind: "annual_report", period: 2025)
     step = ->(key, status, **rest) { insert(:procedure_steps, procedure_run_id: run, key:, status:, **rest) }
-    open = step.("close_books", "open", note: "メモ")
-    done = step.("business_report", "done", completed_on: "2026-05-10", updated_at: "2026-05-10 03:00:00")
+    open = step.call("close_books", "open", note: "メモ")
+    done = step.call("business_report", "done", completed_on: "2026-05-10", updated_at: "2026-05-10 03:00:00")
     # 日本時間では 11/24 の 1:30(UTC では 11/23)
-    no_day = step.("audit", "done", completed_on: nil, updated_at: "2026-11-23 16:30:00")
-    skipped = step.("corporate_tax", "skipped", completed_on: "2026-05-01", note: "収益事業なし")
-    skipped_no_note = step.("publish_bs", "skipped", completed_on: "2026-05-01", note: nil)
-    reopened = step.("board", "open", completed_on: "2026-05-02")
-    odd = step.("print", "doing")
+    no_day = step.call("audit", "done", completed_on: nil, updated_at: "2026-11-23 16:30:00")
+    skipped = step.call("corporate_tax", "skipped", completed_on: "2026-05-01", note: "収益事業なし")
+    skipped_no_note = step.call("publish_bs", "skipped", completed_on: "2026-05-01", note: nil)
+    reopened = step.call("board", "open", completed_on: "2026-05-02")
+    odd = step.call("print", "doing")
 
     report = insert(:annual_reports, fiscal_year: 2025, approved_on: "2026-06-20", submitted_on: "2026-06-28", resubmit_needed_on: "2026-07-01",
-                                     updated_at: "2026-07-01 00:00:00")
+      updated_at: "2026-07-01 00:00:00")
     plain = insert(:annual_reports, fiscal_year: 2024)
 
     r = resolution
@@ -75,26 +76,26 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
     migrate(:up)
 
     changes = rows("SELECT procedure_step_id, status, completed_on, note FROM procedure_step_status_changes ORDER BY procedure_step_id").index_by { it["procedure_step_id"] }
-    assert_equal [ done, no_day, skipped, skipped_no_note ], changes.keys
-    assert_equal [ "skipped", "" ], changes[skipped_no_note].values_at("status", "note"), "メモが NULL の対象外は、理由を空にする"
-    assert_equal [ "done", "2026-05-10", "" ], changes[done].values_at("status", "completed_on", "note")
-    assert_equal [ "done", "2026-11-24" ], changes[no_day].values_at("status", "completed_on"), "済みで日付の無いものは、日本時間の更新した日"
-    assert_equal [ "skipped", "2026-05-01", "収益事業なし" ], changes[skipped].values_at("status", "completed_on", "note")
+    assert_equal [done, no_day, skipped, skipped_no_note], changes.keys
+    assert_equal ["skipped", ""], changes[skipped_no_note].values_at("status", "note"), "メモが NULL の対象外は、理由を空にする"
+    assert_equal ["done", "2026-05-10", ""], changes[done].values_at("status", "completed_on", "note")
+    assert_equal ["done", "2026-11-24"], changes[no_day].values_at("status", "completed_on"), "済みで日付の無いものは、日本時間の更新した日"
+    assert_equal ["skipped", "2026-05-01", "収益事業なし"], changes[skipped].values_at("status", "completed_on", "note")
     steps = rows("SELECT id, status, completed_on FROM procedure_steps").index_by { it["id"] }
-    assert_equal [ "open", nil ], steps[reopened].values_at("status", "completed_on"), "open で日付が残ったものは日付を消す"
-    assert_equal [ "open", nil ], steps[odd].values_at("status", "completed_on"), "決まった値でない状態は open"
-    assert_equal [ "open", nil ], steps[open].values_at("status", "completed_on")
+    assert_equal ["open", nil], steps[reopened].values_at("status", "completed_on"), "open で日付が残ったものは日付を消す"
+    assert_equal ["open", nil], steps[odd].values_at("status", "completed_on"), "決まった値でない状態は open"
+    assert_equal ["open", nil], steps[open].values_at("status", "completed_on")
     assert_equal "2026-11-24", steps[no_day]["completed_on"]
 
     milestones = rows("SELECT annual_report_id, kind, dated_on, automatic FROM annual_report_milestones ORDER BY kind")
-    assert_equal [ [ report, "approved", "2026-06-20", 0 ], [ report, "resubmit_needed", "2026-07-01", 1 ], [ report, "submitted", "2026-06-28", 0 ] ],
-                 milestones.map(&:values)
+    assert_equal [[report, "approved", "2026-06-20", 0], [report, "resubmit_needed", "2026-07-01", 1], [report, "submitted", "2026-06-28", 0]],
+      milestones.map(&:values)
     assert_not milestones.any? { it["annual_report_id"] == plain }
 
-    assert_equal [ [ applied, "2026-05-05" ] ], @conn.select_rows("SELECT resolution_item_id, applied_on FROM resolution_item_applications")
+    assert_equal [[applied, "2026-05-05"]], @conn.select_rows("SELECT resolution_item_id, applied_on FROM resolution_item_applications")
     assert_not @conn.column_exists?(:resolution_items, :applied_on)
     assert_not @conn.column_exists?(:consents, :created_at)
-    assert_equal [ consent ], @conn.select_values("SELECT id FROM consents")
+    assert_equal [consent], @conn.select_values("SELECT id FROM consents")
     # 取り消したあとに同じ人の同意を記録し直せる(一意の索引を外した)
     insert(:consent_cancellations, consent_id: consent, cancelled_at: "2026-05-04 00:00:00")
     insert(:consents, resolution_id: r, person_id: @person, consented_on: "2026-05-04", via: "paper")
@@ -103,24 +104,24 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
 
   test "手続き・決議・提出に触れたこれまでの操作は、元に戻せない操作にする(作成・削除も)" do
     final = {
-      "手順の変更" => operation(changes: [ %w[ProcedureStep update] ]),
-      "手順の作成" => operation(changes: [ %w[ProcedureStep create] ]),
-      "手続きの作成" => operation(changes: [ %w[ProcedureRun create] ]),
-      "事業報告の変更" => operation(changes: [ %w[AnnualReport update] ]),
-      "決議の削除" => operation(changes: [ %w[Resolution destroy] ]),
-      "議案の変更" => operation(changes: [ %w[ResolutionItem update] ]),
-      "同意の削除(元に戻した操作。やり直せる)" => operation(state: "undone", redoable: true, changes: [ %w[Consent destroy] ]),
-      "ほかの記録と一緒に" => operation(changes: [ %w[JournalEntry update], %w[Consent create] ])
+      "手順の変更" => operation(changes: [%w[ProcedureStep update]]),
+      "手順の作成" => operation(changes: [%w[ProcedureStep create]]),
+      "手続きの作成" => operation(changes: [%w[ProcedureRun create]]),
+      "事業報告の変更" => operation(changes: [%w[AnnualReport update]]),
+      "決議の削除" => operation(changes: [%w[Resolution destroy]]),
+      "議案の変更" => operation(changes: [%w[ResolutionItem update]]),
+      "同意の削除(元に戻した操作。やり直せる)" => operation(state: "undone", redoable: true, changes: [%w[Consent destroy]]),
+      "ほかの記録と一緒に" => operation(changes: [%w[JournalEntry update], %w[Consent create]])
     }
     kept = {
-      "ほかの記録だけ" => [ operation(changes: [ %w[ProgramActivity update] ]), "do" ],
-      "元に戻した記録" => [ operation(kind: "undo", changes: [ %w[ProcedureStep update] ]), "undo" ],
-      "変更の無い操作" => [ operation, "do" ]
+      "ほかの記録だけ" => [operation(changes: [%w[ProgramActivity update]]), "do"],
+      "元に戻した記録" => [operation(kind: "undo", changes: [%w[ProcedureStep update]]), "undo"],
+      "変更の無い操作" => [operation, "do"]
     }
 
     migrate(:up)
 
-    kinds = rows("SELECT id, kind FROM audit_operations").to_h { [ it["id"], it["kind"] ] }
+    kinds = rows("SELECT id, kind FROM audit_operations").to_h { [it["id"], it["kind"]] }
     final.each { |name, id| assert_equal "final", kinds[id], name }
     kept.each { |name, (id, kind)| assert_equal kind, kinds[id], name }
   end
@@ -141,10 +142,10 @@ class CreateProcedureAndResolutionEventsMigrationTest < ActiveSupport::TestCase
       assert_not @conn.table_exists?(it), it
     end
     assert_equal "2026-05-05", @conn.select_value("SELECT applied_on FROM resolution_items WHERE id = #{item}")
-    assert_equal [ kept ], @conn.select_values("SELECT id FROM consents")
+    assert_equal [kept], @conn.select_values("SELECT id FROM consents")
     assert_match "2026-05-04", @conn.select_value("SELECT created_at FROM consents")
     assert @conn.indexes(:consents).find { it.columns == %w[resolution_id person_id] }.unique
-    assert_equal [ "done", "2026-05-10" ], @conn.select_rows("SELECT status, completed_on FROM procedure_steps").first
+    assert_equal ["done", "2026-05-10"], @conn.select_rows("SELECT status, completed_on FROM procedure_steps").first
     assert_equal "2026-06-28", @conn.select_value("SELECT submitted_on FROM annual_reports")
 
     migrate(:up)

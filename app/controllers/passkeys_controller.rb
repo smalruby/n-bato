@@ -2,6 +2,7 @@
 # 足す・消すは、ログイン(または最後の確かめ直し)から 10 分以内に限る。過ぎていたらパスワードかパスキーで確かめ直す。
 class PasskeysController < ApplicationController
   include AutosaveResponse
+
   rate_limit to: 10, within: 3.minutes, only: %i[verify_password verify], with: -> { redirect_to passkeys_path, alert: "しばらくしてからもう一度お試しください" }
   before_action :require_recent_verification, only: %i[registration_options create destroy]
 
@@ -19,9 +20,9 @@ class PasskeysController < ApplicationController
   def create
     passkey = ceremony.register(Current.user, credential: credential_param, challenge: session.delete(:passkey_registration_challenge), name: params[:name])
     Audit.final!("パスキーを足した: #{passkey.display_name}")
-    render json: { ok: true, redirect: passkeys_path }
+    render json: {ok: true, redirect: passkeys_path}
   rescue Passkeys::Ceremony::Failed
-    render json: { ok: false, message: "パスキーを足せませんでした。もう一度試してください" }, status: :unprocessable_entity
+    render json: {ok: false, message: "パスキーを足せませんでした。もう一度試してください"}, status: :unprocessable_content
   end
 
   def update
@@ -58,9 +59,9 @@ class PasskeysController < ApplicationController
   def verify
     ceremony.authenticate(credential: credential_param, challenge: session.delete(:passkey_verify_challenge), user: Current.user)
     Current.session.verified!
-    render json: { ok: true, redirect: passkeys_path }
+    render json: {ok: true, redirect: passkeys_path}
   rescue Passkeys::Ceremony::Failed
-    render json: { ok: false, message: "パスキーで確かめられませんでした。パスワードで確かめてください" }, status: :unprocessable_entity
+    render json: {ok: false, message: "パスキーで確かめられませんでした。パスワードで確かめてください"}, status: :unprocessable_content
   end
 
   private
@@ -73,7 +74,7 @@ class PasskeysController < ApplicationController
 
     message = "ログインから 10 分を過ぎたので、パスワードかパスキーで本人を確かめてください"
     respond_to do |format|
-      format.json { render json: { ok: false, code: "reverify", message: }, status: :forbidden }
+      format.json { render json: {ok: false, code: "reverify", message:}, status: :forbidden }
       format.any { redirect_to passkeys_path, alert: message }
     end
   end

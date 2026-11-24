@@ -22,7 +22,7 @@ class CreateFilingDestinations < ActiveRecord::Migration[8.1]
 
     create_table :filing_destination_confirmations do |t|
       t.references :filing_destination, null: false, foreign_key: true
-      t.references :confirmed_by, foreign_key: { to_table: :users }
+      t.references :confirmed_by, foreign_key: {to_table: :users}
       t.string :digest, null: false               # 確かめた中身の要約(中身が変わったら確認済みでなくなる)
       t.datetime :confirmed_at, null: false
     end
@@ -32,7 +32,7 @@ class CreateFilingDestinations < ActiveRecord::Migration[8.1]
       t.string :status, null: false, default: "searching" # searching / done / failed(長いイベントのいまの状態)
       t.text :error_message, null: false, default: ""
       t.integer :found_count, null: false, default: 0
-      t.references :requested_by, foreign_key: { to_table: :users }
+      t.references :requested_by, foreign_key: {to_table: :users}
       t.datetime :requested_at, null: false
     end
   end

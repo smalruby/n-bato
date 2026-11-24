@@ -6,6 +6,6 @@ class CreateOpeningBalances < ActiveRecord::Migration[8.0]
       t.integer :amount, null: false, default: 0
       t.timestamps
     end
-    add_index :opening_balances, [ :fiscal_year, :account_id ], unique: true
+    add_index :opening_balances, [:fiscal_year, :account_id], unique: true
   end
 end

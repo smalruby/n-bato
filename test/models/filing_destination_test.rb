@@ -5,6 +5,7 @@ class FilingDestinationTest < ActiveSupport::TestCase
   class FakeClient
     attr_reader :prompt
     def initialize(result = nil, error: nil) = (@result, @error = result, error)
+
     def search_json(system:, prompt:, schema:)
       @prompt = prompt
       raise @error if @error
@@ -26,7 +27,7 @@ class FilingDestinationTest < ActiveSupport::TestCase
     FilingDestination::Confirmation.confirm!(d, by: users(:one))
     assert d.reload.confirmed?
     assert_equal "テスト市長　山田　太郎", FilingDestination.letter_addressee
-    assert_equal [ "テスト市に出す", [ "様式", "テスト市の作成例" ] ], FilingDestination.fill([ "{所轄庁}に出す", [ "様式", "{所轄庁}の作成例" ] ])
+    assert_equal ["テスト市に出す", ["様式", "テスト市の作成例"]], FilingDestination.fill(["{所轄庁}に出す", ["様式", "{所轄庁}の作成例"]])
     assert_equal "確認済み", d.state_label
 
     d.update!(addressee: "テスト市長　山田　次郎")
@@ -48,12 +49,12 @@ class FilingDestinationTest < ActiveSupport::TestCase
   end
 
   test "AI の調べもの: 所在地だけを送り、出どころのある案を「AI の案」として足す" do
-    result = { "destinations" => [
-      { "kind" => "authority", "name" => "テスト市", "addressee" => "", "office" => "市民課", "address" => "", "phone" => "", "fax" => "", "email" => "", "hours" => "",
-        "forms_url" => "", "source" => "https://example.jp/npo", "notes" => "市内だけに事務所がある法人の担当" },
-      { "kind" => "tax_office", "name" => "テスト税務署", "addressee" => "", "office" => "", "address" => "", "phone" => "", "fax" => "", "email" => "", "hours" => "",
-        "forms_url" => "", "source" => "" }
-    ] }
+    result = {"destinations" => [
+      {"kind" => "authority", "name" => "テスト市", "addressee" => "", "office" => "市民課", "address" => "", "phone" => "", "fax" => "", "email" => "", "hours" => "",
+       "forms_url" => "", "source" => "https://example.jp/npo", "notes" => "市内だけに事務所がある法人の担当"},
+      {"kind" => "tax_office", "name" => "テスト税務署", "addressee" => "", "office" => "", "address" => "", "phone" => "", "fax" => "", "email" => "", "hours" => "",
+       "forms_url" => "", "source" => ""}
+    ]}
     client = FakeClient.new(result)
     search = FilingDestinationSearch.create!(address: "テスト県テスト市1-1", requested_at: Time.current)
     search.run!(client:)
@@ -70,9 +71,11 @@ class FilingDestinationTest < ActiveSupport::TestCase
     authority # 確かめていなくても、行があれば調べない
     assert_not_includes FilingDestination.missing_kinds, "authority"
     assert_includes FilingDestination.missing_kinds, "registry"
-    row = ->(kind, name) { { "kind" => kind, "name" => name, "addressee" => "", "office" => "", "address" => "", "phone" => "", "fax" => "", "email" => "",
-                             "hours" => "", "forms_url" => "", "source" => "https://example.jp/#{kind}", "notes" => "" } }
-    client = FakeClient.new({ "destinations" => [ row.("authority", "テスト市"), row.("registry", "テスト法務局") ] })
+    row = ->(kind, name) {
+      {"kind" => kind, "name" => name, "addressee" => "", "office" => "", "address" => "", "phone" => "", "fax" => "", "email" => "",
+       "hours" => "", "forms_url" => "", "source" => "https://example.jp/#{kind}", "notes" => ""}
+    }
+    client = FakeClient.new({"destinations" => [row.call("authority", "テスト市"), row.call("registry", "テスト法務局")]})
     search = FilingDestinationSearch.create!(address: "テスト県テスト市1-1", requested_at: Time.current)
     search.run!(client:)
     assert_includes client.prompt, "調べなくてよい種類(すでにある): 所轄庁(NPO 法人の担当)"

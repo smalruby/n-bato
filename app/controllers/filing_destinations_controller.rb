@@ -1,6 +1,7 @@
 # 設定 › 提出先(見直し第17回、docs/adr/0027)。年度に依存しない。入力するとすぐ保存し、操作履歴に残る。
 class FilingDestinationsController < ApplicationController
   include AutosaveResponse
+
   undoable_screen
   before_action :forbid_auditor, only: %i[create update destroy]
 

@@ -25,16 +25,16 @@ class ProcedureScreensTest < ActionDispatch::IntegrationTest
 
   test "メモは自動保存、済みを取り消す、対象外にする" do
     run = ProcedureRun.create!(kind: "annual_report", period: 2025)
-    patch procedure_step_path(run, "close_books", format: :json), params: { note: "通帳は来週", undo_scope: "procedure:#{run.id}" }
+    patch procedure_step_path(run, "close_books", format: :json), params: {note: "通帳は来週", undo_scope: "procedure:#{run.id}"}
     assert response.parsed_body["ok"]
     assert_equal "通帳は来週", run.step("close_books").reload.note
 
-    post procedure_step_status_changes_path(run, "close_books"), params: { status: "done" }
-    post procedure_step_status_changes_path(run, "close_books"), params: { status: "open" }
+    post procedure_step_status_changes_path(run, "close_books"), params: {status: "done"}
+    post procedure_step_status_changes_path(run, "close_books"), params: {status: "open"}
     assert_equal "済みを取り消しました", flash[:notice]
     assert_nil run.procedure_steps.find_by!(key: "close_books").completed_on
 
-    post procedure_step_status_changes_path(run, "corporate_tax"), params: { status: "skipped", reason: "収益事業はしていない" }
+    post procedure_step_status_changes_path(run, "corporate_tax"), params: {status: "skipped", reason: "収益事業はしていない"}
     assert_match "対象外にしました", flash[:notice]
     assert_equal "skipped", run.procedure_steps.find_by!(key: "corporate_tax").status
   end

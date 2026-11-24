@@ -12,7 +12,7 @@ module ArticlesHelper
       out << m.pre_match << m[0][/\A定款[[:space:]]*/]
       out << m[1].split(/(第[0-9０-９]+条)/).map do |part|
         no = part[/\A第([0-9０-９]+)条\z/, 1]
-        no ? link_to(part, article_path(Articles::Document.number(no), year:), class: "nb-artref", data: { turbo_frame: "article_ref" }) : part
+        no ? link_to(part, article_path(Articles::Document.number(no), year:), class: "nb-artref", data: {turbo_frame: "article_ref"}) : part
       end
       rest = m.post_match
     end
@@ -22,6 +22,6 @@ module ArticlesHelper
 
   # 前の版との違いを、消した文・足した文で出す
   def article_change(before, after)
-    safe_join([ (tag.del(before) if before), (tag.ins(after) if after) ].compact)
+    safe_join([(tag.del(before) if before), (tag.ins(after) if after)].compact)
   end
 end

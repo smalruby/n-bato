@@ -28,8 +28,8 @@ class ProceduresController < ApplicationController
   # まだ始めていない手続き(これまでの年度と、今年の改選)
   def startable_periods
     from = Organization.current&.settings&.dig("compliance_from")&.to_i || FiscalYear.current.year - 1
-    reports = (from..FiscalYear.current.year - 1).map { [ "annual_report", it ] }
-    elections = (from..Date.current.year).select(&:even?).map { [ "officer_election", it ] }
+    reports = (from..FiscalYear.current.year - 1).map { ["annual_report", it] }
+    elections = (from..Date.current.year).select(&:even?).map { ["officer_election", it] }
     (reports + elections).sort_by { -it.last }
   end
 end

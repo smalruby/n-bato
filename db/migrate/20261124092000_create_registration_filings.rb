@@ -6,37 +6,37 @@ class CreateRegistrationFilings < ActiveRecord::Migration[8.1]
     create_table :registration_filings do |t|
       t.string :status, null: false, default: "drafting"
       t.text :note, null: false, default: ""
-      t.references :general_meeting_resolution, foreign_key: { to_table: :resolutions }
-      t.references :board_resolution, foreign_key: { to_table: :resolutions }
+      t.references :general_meeting_resolution, foreign_key: {to_table: :resolutions}
+      t.references :board_resolution, foreign_key: {to_table: :resolutions}
       t.timestamps
     end
     create_table :registration_filing_submissions do |t|
-      t.references :registration_filing, null: false, foreign_key: true, index: { unique: true }
+      t.references :registration_filing, null: false, foreign_key: true, index: {unique: true}
       t.string :application_number, null: false, default: ""
-      t.references :recorded_by, foreign_key: { to_table: :users }
+      t.references :recorded_by, foreign_key: {to_table: :users}
       t.date :submitted_on, null: false
     end
     create_table :registration_filing_acceptances do |t|
-      t.references :registration_filing, null: false, foreign_key: true, index: { unique: true }
+      t.references :registration_filing, null: false, foreign_key: true, index: {unique: true}
       t.string :receipt_number, null: false, default: ""
-      t.references :recorded_by, foreign_key: { to_table: :users }
+      t.references :recorded_by, foreign_key: {to_table: :users}
       t.date :accepted_on, null: false
     end
     create_table :registration_filing_corrections do |t|
       t.references :registration_filing, null: false, foreign_key: true
       t.text :note, null: false
-      t.references :recorded_by, foreign_key: { to_table: :users }
+      t.references :recorded_by, foreign_key: {to_table: :users}
       t.date :noticed_on, null: false
     end
     create_table :registration_filing_completions do |t|
-      t.references :registration_filing, null: false, foreign_key: true, index: { unique: true }
-      t.references :recorded_by, foreign_key: { to_table: :users }
+      t.references :registration_filing, null: false, foreign_key: true, index: {unique: true}
+      t.references :recorded_by, foreign_key: {to_table: :users}
       t.date :completed_on, null: false
     end
     create_table :registration_filing_withdrawals do |t|
-      t.references :registration_filing, null: false, foreign_key: true, index: { unique: true }
+      t.references :registration_filing, null: false, foreign_key: true, index: {unique: true}
       t.text :reason, null: false
-      t.references :recorded_by, foreign_key: { to_table: :users }
+      t.references :recorded_by, foreign_key: {to_table: :users}
       t.date :withdrawn_on, null: false
     end
 

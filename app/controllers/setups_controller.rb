@@ -1,6 +1,6 @@
 # 最初の起動のウィザード(見直し第17回): ①法人の名前と所在地 ②提出先を AI に調べてもらう ③人が確かめる ④できあがり。
 class SetupsController < ApplicationController
-  STEPS = { 1 => "法人の名前と所在地", 2 => "提出先の案(AI が調べる)", 3 => "人が確かめる", 4 => "できあがり" }.freeze
+  STEPS = {1 => "法人の名前と所在地", 2 => "提出先の案(AI が調べる)", 3 => "人が確かめる", 4 => "できあがり"}.freeze
 
   def show
     @step = params[:step].to_i.clamp(1, 4)

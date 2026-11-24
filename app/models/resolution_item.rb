@@ -1,14 +1,14 @@
 # 決議の議案 1 つ(決議の中身。成立前は自由に直してよい)。役員の選任や事業報告の承認は、成立後に記録へ反映できる。
 # 反映は詳細のイベント ResolutionItem::Application(docs/adr/0038)。
 class ResolutionItem < ApplicationRecord
-  KINDS = { "general" => "一般", "officer_election" => "役員の選任", "annual_report_approval" => "事業報告・決算の承認",
-            "officer_mutual_election" => "理事長・副理事長の互選" }.freeze
+  KINDS = {"general" => "一般", "officer_election" => "役員の選任", "annual_report_approval" => "事業報告・決算の承認",
+           "officer_mutual_election" => "理事長・副理事長の互選"}.freeze
 
   belongs_to :resolution
   has_one :application, class_name: "ResolutionItem::Application", dependent: :restrict_with_error
-  validates :kind, inclusion: { in: KINDS.keys }
+  validates :kind, inclusion: {in: KINDS.keys}
   validates :title, presence: true
-  validate { errors.add(:base, "「#{@unknown_names.join('、')}」が読めません（登録済みの氏名と、役（理事・監事・理事長・副理事長）を空白で区切って書く）") if @unknown_names.present? }
+  validate { errors.add(:base, "「#{@unknown_names.join("、")}」が読めません（登録済みの氏名と、役（理事・監事・理事長・副理事長）を空白で区切って書く）") if @unknown_names.present? }
 
   def kind_label = KINDS[kind]
 
@@ -18,13 +18,13 @@ class ResolutionItem < ApplicationRecord
   def appointments = Array((payload || {})["appointments"]).grep(Hash)
   def fiscal_year = (payload || {})["fiscal_year"]
 
-  ROLE_WORDS = { "理事長" => "chair", "副理事長" => "vice_chair", "理事" => "director", "監事" => "auditor" }.freeze
+  ROLE_WORDS = {"理事長" => "chair", "副理事長" => "vice_chair", "理事" => "director", "監事" => "auditor"}.freeze
 
   # 画面では「氏名 役」を 1 行ずつ書く(例: 山田　太郎 理事)
   def appointments_text
     return @appointments_text if @appointments_text
 
-    appointments.map { "#{Person.find_by(id: it['person_id'])&.name} #{OfficerTerm::ROLES[it['role']]}" }.join("\n")
+    appointments.map { "#{Person.find_by(id: it["person_id"])&.name} #{OfficerTerm::ROLES[it["role"]]}" }.join("\n")
   end
 
   def appointments_text=(text)
@@ -35,7 +35,7 @@ class ResolutionItem < ApplicationRecord
       person = Person.find_by_current_name(name)
       next @unknown_names << name unless person && ROLE_WORDS.key?(word)
 
-      { "person_id" => person.id, "role" => ROLE_WORDS.fetch(word) }
+      {"person_id" => person.id, "role" => ROLE_WORDS.fetch(word)}
     end
     self.payload = (payload || {}).merge("appointments" => list)
   end

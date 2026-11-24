@@ -1,12 +1,12 @@
 namespace :data do
   desc "会員・役員・事業報告書を YAML から読み込む(実データは data/ に置く) 例: bin/rails 'data:load[data/records.yml]'"
-  task :load, [ :path ] => :environment do |_, args|
-    conf = YAML.load_file(args.fetch(:path), permitted_classes: [ Date ])
+  task :load, [:path] => :environment do |_, args|
+    conf = YAML.load_file(args.fetch(:path), permitted_classes: [Date])
     ActiveRecord::Base.transaction do
       people = Array(conf["people"]).to_h do |h|
         person = Person.find_or_initialize_by(name: h.fetch("name"))
         person.update!(h.slice("name_kana", "address", "email", "phone", "notes").compact)
-        [ person.name, person ]
+        [person.name, person]
       end
       Array(conf["memberships"]).each do |h|
         Array(h.fetch("names")).each do |name|

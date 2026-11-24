@@ -16,7 +16,7 @@ class FillBlankOrganizationYearNames < ActiveRecord::Migration[8.1]
         say "法人(id=#{org_id})の #{fiscal_year} 年度の記録は名前が空ですが、法人の名前も空なので埋めませんでした。法人情報の画面で直してください"
         next
       end
-      execute ActiveRecord::Base.sanitize_sql_array([ "UPDATE organization_years SET name = ? WHERE id = ?", org_name, id ])
+      execute ActiveRecord::Base.sanitize_sql_array(["UPDATE organization_years SET name = ? WHERE id = ?", org_name, id])
     end
   end
 

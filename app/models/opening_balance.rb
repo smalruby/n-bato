@@ -2,7 +2,7 @@
 # 資産は借方、負債・正味財産は貸方をプラスで持つ。
 class OpeningBalance < ApplicationRecord
   belongs_to :account
-  validates :fiscal_year, presence: true, uniqueness: { scope: :account_id }
-  validates :amount, numericality: { only_integer: true }
+  validates :fiscal_year, presence: true, uniqueness: {scope: :account_id}
+  validates :amount, numericality: {only_integer: true}
   validate { errors.add(:account, "は貸借対照表の科目にしてください") if account && !account.balance_sheet? }
 end

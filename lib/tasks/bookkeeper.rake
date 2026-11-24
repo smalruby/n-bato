@@ -4,7 +4,7 @@
 #   3. bin/rails 'bookkeeper:import[ID,path/to/answer.json]' … 提案として登録(承認は画面で人が行う)
 namespace :bookkeeper do
   desc "証憑の仕訳提案に使う指示文と添付ファイルの場所を表示する"
-  task :prompt, [ :voucher_id ] => :environment do |_, args|
+  task :prompt, [:voucher_id] => :environment do |_, args|
     voucher = Voucher.find(args.fetch(:voucher_id))
     gen = Bookkeeper::ProposalGenerator.new(voucher)
     puts gen.system_prompt
@@ -19,7 +19,7 @@ namespace :bookkeeper do
   end
 
   desc "Claude Code が作った答え(JSON)を、証憑の仕訳提案として登録する"
-  task :import, [ :voucher_id, :path ] => :environment do |_, args|
+  task :import, [:voucher_id, :path] => :environment do |_, args|
     voucher = Voucher.find(args.fetch(:voucher_id))
     result = JSON.parse(File.read(args.fetch(:path)))
     proposals = Bookkeeper::ProposalGenerator.new(voucher).apply(result, model: "claude-code")

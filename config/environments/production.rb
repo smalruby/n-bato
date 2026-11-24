@@ -16,7 +16,7 @@ Rails.application.configure do
   config.action_controller.perform_caching = true
 
   # Cache assets for far-future expiry since they are all digest stamped.
-  config.public_file_server.headers = { "cache-control" => "public, max-age=#{1.year.to_i}" }
+  config.public_file_server.headers = {"cache-control" => "public, max-age=#{1.year.to_i}"}
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
@@ -35,8 +35,8 @@ Rails.application.configure do
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
   # Log to STDOUT with the current request id as a default log tag.
-  config.log_tags = [ :request_id ]
-  config.logger   = ActiveSupport::TaggedLogging.logger(STDOUT)
+  config.log_tags = [:request_id]
+  config.logger = ActiveSupport::TaggedLogging.logger($stdout)
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!)
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
@@ -52,7 +52,7 @@ Rails.application.configure do
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   config.active_job.queue_adapter = :solid_queue
-  config.solid_queue.connects_to = { database: { writing: :queue } }
+  config.solid_queue.connects_to = {database: {writing: :queue}}
 
   # Ignore bad email addresses and do not raise email delivery errors.
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
@@ -61,8 +61,8 @@ Rails.application.configure do
   # Set host to be used by links generated in mailer templates.
   # メールの中のリンクの宛先は NBATO_URL(例: https://n-bato.smalruby.app、手元は http://localhost:3200)から決める。
   nbato_url = URI(ENV.fetch("NBATO_URL", "http://localhost:3200"))
-  config.action_mailer.default_url_options = { host: nbato_url.host, protocol: nbato_url.scheme,
-                                               port: ([ 80, 443 ].include?(nbato_url.port) ? nil : nbato_url.port) }.compact
+  config.action_mailer.default_url_options = {host: nbato_url.host, protocol: nbato_url.scheme,
+                                              port: ([80, 443].include?(nbato_url.port) ? nil : nbato_url.port)}.compact
   # NBATO_MAIL_DELIVERY=local_mailbox なら外に送らず storage/mails に残す(手元の Docker 用。bin/rails mail:latest で見る)。
   # 本番は Amazon SES を SMTP で使う(デプロイの相談 第2回)。SMTP_* は Kamal の秘密から渡す。
   if ENV["NBATO_MAIL_DELIVERY"] == "local_mailbox"
@@ -97,7 +97,7 @@ Rails.application.configure do
   config.active_record.dump_schema_after_migration = false
 
   # Only use :id for inspections in production.
-  config.active_record.attributes_for_inspect = [ :id ]
+  config.active_record.attributes_for_inspect = [:id]
 
   # Enable DNS rebinding protection and other `Host` header attacks.
   # config.hosts = [

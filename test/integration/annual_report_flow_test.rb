@@ -4,8 +4,13 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
   setup do
     import_sample
     Organization.create!(name: "NPO法人テスト", address: "島根県テスト市", representative_title: "理事長", representative_name: "役員A",
-                         first_fiscal_year: 2023, competent_authority: "テスト市", phone: "000-0000-0000")
-    [ 2024, 2025 ].product((111..113).to_a).each { |year, code| Department.find_or_create_by!(fiscal_year: year, code: code) { it.name = "#{code}事業"; it.full_name = "事業#{code}" } }
+      first_fiscal_year: 2023, competent_authority: "テスト市", phone: "000-0000-0000")
+    [2024, 2025].product((111..113).to_a).each { |year, code|
+      Department.find_or_create_by!(fiscal_year: year, code: code) {
+        it.name = "#{code}事業"
+        it.full_name = "事業#{code}"
+      }
+    }
     people = (1..10).map { Person.create!(name: "会員#{it}", address: "テスト市#{it}") }
     people.each { Membership.create!(person: it, fiscal_year: 2024, kind: "regular") }
     OfficerTerm.create!(person: people[0], role: "chair", starts_on: Date.new(2022, 7, 1), ends_on: Date.new(2024, 6, 30))
@@ -20,10 +25,10 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
     get new_annual_report_path(year: 2024)
     assert_response :success
     activities = Department.where(code: 111..113).order(:code).each_with_index.to_h do |d, i|
-      [ i.to_s, { department_id: d.id, position: i, content: "内容#{i}", schedule: "", beneficiaries: "", report: i == 2 ? "| 日付 | 人数 |\n|---|---|\n| 5/1 | 3人 |" : "" } ]
+      [i.to_s, {department_id: d.id, position: i, content: "内容#{i}", schedule: "", beneficiaries: "", report: (i == 2) ? "| 日付 | 人数 |\n|---|---|\n| 5/1 | 3人 |" : ""}]
     end
-    post annual_reports_path, params: { annual_report: { fiscal_year: 2024, achievements: "教室を開いた", member_counts: { regular: "13" },
-                                                         letter_date: "2026-11-20", program_activities_attributes: activities } }
+    post annual_reports_path, params: {annual_report: {fiscal_year: 2024, achievements: "教室を開いた", member_counts: {regular: "13"},
+                                                       letter_date: "2026-11-20", program_activities_attributes: activities}}
     assert_redirected_to annual_report_path(2024)
     follow_redirect!
     # 見直し第21回: PDF は別のタブ(↗)、題の上にパンくず
@@ -59,15 +64,15 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
 
   test "事業報告書の無い年度へ切り替えると一覧へ戻る" do
     report = AnnualReport.create!(fiscal_year: 2024)
-    get year_switch_path(2025), headers: { "HTTP_REFERER" => "http://www.example.com#{annual_report_path(2024)}" }
+    get year_switch_path(2025), headers: {"HTTP_REFERER" => "http://www.example.com#{annual_report_path(2024)}"}
     assert_redirected_to annual_reports_path
-    get year_switch_path(2024), headers: { "HTTP_REFERER" => "http://www.example.com#{annual_report_path(2024)}" }
+    get year_switch_path(2024), headers: {"HTTP_REFERER" => "http://www.example.com#{annual_report_path(2024)}"}
     assert_redirected_to annual_report_path(report.fiscal_year)
   end
 
   test "提出日を記録する" do
     AnnualReport.draft_for(2024).save!
-    patch annual_report_path(2024), params: { annual_report: { submitted_on: "2026-11-20" } }
+    patch annual_report_path(2024), params: {annual_report: {submitted_on: "2026-11-20"}}
     assert_equal Date.new(2026, 11, 20), AnnualReport.find_by!(fiscal_year: 2024).submitted_on
     get annual_reports_path
     assert_match "提出済み", response.body
@@ -83,14 +88,14 @@ class AnnualReportFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "編集の画面・保存できなければ戻す・書類一式を HTML で出す" do
-    post annual_reports_path, params: { annual_report: { fiscal_year: "", achievements: "x" } }
+    post annual_reports_path, params: {annual_report: {fiscal_year: "", achievements: "x"}}
     assert_response :unprocessable_entity
 
     AnnualReport.draft_for(2024).save!
     AnnualReport.draft_for(2025).save!
     get edit_annual_report_path(2024)
     assert_response :success
-    patch annual_report_path(2024), params: { annual_report: { fiscal_year: 2025 } }
+    patch annual_report_path(2024), params: {annual_report: {fiscal_year: 2025}}
     assert_response :unprocessable_entity
 
     get pack_annual_report_path(2024)

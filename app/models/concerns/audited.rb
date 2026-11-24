@@ -29,16 +29,16 @@ module Audited
     return unless self.class.audited && !Audit.disabled?
 
     changeset = case event
-    when "create" then attributes.except(*AuditChange::IGNORED).compact.transform_values { [ nil, it ] }
+    when "create" then attributes.except(*AuditChange::IGNORED).compact.transform_values { [nil, it] }
     when "update" then saved_changes.except(*AuditChange::IGNORED)
-    else attributes.except(*AuditChange::IGNORED).compact.transform_values { [ it, nil ] }
+    else attributes.except(*AuditChange::IGNORED).compact.transform_values { [it, nil] }
     end
     return if event == "update" && changeset.empty?
 
     Audit.current_operation.audit_changes.create!(
       auditable_type: self.class.name, auditable_id: id, event:, fiscal_year: audit_fiscal_year,
       changeset: changeset.transform_values { |v| v.map { Audit.dump(it) } },
-      snapshot: event == "destroy" ? attributes.transform_values { Audit.dump(it) } : nil
+      snapshot: (event == "destroy") ? attributes.transform_values { Audit.dump(it) } : nil
     )
   end
 end

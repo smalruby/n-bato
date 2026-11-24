@@ -1,6 +1,7 @@
 # 会員資格(年度ごと)。締めた年度の会員資格を変えるときは理由を書く。
 class MembershipsController < ApplicationController
   include ClosedYearGuard
+
   before_action { @person = Person.find(params[:person_id]) }
 
   def create

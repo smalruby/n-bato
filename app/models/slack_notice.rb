@@ -27,13 +27,17 @@ module SlackNotice
 
   def self.chat_post_message(text, http: Net::HTTP) # http: テストでは偽物を渡す(本物の Slack には送らない)
     uri = URI("https://slack.com/api/chat.postMessage")
-    req = Net::HTTP::Post.new(uri, "Authorization" => "Bearer #{ENV.fetch('SLACK_BOT_TOKEN')}", "Content-Type" => "application/json; charset=utf-8")
-    req.body = { channel: channel_id, text:, unfurl_links: false }.to_json
+    req = Net::HTTP::Post.new(uri, "Authorization" => "Bearer #{ENV.fetch("SLACK_BOT_TOKEN")}", "Content-Type" => "application/json; charset=utf-8")
+    req.body = {channel: channel_id, text:, unfurl_links: false}.to_json
     res = http.start(uri.host, uri.port, use_ssl: true, open_timeout: 10, read_timeout: 10) { it.request(req) }
-    body = JSON.parse(res.body) rescue {}
-    Rails.logger.warn("Slack に送れませんでした: #{body['error']}") unless body["ok"]
+    body = begin
+      JSON.parse(res.body)
+    rescue
+      {}
+    end
+    Rails.logger.warn("Slack に送れませんでした: #{body["error"]}") unless body["ok"]
     body["ok"] == true
-  rescue StandardError => e
+  rescue => e
     Rails.logger.warn("Slack に送れませんでした: #{e.class}: #{e.message}")
     false
   end

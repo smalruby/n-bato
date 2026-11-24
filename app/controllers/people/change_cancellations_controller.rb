@@ -1,6 +1,6 @@
 # 住所・氏名の出来事の取消(打ち間違いのとき。docs/adr/0029)
 class People::ChangeCancellationsController < ApplicationController
-  TYPES = { "address" => Person::AddressChange, "name" => Person::NameChange }.freeze
+  TYPES = {"address" => Person::AddressChange, "name" => Person::NameChange}.freeze
 
   def create
     person = Person.find(params[:person_id])

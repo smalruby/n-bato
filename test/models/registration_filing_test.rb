@@ -27,7 +27,7 @@ class RegistrationFilingTest < ActiveSupport::TestCase
   test "登記すべき事項: 重任・就任・住所移転・旧氏を併記した氏変更を、人ごとにまとめる" do
     Person::AddressChange.record!(@vice, address: "テスト県テスト市3-3", moved_on: Date.new(2025, 4, 10))
     Person::NameChange.record!(@vice, name: "鈴木　花子", changed_on: Date.new(2025, 9, 8), show_former_name: true)
-    regs = [ reg_for(@chair_term), reg_for(@vice_term), *Registration.where(kind: %w[address_change name_change]) ]
+    regs = [reg_for(@chair_term), reg_for(@vice_term), *Registration.where(kind: %w[address_change name_change])]
     filing = RegistrationFiling.start!(regs)
     st = filing.statement
     assert_equal <<~TEXT.chomp, st.matters
@@ -50,7 +50,7 @@ class RegistrationFilingTest < ActiveSupport::TestCase
     assert(st.warnings.any? { it.include?("1 件の申請にまとめられるか") })
     assert_equal Date.new(2025, 9, 8), st.as_of
     earlier = st.warnings.select { it.include?("前の任期が Nばとに記録されていない") }
-    assert_equal [ @vice.reload.name ], earlier.map { it.split(":").first }, "就任とした理由を確かめてもらう(重任の人には出さない)"
+    assert_equal [@vice.reload.name], earlier.map { it.split(":").first }, "就任とした理由を確かめてもらう(重任の人には出さない)"
   end
 
   test "日が分からない住所の変更は、推測で日を埋めずに確かめることに出す" do
@@ -58,7 +58,7 @@ class RegistrationFilingTest < ActiveSupport::TestCase
     filing = RegistrationFiling.start!(Registration.where(kind: "address_change").to_a)
     assert_includes filing.statement.matters, "「原因年月日」【日が不明: 2025/04(日は不明)。住民票で確かめる】住所移転"
     assert(filing.statement.warnings.any? { it.include?("住民票(除票を含む)") })
-    assert_equal [ "（住所・氏名の変更は、本人が申請するので添付書類はありません。旧氏を併記するときは戸籍の証明書など）" ], filing.statement.attachments
+    assert_equal ["（住所・氏名の変更は、本人が申請するので添付書類はありません。旧氏を併記するときは戸籍の証明書など）"], filing.statement.attachments
   end
 
   test "氏と名を区切れない氏名・住所が空の人は、確かめることに出す" do
@@ -74,8 +74,8 @@ class RegistrationFilingTest < ActiveSupport::TestCase
 
   test "始める・足す・外す: 書類を作っている間だけ" do
     assert_raises(ArgumentError) { RegistrationFiling.start!([]) }
-    filing = RegistrationFiling.start!([ reg_for(@chair_term) ])
-    assert_raises(ArgumentError) { RegistrationFiling.start!([ reg_for(@chair_term) ]) }
+    filing = RegistrationFiling.start!([reg_for(@chair_term)])
+    assert_raises(ArgumentError) { RegistrationFiling.start!([reg_for(@chair_term)]) }
     assert_equal :done, filing.step_state("items")
     assert_equal :now, filing.step_state("documents")
     assert_equal :skip, filing.step_state("correcting")
@@ -92,7 +92,7 @@ class RegistrationFilingTest < ActiveSupport::TestCase
   test "申請した → 受付 → 補正 → 完了。完了で登記した日が入り、待っていたやることが作業中に戻る" do
     todo = Todo.create!(title: "登記後の証明書を送る", resume_rule: "registration_completed").tap { Todo::StatusChange.change!(it, status: "wait", waiting_on: "登記") }
     other = Todo.create!(title: "ほかの待ち").tap { Todo::StatusChange.change!(it, status: "wait") }
-    filing = RegistrationFiling.start!([ reg_for(@chair_term), reg_for(@vice_term) ])
+    filing = RegistrationFiling.start!([reg_for(@chair_term), reg_for(@vice_term)])
     assert_raises(ArgumentError) { RegistrationFiling::Acceptance.accept!(filing, accepted_on: Date.current) }
     assert_raises(ArgumentError) { RegistrationFiling::Completion.complete!(filing, completed_on: Date.current) }
     RegistrationFiling::Submission.submit!(filing, submitted_on: Date.new(2026, 12, 1), application_number: " 12345 ", by: @user)
@@ -114,7 +114,7 @@ class RegistrationFilingTest < ActiveSupport::TestCase
     assert filing.completed? && filing.finished?
     assert_equal :done, filing.step_state("correcting")
     assert_equal :done, filing.step_state("completed")
-    assert_equal [ Date.new(2026, 12, 8) ], filing.registrations.map(&:registered_on).uniq
+    assert_equal [Date.new(2026, 12, 8)], filing.registrations.map(&:registered_on).uniq
     assert_equal "doing", todo.reload.status
     assert_match "登記が完了した(2026/12/08)", todo.note
     assert_equal "wait", other.reload.status
@@ -125,12 +125,12 @@ class RegistrationFilingTest < ActiveSupport::TestCase
   end
 
   test "取り下げると、登記の事由は新しい申請に入れ直せる" do
-    filing = RegistrationFiling.start!([ reg_for(@chair_term) ])
+    filing = RegistrationFiling.start!([reg_for(@chair_term)])
     assert_raises(ArgumentError) { RegistrationFiling::Withdrawal.withdraw!(filing, withdrawn_on: Date.current, reason: " ") }
     RegistrationFiling::Withdrawal.withdraw!(filing, withdrawn_on: Date.new(2026, 12, 1), reason: "まとめ直す", by: @user)
     assert filing.reload.withdrawn?
     assert reg_for(@chair_term).reload.available?
-    assert RegistrationFiling.start!([ reg_for(@chair_term) ])
+    assert RegistrationFiling.start!([reg_for(@chair_term)])
     assert_equal "書類を作っている", RegistrationFiling.new.status_label
   end
 
@@ -144,7 +144,7 @@ class RegistrationFilingTest < ActiveSupport::TestCase
   end
 
   test "model:verify: 状態・登記した日のずれを見つける" do
-    filing = RegistrationFiling.start!([ reg_for(@chair_term) ])
+    filing = RegistrationFiling.start!([reg_for(@chair_term)])
     filing.update_columns(status: "completed")
     reg_for(@vice_term).update_columns(registered_on: Date.current)
     reg_for(@chair_term).update_columns(registered_on: Date.current)

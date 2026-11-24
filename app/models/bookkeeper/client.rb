@@ -26,9 +26,9 @@ module Bookkeeper
       message = api.messages.create(
         model: MODEL.to_sym,
         max_tokens: max_tokens,
-        system_: [ { type: "text", text: system } ],
-        messages: [ { role: "user", content: content } ],
-        output_config: { format: { type: :json_schema, schema: schema } }
+        system_: [{type: "text", text: system}],
+        messages: [{role: "user", content: content}],
+        output_config: {format: {type: :json_schema, schema: schema}}
       )
       case message.stop_reason
       when :refusal then raise Error, "AI が回答を断りました"
@@ -48,17 +48,17 @@ module Bookkeeper
     def search_json(system:, prompt:, schema:, max_tokens: 16_000, max_uses: 8)
       raise NotConfigured, "ANTHROPIC_API_KEY が設定されていません" unless self.class.configured?
 
-      messages = [ { role: "user", content: prompt } ]
+      messages = [{role: "user", content: prompt}]
       message = nil
       5.times do
         message = api.messages.create(
-          model: MODEL.to_sym, max_tokens: max_tokens, system_: [ { type: "text", text: system } ], messages: messages,
-          tools: [ { type: "web_search_20260209", name: "web_search", max_uses: max_uses } ],
-          output_config: { format: { type: :json_schema, schema: schema } }
+          model: MODEL.to_sym, max_tokens: max_tokens, system_: [{type: "text", text: system}], messages: messages,
+          tools: [{type: "web_search_20260209", name: "web_search", max_uses: max_uses}],
+          output_config: {format: {type: :json_schema, schema: schema}}
         )
         break unless message.stop_reason == :pause_turn
 
-        messages += [ { role: "assistant", content: message.content.map(&:to_h) } ] # 長い検索の途中で止まったら、続きを頼む
+        messages += [{role: "assistant", content: message.content.map(&:to_h)}] # 長い検索の途中で止まったら、続きを頼む
       end
       case message.stop_reason
       when :refusal then raise Error, "AI が回答を断りました"

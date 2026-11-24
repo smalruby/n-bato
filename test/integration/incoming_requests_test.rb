@@ -12,9 +12,9 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
     end
   end
 
-  REPLY = { "reply" => "整理しました", "request" => { "title" => "", "counterpart" => "", "received_on" => "", "due_on" => "" },
-            "todos_new" => [ { "title" => "架空の書類を出す", "fiscal_year" => 2024, "kind" => "document", "assignee" => "理事長", "due_on" => "", "target" => "", "done_rule" => "", "note" => "" } ],
-            "todos_update" => [] }.freeze
+  REPLY = {"reply" => "整理しました", "request" => {"title" => "", "counterpart" => "", "received_on" => "", "due_on" => ""},
+           "todos_new" => [{"title" => "架空の書類を出す", "fiscal_year" => 2024, "kind" => "document", "assignee" => "理事長", "due_on" => "", "target" => "", "done_rule" => "", "note" => ""}],
+           "todos_update" => []}.freeze
 
   setup { sign_in }
 
@@ -38,10 +38,10 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
   end
 
   test "下書き → AI に送る → この案で決める → 全部済んだら解決 → 送付状" do
-    post incoming_requests_path, params: { body: "架空の役所からの依頼の文" }
+    post incoming_requests_path, params: {body: "架空の役所からの依頼の文"}
     req = IncomingRequest.last
     draft = req.messages.drafts.last
-    with_ai(REPLY) { post incoming_request_message_delivery_path(req, draft), params: { send_attachments: "1" } }
+    with_ai(REPLY) { post incoming_request_message_delivery_path(req, draft), params: {send_attachments: "1"} }
     assert_redirected_to incoming_request_path(req, anchor: "thread-end")
     assert draft.reload.sent?
     assert draft.send_attachments
@@ -60,12 +60,12 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
 
     post incoming_request_settlement_path(req)
     assert_equal "まだ済んでいないやることがあります", flash[:alert]
-    post todo_status_changes_path(todo), params: { status: "done", done_note: "出した" }
+    post todo_status_changes_path(todo), params: {status: "done", done_note: "出した"}
     post incoming_request_settlement_path(req)
     assert_match "解決にしました", flash[:notice]
     assert req.reload.resolved?
 
-    with_ai({ "text" => "架空の送付状" }) { post incoming_request_cover_letter_path(req) }
+    with_ai({"text" => "架空の送付状"}) { post incoming_request_cover_letter_path(req) }
     assert_redirected_to incoming_request_path(req, anchor: "cover")
     assert_equal "架空の送付状", req.reload.cover_letter
     with_ai(:error) { post incoming_request_cover_letter_path(req) }
@@ -74,7 +74,7 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
   end
 
   test "AI の鍵が無い・AI に送れないときは、下書きのまま" do
-    post incoming_requests_path, params: { body: "架空の依頼" }
+    post incoming_requests_path, params: {body: "架空の依頼"}
     req = IncomingRequest.last
     draft = req.messages.drafts.last
     without_ai { post incoming_request_message_delivery_path(req, draft) }
@@ -87,13 +87,13 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
   end
 
   test "空の文は受け付けない。下書きを消すと、何も無い依頼は消える" do
-    post incoming_requests_path, params: { body: " " }
+    post incoming_requests_path, params: {body: " "}
     assert_redirected_to new_incoming_request_path
-    post incoming_requests_path, params: { body: "架空の依頼" }
+    post incoming_requests_path, params: {body: "架空の依頼"}
     req = IncomingRequest.last
-    post incoming_request_messages_path(req), params: { body: "" }
+    post incoming_request_messages_path(req), params: {body: ""}
     assert_equal "書いてから送ってください", flash[:alert]
-    post incoming_request_messages_path(req), params: { body: "もう一つの下書き" }
+    post incoming_request_messages_path(req), params: {body: "もう一つの下書き"}
     delete incoming_request_message_path(req, req.messages.drafts.last)
     assert_redirected_to incoming_request_path(req)
     delete incoming_request_message_path(req, req.messages.drafts.last)
@@ -105,21 +105,22 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
     req = IncomingRequest.create!(title: "元の題")
     todo = req.todos.create!(title: "前からあるやること", kind: "ask")
     msg = IncomingRequestMessage.write!(req, role: "assistant", body: "案", proposal: {
-      "request" => { "title" => "直した題" },
-      "todos_new" => [ { "title" => "一つ目" }, { "title" => "" } ],
-      "todos_update" => [ { "id" => todo.id, "status" => "doing" } ] })
+      "request" => {"title" => "直した題"},
+      "todos_new" => [{"title" => "一つ目"}, {"title" => ""}],
+      "todos_update" => [{"id" => todo.id, "status" => "doing"}]
+    })
     before = AuditChange.maximum(:id).to_i
     post incoming_request_message_adoption_path(req, msg)
     assert_empty AuditChange.where(id: (before + 1)..).where.not(auditable_type: "FiscalPeriod").pluck(:auditable_type), "操作履歴にも残さない"
     assert_redirected_to incoming_request_path(req)
     assert flash[:alert].present?
-    assert_equal [ "元の題", [ "前からあるやること" ], "todo" ], [ req.reload.title, req.todos.map(&:title), todo.reload.status ]
+    assert_equal ["元の題", ["前からあるやること"], "todo"], [req.reload.title, req.todos.map(&:title), todo.reload.status]
     assert_not msg.reload.applied?
     assert_empty ModelVerification.mismatches
   end
 
   test "Q1: AI に送るを二度押ししても 404 にせず、もう送ってあると伝える(AI を二度呼ばない)" do
-    post incoming_requests_path, params: { body: "架空の依頼" }
+    post incoming_requests_path, params: {body: "架空の依頼"}
     req = IncomingRequest.last
     draft = req.messages.drafts.last
     with_ai(REPLY) { post incoming_request_message_delivery_path(req, draft) }
@@ -140,7 +141,7 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
   end
 
   test "Q1: AI を待つ間にもう一方が送り終えていたら、もう送ってあると伝え、返事を二重に残さない" do
-    post incoming_requests_path, params: { body: "架空の依頼" }
+    post incoming_requests_path, params: {body: "架空の依頼"}
     req = IncomingRequest.last
     draft = req.messages.drafts.last
     with_ai(REPLY) do
@@ -149,23 +150,23 @@ class IncomingRequestsTest < ActionDispatch::IntegrationTest
     end
     assert_redirected_to incoming_request_path(req, anchor: "thread-end")
     assert_equal IncomingRequestMessage::Delivery::ALREADY, flash[:alert]
-    assert_equal [ "先に送った", 1 ], [ draft.reload.delivery.masked_body, req.messages.where(role: "assistant").count ]
+    assert_equal ["先に送った", 1], [draft.reload.delivery.masked_body, req.messages.where(role: "assistant").count]
     assert_empty ModelVerification.mismatches
   end
 
   test "Q2: 同じ状態にしたときは「元に戻せます」と言わない" do
     todo = Todo.create!(title: "架空のやること")
-    post todo_status_changes_path(todo), params: { status: "doing" }
+    post todo_status_changes_path(todo), params: {status: "doing"}
     assert_match "元に戻せます", flash[:notice]
     assert_no_difference -> { AuditOperation.count } do
-      post todo_status_changes_path(todo), params: { status: "doing" }
+      post todo_status_changes_path(todo), params: {status: "doing"}
     end
     assert_equal "「架空のやること」はもう作業中です", flash[:notice]
   end
 
   test "状態の分からない変化は受け付けない" do
     todo = Todo.create!(title: "架空のやること")
-    post todo_status_changes_path(todo), params: { status: "nope" }
+    post todo_status_changes_path(todo), params: {status: "nope"}
     assert_equal "状態が分かりません", flash[:alert]
   end
 end

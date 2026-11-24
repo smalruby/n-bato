@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# PR のレビュー指摘のまとめコメントを作る・人の返事を読む(スキル nbato-review。中身は lib/review_findings.rb)。
+#
+#   bin/review-findings render COMMENTS.json FINDINGS.json OUT.md
+#       まとめコメントの本文を OUT.md に書き、送り方を 1 行で出す: POST(新しく出す)か PATCH <コメントの ID>(書き換える)。
+#       COMMENTS.json は PR のコメントの配列(gh api repos/OWNER/REPO/issues/PR/comments --paginate | jq -s add)。
+#       FINDINGS.json は指摘の配列: [{"category":"Must","location":"app/a.rb:10","text":"…","handling":"修正済み(abc1234)"}]
+#       REVIEW_ROUND=N を付けると、その回のまとめコメントを書き換える(途中で止まったレビューのやり直し)。
+#
+#   bin/review-findings plan COMMENTS.json REPLIES.json
+#       人の返事(本文の配列、古い順)から、番号で触れた指摘ごとの対応を JSON で出す。
+#       action: "no-change"(直さない)/ "fix"(直す)/ "reply"(返事をする。要るなら直す)
+
+require "json"
+require_relative "../lib/review_findings"
+
+def read_json(path) = JSON.parse(File.read(path))
+
+case ARGV
+in [ "render", comments, findings, out ]
+  round = ENV["REVIEW_ROUND"].to_s[/\A\d+\z/]&.to_i
+  body, action = ReviewFindings.compose(comments: read_json(comments), findings: read_json(findings), round:)
+  File.write(out, body + "\n")
+  puts action
+in [ "plan", comments, replies ]
+  puts JSON.pretty_generate(ReviewFindings.plan(read_json(comments), read_json(replies)))
+else
+  warn File.read(__FILE__)[/^#   bin.*?(?=\n\nrequire)/m].gsub(/^# ?/, "")
+  exit 1
+end

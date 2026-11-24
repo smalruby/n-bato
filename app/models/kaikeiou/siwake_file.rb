@@ -8,24 +8,24 @@ module Kaikeiou
 
     # [列名, 属性名, 型]
     SIDE_COLUMNS = [
-      [ "科目コード", :account_code, :int ], [ "科目名称", :account_name, :str ],
-      [ "補助コード", :sub_code, :int ], [ "補助科目名称", :sub_name, :str ],
-      [ "部門コード", :department_code, :int ], [ "部門名称", :department_name, :str ],
-      [ "課税区分コード", :tax_category_code, :int ], [ "事業分類コード", :business_category_code, :int ],
-      [ "税処理コード", :tax_treatment_code, :int ], [ "税率", :tax_rate, :int ],
-      [ "金額", :amount, :int ], [ "消費税", :tax_amount, :int ]
+      ["科目コード", :account_code, :int], ["科目名称", :account_name, :str],
+      ["補助コード", :sub_code, :int], ["補助科目名称", :sub_name, :str],
+      ["部門コード", :department_code, :int], ["部門名称", :department_name, :str],
+      ["課税区分コード", :tax_category_code, :int], ["事業分類コード", :business_category_code, :int],
+      ["税処理コード", :tax_treatment_code, :int], ["税率", :tax_rate, :int],
+      ["金額", :amount, :int], ["消費税", :tax_amount, :int]
     ].freeze
 
     COLUMNS = (
-      [ [ "伝票番号", :slip_number, :int ], [ "行番号", :line_number, :int ], [ "伝票日付", :entry_date, :date ] ] +
-      SIDE_COLUMNS.map { |label, attr, type| [ "借方#{label}", :"debit_#{attr}", type ] } +
-      SIDE_COLUMNS.map { |label, attr, type| [ "貸方#{label}", :"credit_#{attr}", type ] } +
-      [ [ "取引摘要", :summary, :str ], [ "補助摘要", :sub_summary, :str ], [ "メモ", :memo, :str ],
-        [ "付箋１", :tag1, :int ], [ "付箋２", :tag2, :int ] ]
+      [["伝票番号", :slip_number, :int], ["行番号", :line_number, :int], ["伝票日付", :entry_date, :date]] +
+      SIDE_COLUMNS.map { |label, attr, type| ["借方#{label}", :"debit_#{attr}", type] } +
+      SIDE_COLUMNS.map { |label, attr, type| ["貸方#{label}", :"credit_#{attr}", type] } +
+      [["取引摘要", :summary, :str], ["補助摘要", :sub_summary, :str], ["メモ", :memo, :str],
+        ["付箋１", :tag1, :int], ["付箋２", :tag2, :int]]
     ).freeze
 
     ATTRIBUTES = COLUMNS.map { |_, attr, _| attr }.freeze
-    Row = Struct.new(*ATTRIBUTES, keyword_init: true)
+    Row = Struct.new(*ATTRIBUTES)
 
     DEFAULT_HEADER = {
       "FMTNAME" => "SIWAKE", "FMTVER" => "3.00.00", "APPNAME" => "n-bato", "APPVER" => "0.1.0"
@@ -51,7 +51,7 @@ module Kaikeiou
       rows = lines.each_with_index.map do |line, i|
         fields = parse_fields(line)
         raise FormatError, "#{i + 3} 行目の列数が #{fields.size} です" unless fields.size == COLUMNS.size
-        Row.new(**COLUMNS.zip(fields).to_h { |(_, attr, type), (value, quoted)| [ attr, cast(value, type, quoted, i + 3) ] })
+        Row.new(**COLUMNS.zip(fields).to_h { |(_, attr, type), (value, quoted)| [attr, cast(value, type, quoted, i + 3)] })
       end
       new(header: parse_header(header_line), rows: rows, header_line: header_line, columns_line: columns_line)
     end
@@ -74,7 +74,7 @@ module Kaikeiou
     end
 
     def to_s
-      ([ header_line, columns_line ] + rows.map { |row| format_row(row) }).map { |l| l + EOL }.join
+      ([header_line, columns_line] + rows.map { |row| format_row(row) }).map { |l| l + EOL }.join
     end
 
     def to_bytes = to_s.encode(ENCODING)
@@ -127,10 +127,10 @@ module Kaikeiou
                 break
               end
             end
-            fields << [ value, true ]
+            fields << [value, true]
           else
             j = line.index(",", i) || line.length
-            fields << [ line[i...j], false ]
+            fields << [line[i...j], false]
             i = j
           end
           break if i >= line.length
@@ -138,7 +138,7 @@ module Kaikeiou
           raise FormatError, "区切りが不正です: #{line}" unless line[i] == ","
           i += 1
           if i == line.length
-            fields << [ "", false ]
+            fields << ["", false]
             break
           end
         end

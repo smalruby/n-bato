@@ -8,7 +8,7 @@ module Passkeys
     def self.for(host:, origin:, env: ENV)
       WebAuthn::RelyingParty.new(
         id: env["WEBAUTHN_RP_ID"].presence || host,
-        allowed_origins: [ env["WEBAUTHN_ORIGIN"].presence || origin ],
+        allowed_origins: [env["WEBAUTHN_ORIGIN"].presence || origin],
         name: NAME
       )
     end

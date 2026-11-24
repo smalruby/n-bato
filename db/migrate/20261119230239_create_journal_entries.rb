@@ -9,8 +9,8 @@ class CreateJournalEntries < ActiveRecord::Migration[8.0]
       t.integer :line_number, null: false, default: 1
 
       %w[debit credit].each do |side|
-        t.references :"#{side}_account", null: false, foreign_key: { to_table: :accounts }
-        t.references :"#{side}_department", foreign_key: { to_table: :departments }
+        t.references :"#{side}_account", null: false, foreign_key: {to_table: :accounts}
+        t.references :"#{side}_department", foreign_key: {to_table: :departments}
         t.integer :"#{side}_sub_code", null: false, default: 0
         t.string :"#{side}_sub_name", null: false, default: ""
         t.integer :"#{side}_tax_category_code", null: false, default: 0
@@ -30,6 +30,6 @@ class CreateJournalEntries < ActiveRecord::Migration[8.0]
     end
     add_index :journal_entries, :fiscal_year
     add_index :journal_entries, :entry_date
-    add_index :journal_entries, [ :siwake_import_id, :position ]
+    add_index :journal_entries, [:siwake_import_id, :position]
   end
 end

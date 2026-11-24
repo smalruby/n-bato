@@ -16,7 +16,7 @@ module YearRecords
       self.year_attrs = attrs.map(&:to_s)
       has_many name, dependent: :destroy, inverse_of: model_name.singular.to_sym
       attrs.each do |a|
-        define_method(a) { (r = at) ? r.public_send(a) : read_attribute(a) }
+        define_method(a) { (r = at) ? r.public_send(a) : self[a] }
       end
       after_create :create_first_year_record
     end
@@ -27,13 +27,13 @@ module YearRecords
 
   def at(year = Current.working_year || FiscalYear.current.year)
     list = year_records_list
-    list.find { it.fiscal_year == year } || list.find { it.fiscal_year > year } || list.reverse.find { it.fiscal_year < year }
+    list.find { it.fiscal_year == year } || list.find { it.fiscal_year > year } || list.rfind { it.fiscal_year < year }
   end
 
   # その年度の記録が無く、ほかの年度の記録を出しているか
   def borrowed_year(year = Current.working_year || FiscalYear.current.year)
     r = at(year)
-    r && r.fiscal_year != year ? r.fiscal_year : nil
+    (r && r.fiscal_year != year) ? r.fiscal_year : nil
   end
 
   # その年度の記録(無ければ、いま出している値を写して作る。保存はしない)
@@ -43,7 +43,7 @@ module YearRecords
 
   def year_values(year = Current.working_year || FiscalYear.current.year)
     r = at(year)
-    year_attrs.index_with { r ? r.public_send(it) : read_attribute(it) }
+    year_attrs.index_with { r ? r.public_send(it) : self[it] }
   end
 
   # 最新の年度の記録を本体の列に写す(操作履歴には残さない。残るのは年度の記録の変更)
@@ -51,7 +51,7 @@ module YearRecords
     return unless year_records_list.map(&:fiscal_year).max == record.fiscal_year
 
     Audit.without do
-      year_attrs.each { write_attribute(it, record.public_send(it)) }
+      year_attrs.each { self[it] = record.public_send(it) }
       save!(validate: false) if changed?
     end
   end
@@ -62,6 +62,6 @@ module YearRecords
     return if public_send(year_records_name).any?(&:persisted?)
 
     year = Current.working_year || FiscalYear.current.year
-    Audit.without { public_send(year_records_name).create!(year_attrs.index_with { read_attribute(it) }.merge("fiscal_year" => year)) }
+    Audit.without { public_send(year_records_name).create!(year_attrs.index_with { self[it] }.merge("fiscal_year" => year)) }
   end
 end

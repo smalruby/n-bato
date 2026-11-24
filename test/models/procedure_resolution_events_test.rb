@@ -15,7 +15,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     people = names.map { Person.create!(name: it) }
     people.each { OfficerTerm.create!(person: it, role: "director", starts_on: Date.new(2026, 4, 1), ends_on: Date.new(2028, 3, 31)) }
     resolution = Resolution.create!(body: "board", voting_method: "written", title: "架空の理事会", proposed_on: Date.new(2026, 5, 1), proposer: people.first)
-    [ resolution, people ]
+    [resolution, people]
   end
 
   # --- 手順 ---
@@ -23,14 +23,14 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
   test "手順の保存する状態は、最後の状態の変化から決まる。直接は書き換えられない" do
     change!("close_books", "done", on: Date.new(2026, 4, 10))
     step = @run.procedure_steps.find_by!(key: "close_books")
-    assert_equal [ "done", Date.new(2026, 4, 10) ], [ step[:status], step.completed_on ]
+    assert_equal ["done", Date.new(2026, 4, 10)], [step[:status], step.completed_on]
     assert_equal @user, step.status_changes.last.changed_by
     assert_equal 2025, step.status_changes.last.audit_fiscal_year
 
     assert_raises(ActiveRecord::RecordInvalid) { step.update!(status: "open") }
     error = assert_raises(ActiveRecord::RecordInvalid) { ProcedureStep.create!(procedure_run: @run, key: "audit", status: "done") }
     assert_match "ProcedureStep::StatusChange.change!", error.message
-    step.reload.update!(note: "メモは直せる", checks: { "通帳を記帳した" => "2026-04-10" })
+    step.reload.update!(note: "メモは直せる", checks: {"通帳を記帳した" => "2026-04-10"})
     assert_empty ModelVerification.mismatches
 
     step.update_column(:completed_on, Date.new(2026, 4, 11))
@@ -58,7 +58,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
       error = assert_raises(ArgumentError) { change!("submit", status) }
       assert_equal "この手順は済みにしたので、もう変えられません", error.message
     end
-    assert_equal [ "done", Date.new(2026, 6, 28) ], [ @run.step("submit")[:status], @report.reload.submitted_on ]
+    assert_equal ["done", Date.new(2026, 6, 28)], [@run.step("submit")[:status], @report.reload.submitted_on]
 
     error = assert_raises(ArgumentError) { change!("audit", "skipped") }
     assert_equal "この手順は対象外にできません", error.message
@@ -86,12 +86,12 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     step = @run.step("publish_bs").tap { it.update!(note: "先にメモを書いた") }
     op { change!("publish_bs", "done", on: Date.new(2026, 6, 10)) }
     Audit.undo!(@user, "procedure:#{@run.id}")
-    assert_equal [ "open", nil ], [ step.reload[:status], @report.reload.bs_published_on ]
+    assert_equal ["open", nil], [step.reload[:status], @report.reload.bs_published_on]
     assert_empty step.status_changes
     assert_empty @report.milestones
     assert_empty ModelVerification.mismatches
     Audit.redo!(@user, "procedure:#{@run.id}")
-    assert_equal [ "done", Date.new(2026, 6, 10) ], [ step.reload[:status], @report.reload.bs_published_on ]
+    assert_equal ["done", Date.new(2026, 6, 10)], [step.reload[:status], @report.reload.bs_published_on]
     assert_empty ModelVerification.mismatches
   end
 
@@ -125,7 +125,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     run = ProcedureRun.start!(kind: "officer_election", period: 2026)
     assert_equal run, ProcedureRun.start!(kind: "officer_election", period: 2026)
     # 二度押しで、もう一方が先に作った(一意の索引で止まる)ときも、作ってあった手続きを返す
-    overriding(ProcedureRun, :find_by, ->(*, **) { }) do
+    overriding(ProcedureRun, :find_by, ->(*, **) {}) do
       overriding(ProcedureRun, :create!, ->(*, **) { raise ActiveRecord::RecordNotUnique, "UNIQUE constraint failed" }) do
         assert_equal run, ProcedureRun.start!(kind: "officer_election", period: 2026)
       end
@@ -146,7 +146,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
   test "二度押しで、まだ無かった手順の記録を作る競り合いになっても 500 にしない(一意の索引)" do
     ProcedureStep::StatusChange.change!(@run.step("close_books"), status: "done")
     late = ProcedureRun.find(@run.id).procedure_steps.build(key: "close_books")
-    overriding(ProcedureStep, :find_by, ->(*) { }) do
+    overriding(ProcedureStep, :find_by, ->(*) {}) do
       late.define_singleton_method(:valid?) { |*| true }
       error = assert_raises(ArgumentError) { ProcedureStep::StatusChange.change!(late, status: "done") }
       assert_equal "もう済みにしてあります", error.message
@@ -161,7 +161,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     assert_nil AnnualReport::Milestone.record!(@report, "submitted", on: Date.new(2026, 6, 1))
     AnnualReport::Milestone.record!(@report, "submitted", on: "", by: @user)
     assert_nil @report.reload.submitted_on
-    assert_equal [ Date.new(2026, 6, 1), nil ], @report.milestones.map(&:dated_on)
+    assert_equal [Date.new(2026, 6, 1), nil], @report.milestones.map(&:dated_on)
     assert_equal "2025年度の事業報告: 所轄庁への提出日を消した", AuditOperation.last.label
 
     assert_raises(ActiveRecord::RecordInvalid) { @report.update!(approved_on: Date.current) }
@@ -180,25 +180,31 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
       FiscalPeriod.changed_after_close!(2025)
       @report.update!(achievements: "直した2") # 印を付けたあとも、外の操作は続く
     end
-    edit, mark = AuditOperation.order(:id).last(2).sort_by { it.scope == "journal_entries" ? 0 : 1 }
-    assert_equal [ "締めた年度を直した", "journal_entries", @user ], [ edit.label, edit.scope, edit.user ]
+    edit, mark = AuditOperation.order(:id).last(2).sort_by { (it.scope == "journal_entries") ? 0 : 1 }
+    assert_equal ["締めた年度を直した", "journal_entries", @user], [edit.label, edit.scope, edit.user]
     assert_equal %w[AnnualReport AnnualReport], edit.audit_changes.map(&:auditable_type)
-    assert_equal [ AnnualReport::AUTO_SCOPE, @user, "決まりで、2025年度の事業報告に「出し直しが要る」を付けた" ], [ mark.scope, mark.user, mark.label ]
+    assert_equal [AnnualReport::AUTO_SCOPE, @user, "決まりで、2025年度の事業報告に「出し直しが要る」を付けた"], [mark.scope, mark.user, mark.label]
     assert_equal Date.current, @report.reload.resubmit_needed_on
     milestone = @report.milestones.last
     assert milestone.automatic
     assert_nil milestone.recorded_by
 
     Audit.undo!(@user, "journal_entries")
-    assert_equal [ Date.current, "" ], [ @report.reload.resubmit_needed_on, @report.achievements.to_s ]
+    assert_equal [Date.current, ""], [@report.reload.resubmit_needed_on, @report.achievements.to_s]
     assert_empty ModelVerification.mismatches
   end
 
   test "別の範囲の、締めた年度を直した操作を元に戻しても、出し直しの印は外れない" do
     AnnualReport::Milestone.record!(@report, "submitted", on: Date.new(2026, 6, 1))
     FiscalPeriod.create!(year: 2025, closed_on: Date.new(2026, 6, 2))
-    op("journal_entries") { Person.create!(name: "架空A"); FiscalPeriod.changed_after_close!(2025) }
-    op("accounts") { Person.create!(name: "架空B"); FiscalPeriod.changed_after_close!(2025) }
+    op("journal_entries") {
+      Person.create!(name: "架空A")
+      FiscalPeriod.changed_after_close!(2025)
+    }
+    op("accounts") {
+      Person.create!(name: "架空B")
+      FiscalPeriod.changed_after_close!(2025)
+    }
     assert_equal 1, @report.milestones.where(kind: "resubmit_needed").count, "もう印があれば付け直さない"
     Audit.undo!(@user, "journal_entries")
     assert_equal Date.current, @report.reload.resubmit_needed_on
@@ -207,11 +213,11 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
   end
 
   test "事業報告の画面の保存: 日付が変わった欄だけ記録し、保存できなければ記録しない" do
-    assert @report.save_with_dates({ "submitted_on" => "2026-06-01", "approved_on" => "", "bs_published_on" => nil })
-    assert_equal [ "submitted" ], @report.milestones.map(&:kind)
+    assert @report.save_with_dates({"submitted_on" => "2026-06-01", "approved_on" => "", "bs_published_on" => nil})
+    assert_equal ["submitted"], @report.milestones.map(&:kind)
 
     other = AnnualReport.new(fiscal_year: 2025)
-    assert_not other.save_with_dates({ "submitted_on" => "2026-06-02" })
+    assert_not other.save_with_dates({"submitted_on" => "2026-06-02"})
     assert_equal "2026-06-02", other.submitted_on.to_s, "画面に戻すときは入れた日付を出す"
     assert_nil other.opened_date("submitted_on"), "開いたときの日付は、入れた日付ではなく元の日付"
     assert_equal 1, AnnualReport::Milestone.count
@@ -249,7 +255,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
   test "取り消していない同意が 2 つあれば model:verify が知らせる" do
     resolution, (a, _) = board_resolution("理事A")
     Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2))
-    Consent.insert!({ resolution_id: resolution.id, person_id: a.id, consented_on: Date.new(2026, 5, 3), via: "paper", note: "" })
+    Consent.insert!({resolution_id: resolution.id, person_id: a.id, consented_on: Date.new(2026, 5, 3), via: "paper", note: ""})
     assert_match "取り消していない同意が 2 つ", ModelVerification.mismatches.join
   end
 
@@ -269,7 +275,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
 
   test "反映した議案のある決議の同意を元に戻すと、成立しなくなるので Conflict で止める" do
     resolution, (a, _) = board_resolution("理事A")
-    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: { "appointments" => [] })
+    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: {"appointments" => []})
     op("consents") { Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2)) }
     op("resolutions") { ResolutionItem::Application.apply!(item, by: @user) }
 
@@ -287,18 +293,18 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     resolution, (a, _) = board_resolution("理事A")
     assert_empty resolution.state_mismatches
     Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2))
-    Consent.insert!({ resolution_id: resolution.id, person_id: a.id, consented_on: Date.new(2026, 5, 3), via: "paper", note: "" })
-    assert_equal [ "取り消していない同意(同じ人に 2 つ)" ], resolution.state_mismatches
+    Consent.insert!({resolution_id: resolution.id, person_id: a.id, consented_on: Date.new(2026, 5, 3), via: "paper", note: ""})
+    assert_equal ["取り消していない同意(同じ人に 2 つ)"], resolution.state_mismatches
 
-    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: { "appointments" => [] })
+    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: {"appointments" => []})
     Consent.delete_all
-    ResolutionItem::Application.insert!({ resolution_item_id: item.id, applied_on: Date.new(2026, 5, 3) })
-    assert_equal [ "成立(反映した議案があるのに成立していない)" ], resolution.reload.state_mismatches
+    ResolutionItem::Application.insert!({resolution_item_id: item.id, applied_on: Date.new(2026, 5, 3)})
+    assert_equal ["成立(反映した議案があるのに成立していない)"], resolution.reload.state_mismatches
   end
 
   test "議案の反映: 1 つの操作で元に戻せない。二度押しは「もう反映してあります」" do
     resolution, (a, _) = board_resolution("理事A")
-    item = resolution.items.create!(kind: "officer_mutual_election", title: "互選", payload: { "appointments" => [ { "person_id" => a.id, "role" => "chair" } ] })
+    item = resolution.items.create!(kind: "officer_mutual_election", title: "互選", payload: {"appointments" => [{"person_id" => a.id, "role" => "chair"}]})
     assert_equal "決議が成立していません", assert_raises(ArgumentError) { ResolutionItem::Application.apply!(item) }.message
     Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2))
 
@@ -309,21 +315,21 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     op = AuditOperation.last
     assert_equal "final", op.kind
     assert_includes op.audit_changes.map(&:auditable_type), "Registration"
-    assert_equal [ "chair", Date.new(2026, 5, 2) ], [ OfficerTerm.find_by!(person: a).role, Registration.last.cause_on ]
+    assert_equal ["chair", Date.new(2026, 5, 2)], [OfficerTerm.find_by!(person: a).role, Registration.last.cause_on]
     assert_equal Date.current, item.reload.applied_on
-    assert_equal [ item ], ResolutionItem.applied.to_a
+    assert_equal [item], ResolutionItem.applied.to_a
     assert_equal "もう記録に反映してあります", assert_raises(ArgumentError) { ResolutionItem::Application.apply!(item) }.message
     assert_equal "もう記録に反映してあります", assert_raises(ArgumentError) { ResolutionItem::Application.apply!(stale) }.message
     assert_equal 1, ResolutionItem::Application.count
     overriding(ResolutionItem::Application, :exists?, ->(*) { false }) do
-      officer = resolution.items.create!(kind: "officer_election", title: "選任", payload: { "appointments" => [] })
+      officer = resolution.items.create!(kind: "officer_election", title: "選任", payload: {"appointments" => []})
       ResolutionItem::Application.apply!(officer)
       racing = ResolutionItem.find(officer.id).tap(&:application)
       racing.association(:application).target = nil
       assert_equal "もう記録に反映してあります", assert_raises(ArgumentError) { ResolutionItem::Application.apply!(racing) }.message
     end
 
-    resolution.reload.items_attributes = [ { id: item.id, _destroy: "1" } ]
+    resolution.reload.items_attributes = [{id: item.id, _destroy: "1"}]
     assert_not resolution.save
     assert_match "記録に反映した議案は消せません", resolution.errors.full_messages.join
   end
@@ -331,25 +337,25 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
   test "会議で決めた決議(同意なし)も、反映した議案があれば消せない" do
     chair = Person.create!(name: "理事A")
     resolution = Resolution.create!(body: "board", voting_method: "meeting", title: "架空の理事会", proposed_on: Date.new(2026, 5, 1),
-                                    held_on: Date.new(2026, 5, 2), proposer: chair)
-    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: { "appointments" => [] })
+      held_on: Date.new(2026, 5, 2), proposer: chair)
+    item = resolution.items.create!(kind: "officer_election", title: "選任", payload: {"appointments" => []})
     ResolutionItem::Application.apply!(item)
     assert_not resolution.reload.destroy
-    assert_equal [ "記録に反映した議案のある決議は消せません" ], resolution.errors.full_messages
+    assert_equal ["記録に反映した議案のある決議は消せません"], resolution.errors.full_messages
   end
 
   test "議案の反映が途中で失敗したら、外のトランザクションの中でも途中までの変更を残さない" do
     resolution, (a, b) = board_resolution("理事A", "理事B")
-    [ a, b ].each { Consent.record!(resolution, person: it, consented_on: Date.new(2026, 5, 2)) }
+    [a, b].each { Consent.record!(resolution, person: it, consented_on: Date.new(2026, 5, 2)) }
     nobody = Person.create!(name: "任期の無い人")
     item = resolution.items.create!(kind: "officer_mutual_election", title: "互選",
-                                    payload: { "appointments" => [ { "person_id" => a.id, "role" => "chair" }, { "person_id" => nobody.id, "role" => "vice_chair" } ] })
+      payload: {"appointments" => [{"person_id" => a.id, "role" => "chair"}, {"person_id" => nobody.id, "role" => "vice_chair"}]})
     op("resolutions") do
       assert_raises(ActiveRecord::RecordNotFound) { ResolutionItem::Application.apply!(item, by: @user) }
       assert_nil Current.audit_operation, "セーブポイントごと消えた操作を指したままにしない"
       resolution.update!(note: "失敗のあとの変更") # 同じ操作の続きは、新しく作る操作に残る
     end
-    assert_equal [ [ "Resolution", "do" ] ], AuditOperation.last.audit_changes.map { [ it.auditable_type, it.audit_operation.kind ] }
+    assert_equal [["Resolution", "do"]], AuditOperation.last.audit_changes.map { [it.auditable_type, it.audit_operation.kind] }
     assert_equal "director", OfficerTerm.find_by!(person: a).role
     assert_empty Registration.all
     assert_not item.reload.applied?
@@ -365,7 +371,7 @@ class ProcedureResolutionEventsTest < ActiveSupport::TestCase
     Consent.record!(resolution, person: a, consented_on: Date.new(2026, 5, 2))
     ResolutionItem::Application.apply!(item, by: @user)
     assert_equal Date.new(2026, 5, 2), @report.reload.approved_on
-    assert_equal [ [ "approved", @user ] ], @report.milestones.map { [ it.kind, it.recorded_by ] }
+    assert_equal [["approved", @user]], @report.milestones.map { [it.kind, it.recorded_by] }
     general = resolution.items.create!(kind: "general", title: "一般")
     assert_raises(ArgumentError) { ResolutionItem::Application.apply!(general) }
   end

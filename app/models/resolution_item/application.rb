@@ -3,6 +3,7 @@
 # 外に効く出来事なので、元に戻せない操作(ADR-0007)。1 つの議案に 1 つ。
 class ResolutionItem::Application < ApplicationRecord
   include EventRecord
+
   event_of :applied_on, entry: :apply!
 
   belongs_to :resolution_item
@@ -44,14 +45,16 @@ class ResolutionItem::Application < ApplicationRecord
         term = OfficerTerm.where(person_id: a.fetch("person_id"), role: "director").order(:starts_on).last or
           raise ActiveRecord::RecordNotFound, "互選の対象の理事の任期がありません"
         term.update!(role: a.fetch("role"))
-        term.registrations.create!(kind: "representative_change", cause_on: date, due_on: date + Registration::DEADLINE_DAYS,
-                                   note: "#{term.person.name}（#{term.role_label}）の就任・重任") if term.representative?
+        if term.representative?
+          term.registrations.create!(kind: "representative_change", cause_on: date, due_on: date + Registration::DEADLINE_DAYS,
+            note: "#{term.person.name}（#{term.role_label}）の就任・重任")
+        end
       end
     when "officer_election"
       item.appointments.each do |a|
         OfficerTerm.create!(person_id: a.fetch("person_id"), role: a.fetch("role"), starts_on: date,
-                            ends_on: date.advance(years: OfficerTerm::TERM_YEARS).yesterday,
-                            appointed_by: "#{resolution.body_label}「#{resolution.title}」（#{date}）")
+          ends_on: date.advance(years: OfficerTerm::TERM_YEARS).yesterday,
+          appointed_by: "#{resolution.body_label}「#{resolution.title}」（#{date}）")
       end
     when "annual_report_approval"
       AnnualReport::Milestone.record!(AnnualReport.find_by!(fiscal_year: item.fiscal_year), "approved", on: date, by:)

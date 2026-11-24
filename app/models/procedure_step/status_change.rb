@@ -5,14 +5,15 @@
 # 定義で final の手順を済みにするのは、元に戻せない操作。ほかはふつうの操作なので元に戻せる(元に戻すと、この変化も消える)。
 class ProcedureStep::StatusChange < ApplicationRecord
   include EventRecord
+
   event_of :changed_at, entry: :change!
 
-  STATUSES = { "done" => "済みにした", "skipped" => "対象外にした", "open" => "済みを取り消した" }.freeze
+  STATUSES = {"done" => "済みにした", "skipped" => "対象外にした", "open" => "済みを取り消した"}.freeze
 
   belongs_to :procedure_step
   belongs_to :changed_by, class_name: "User", optional: true
 
-  validates :status, inclusion: { in: STATUSES.keys }
+  validates :status, inclusion: {in: STATUSES.keys}
 
   def self.model_name_label = "手順の状態の変化"
   def self.audit_state_owner(change) = ProcedureStep.find_by(id: change.value("procedure_step_id"))
@@ -41,8 +42,12 @@ class ProcedureStep::StatusChange < ApplicationRecord
         # 対象外にできるのは、定義(config/procedures)で optional の手順だけ(画面にもその手順だけボタンを出す)
         raise ArgumentError, "この手順は対象外にできません" if status == "skipped" && !step.definition.optional?
 
-        change = new(status:, completed_on: status == "open" ? nil : (status == "done" ? on : Date.current),
-                     note: status == "skipped" ? reason.to_s.strip : "", changed_by: by, changed_at: at)
+        completed_on = case status
+        when "open" then nil
+        when "done" then on
+        else Date.current
+        end
+        change = new(status:, completed_on:, note: (status == "skipped") ? reason.to_s.strip : "", changed_by: by, changed_at: at)
         attrs = ProcedureStep.state_for(change)
         attrs["note"] = change.note if status == "skipped" && change.note.present?
         # 手順を先に書く(元に戻すの表示が「状態 open → done」になるように)
@@ -56,7 +61,7 @@ class ProcedureStep::StatusChange < ApplicationRecord
     end
   rescue ActiveRecord::RecordNotUnique
     # 二度押しで、まだ無かった手順の記録をもう一方が先に作った。セーブポイントごと取り消してある
-    raise ArgumentError, "もう#{STATUSES.fetch(status).delete_suffix('た')}てあります"
+    raise ArgumentError, "もう#{STATUSES.fetch(status).delete_suffix("た")}てあります"
   end
 
   # 済みにした手順の効き目(config/procedures の effect)

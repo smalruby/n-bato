@@ -15,13 +15,13 @@ class ArticleVersion < ApplicationRecord
 
   def document = @document ||= Articles::Document.new(body)
   def previous = self.class.ordered.where(number: ...number).last
-  def label = "版 #{number}(#{decided_on.strftime('%Y-%m-%d')} #{meeting.presence || '決定'})"
+  def label = "版 #{number}(#{decided_on.strftime("%Y-%m-%d")} #{meeting.presence || "決定"})"
 
   # 前の版との違い。[[条の番号, 前の文 or nil, この版の文 or nil], …]
   def changes_from_previous
     prev = previous or return []
-    before = prev.document.articles.to_h { [ it.number, it.text ] }
-    after = document.articles.to_h { [ it.number, it.text ] }
-    (before.keys | after.keys).sort.filter_map { |n| [ n, before[n], after[n] ] unless before[n] == after[n] }
+    before = prev.document.articles.to_h { [it.number, it.text] }
+    after = document.articles.to_h { [it.number, it.text] }
+    (before.keys | after.keys).sort.filter_map { |n| [n, before[n], after[n]] unless before[n] == after[n] }
   end
 end

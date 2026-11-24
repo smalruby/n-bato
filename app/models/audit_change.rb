@@ -23,7 +23,7 @@ class AuditChange < ApplicationRecord
     case event
     when "create" then "追加: #{model_label}"
     when "destroy" then "削除: #{model_label}"
-    else "変更: #{model_label}の#{fields.map { field_label(it) }.uniq.first(3).join('・')}"
+    else "変更: #{model_label}の#{fields.map { field_label(it) }.uniq.first(3).join("・")}"
     end
   end
 end

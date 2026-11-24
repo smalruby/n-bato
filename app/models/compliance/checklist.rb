@@ -4,7 +4,7 @@ module Compliance
     Item = Data.define(:category, :title, :due_on, :status, :path, :note) do
       def overdue? = status == :overdue
       def done? = status == :done
-      def status_label = { overdue: "期限切れ", upcoming: "近い", open: "未完了", done: "完了" }[status]
+      def status_label = {overdue: "期限切れ", upcoming: "近い", open: "未完了", done: "完了"}[status]
     end
 
     UPCOMING_DAYS = 90
@@ -14,7 +14,7 @@ module Compliance
       @org = organization
     end
 
-    def items = (annual_reports + general_meetings + officer_terms + registrations).sort_by { [ status_rank(it.status), it.due_on || Date.new(9999) ] }
+    def items = (annual_reports + general_meetings + officer_terms + registrations).sort_by { [status_rank(it.status), it.due_on || Date.new(9999)] }
     def open_items = items.reject(&:done?)
 
     private
@@ -43,11 +43,11 @@ module Compliance
       completed_years.flat_map do |year|
         r = reports[year]
         due = Date.new(year + 1, 6, 30)
-        list = [ Item.new("提出", "#{year}年度の事業報告書等を所轄庁に提出", due, status_for(due, r&.submitted_on), r ? annual_report_path(year) : new_annual_report_path(year: year),
-                          r&.submitted_on ? "#{r.submitted_on} 提出" : nil) ]
+        list = [Item.new("提出", "#{year}年度の事業報告書等を所轄庁に提出", due, status_for(due, r&.submitted_on), r ? annual_report_path(year) : new_annual_report_path(year: year),
+          r&.submitted_on ? "#{r.submitted_on} 提出" : nil)]
         if r&.approved_on
           list << Item.new("公告", "#{year}年度の貸借対照表を公告", r.approved_on + 30, status_for(r.approved_on + 30, r.bs_published_on), annual_report_path(year),
-                           "総会承認 #{r.approved_on}。遅滞なく公告（期限の目安は承認から 30 日）")
+            "総会承認 #{r.approved_on}。遅滞なく公告（期限の目安は承認から 30 日）")
         end
         list
       end
@@ -70,7 +70,7 @@ module Compliance
       list = []
       if expired.any?
         list << Item.new("役員", "役員の改選（任期満了 #{expired.map(&:ends_on).min}、#{expired.size} 人）", expired.map(&:ends_on).min, :overdue, resolutions_path,
-                         "定款の伸長規定で職務は続いているが、総会で改選が必要")
+          "定款の伸長規定で職務は続いているが、総会で改選が必要")
       end
       if soon.any?
         list << Item.new("役員", "役員の任期満了が近い（#{soon.map(&:ends_on).min}）", soon.map(&:ends_on).min, :upcoming, resolutions_path, "総会で改選する")

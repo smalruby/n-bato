@@ -9,9 +9,9 @@ class ResolutionScreensTest < ActionDispatch::IntegrationTest
     @chair = Person.create!(name: "役員A")
     @member = Person.create!(name: "会員B")
     OfficerTerm.create!(person: @chair, role: "chair", starts_on: Date.current - 30, ends_on: Date.current + 300)
-    [ @chair, @member ].each { Membership.create!(person: it, fiscal_year: FiscalYear.current.year, kind: "regular") }
+    [@chair, @member].each { Membership.create!(person: it, fiscal_year: FiscalYear.current.year, kind: "regular") }
     @resolution = Resolution.create!(body: "general_meeting", voting_method: "written", title: "書面決議", proposed_on: Date.current, proposer: @chair,
-                                     items_attributes: [ { position: 0, kind: "annual_report_approval", title: "第1号議案", fiscal_year: FiscalYear.current.year - 1 } ])
+      items_attributes: [{position: 0, kind: "annual_report_approval", title: "第1号議案", fiscal_year: FiscalYear.current.year - 1}])
   end
 
   test "一覧・開く・新規の画面(提案者は理事長)" do
@@ -31,11 +31,11 @@ class ResolutionScreensTest < ActionDispatch::IntegrationTest
     get edit_resolution_path(@resolution)
     assert_response :success
 
-    patch resolution_path(@resolution), params: { resolution: { title: "書面決議(改)" } }
+    patch resolution_path(@resolution), params: {resolution: {title: "書面決議(改)"}}
     assert_redirected_to resolution_path(@resolution)
     assert_equal "書面決議(改)", @resolution.reload.title
 
-    patch resolution_path(@resolution), params: { resolution: { title: "" } }
+    patch resolution_path(@resolution), params: {resolution: {title: ""}}
     assert_response :unprocessable_entity
 
     delete resolution_path(@resolution)
@@ -44,10 +44,10 @@ class ResolutionScreensTest < ActionDispatch::IntegrationTest
   end
 
   test "同意の記録: 足せないときは知らせ、取り消せる" do
-    post resolution_consents_path(@resolution), params: { consent: { person_id: @member.id, consented_on: "", via: "email" } }
+    post resolution_consents_path(@resolution), params: {consent: {person_id: @member.id, consented_on: "", via: "email"}}
     assert flash[:alert].present?
 
-    post resolution_consents_path(@resolution), params: { consent: { person_id: @member.id, consented_on: Date.current.iso8601, via: "email" } }
+    post resolution_consents_path(@resolution), params: {consent: {person_id: @member.id, consented_on: Date.current.iso8601, via: "email"}}
     consent = @resolution.consents.sole
     post resolution_consent_cancellation_path(@resolution, consent)
     assert_equal "同意の記録を取り消しました", flash[:notice]

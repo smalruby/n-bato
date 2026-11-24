@@ -3,6 +3,7 @@
 # 記録に反映した議案のある決議の同意は、取り消せない。
 class Consent::Cancellation < ApplicationRecord
   include EventRecord
+
   event_of :cancelled_at, entry: :cancel!
 
   belongs_to :consent

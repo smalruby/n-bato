@@ -5,6 +5,7 @@
 # 送る前の下書きだけは消せる(まだ誰にも渡っていない。住所などの個人情報を残さないため)。
 class IncomingRequestMessage < ApplicationRecord
   include EventRecord
+
   event_of :written_at, entry: :write!
 
   ROLES = %w[user assistant].freeze
@@ -16,7 +17,7 @@ class IncomingRequestMessage < ApplicationRecord
   has_one :delivery, class_name: "IncomingRequestMessage::Delivery", foreign_key: :message_id, inverse_of: :message, dependent: :restrict_with_error
   has_one :adoption, class_name: "IncomingRequestMessage::Adoption", foreign_key: :message_id, inverse_of: :message, dependent: :restrict_with_error
 
-  validates :role, inclusion: { in: ROLES }
+  validates :role, inclusion: {in: ROLES}
 
   # 送る前の、人の下書き
   scope :drafts, -> { where(role: "user").where.missing(:delivery) }

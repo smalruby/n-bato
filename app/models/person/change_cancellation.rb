@@ -3,6 +3,7 @@
 # 登記の申請に入れた出来事は取り消せない。
 class Person::ChangeCancellation < ApplicationRecord
   include EventRecord
+
   event_of :cancelled_at, entry: :cancel!
 
   belongs_to :change, polymorphic: true

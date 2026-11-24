@@ -12,7 +12,7 @@ class FiscalPeriod < ApplicationRecord
   # そのあとは、記録のある最後の年度より先は作らない(次の年度は「次の年度を始める」で作る)。
   # 古いデータを取り込んだときは、その年度までさかのぼって作る。
   def self.ensure!
-    first = [ Organization.first&.first_fiscal_year, JournalEntry.minimum(:fiscal_year), Account.minimum(:fiscal_year) ].compact.min || FiscalYear.current.year
+    first = [Organization.first&.first_fiscal_year, JournalEntry.minimum(:fiscal_year), Account.minimum(:fiscal_year)].compact.min || FiscalYear.current.year
     existing = pluck(:year)
     last = existing.max || FiscalYear.current.year
     (first..last).each { |y| existing.include?(y) ? next : create!(year: y) }
@@ -128,7 +128,7 @@ class FiscalPeriod < ApplicationRecord
     provisional? ? :provisional : :open
   end
 
-  STATE_LABELS = { closed: "締めた", open: "締める前", provisional: "仮", unknown: "" }.freeze
+  STATE_LABELS = {closed: "締めた", open: "締める前", provisional: "仮", unknown: ""}.freeze
   def state_label = STATE_LABELS[state]
 
   def fiscal_year = FiscalYear.new(year)

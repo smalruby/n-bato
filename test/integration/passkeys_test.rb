@@ -6,13 +6,16 @@ require "webauthn/fake_client"
 class PasskeysTest < ActionDispatch::IntegrationTest
   ORIGIN = "http://www.example.com"
 
-  setup { @client = WebAuthn::FakeClient.new(ORIGIN); ensure_organization }
+  setup {
+    @client = WebAuthn::FakeClient.new(ORIGIN)
+    ensure_organization
+  }
 
   def register_passkey(name: "この Mac")
     post registration_options_passkeys_path, as: :json
     assert_response :success
     challenge = response.parsed_body["challenge"]
-    post passkeys_path, params: { credential: @client.create(challenge:, user_verified: true), name: }, as: :json
+    post passkeys_path, params: {credential: @client.create(challenge:, user_verified: true), name:}, as: :json
     response.parsed_body
   end
 
@@ -40,7 +43,7 @@ class PasskeysTest < ActionDispatch::IntegrationTest
     post options_passkey_session_path, as: :json
     challenge = response.parsed_body["challenge"]
     ops_before = AuditOperation.count
-    post passkey_session_path, params: { credential: @client.get(challenge:, user_verified: true) }, as: :json
+    post passkey_session_path, params: {credential: @client.get(challenge:, user_verified: true)}, as: :json
     assert response.parsed_body["ok"], response.parsed_body.inspect
     assert pk.reload.last_used_at
     assert_equal ops_before, AuditOperation.count
@@ -49,7 +52,7 @@ class PasskeysTest < ActionDispatch::IntegrationTest
   end
 
   test "パスキーでのログイン: 登録されていない・チャレンジが無いと失敗する" do
-    post passkey_session_path, params: { credential: { id: "nope", type: "public-key" } }, as: :json
+    post passkey_session_path, params: {credential: {id: "nope", type: "public-key"}}, as: :json
     assert_response :unprocessable_entity
     get root_path
     assert_redirected_to new_session_path
@@ -70,9 +73,9 @@ class PasskeysTest < ActionDispatch::IntegrationTest
       assert_redirected_to passkeys_path
       assert Passkey.exists?(pk.id)
 
-      post verify_password_passkeys_path, params: { password: "wrong" }
+      post verify_password_passkeys_path, params: {password: "wrong"}
       assert_equal "パスワードが違います", flash[:alert]
-      post verify_password_passkeys_path, params: { password: "password" }
+      post verify_password_passkeys_path, params: {password: "password"}
       assert_match "本人を確かめました", flash[:notice]
 
       delete passkey_path(pk)
@@ -87,7 +90,7 @@ class PasskeysTest < ActionDispatch::IntegrationTest
     travel 11.minutes do
       post verify_options_passkeys_path, as: :json
       challenge = response.parsed_body["challenge"]
-      post verify_passkeys_path, params: { credential: @client.get(challenge:, user_verified: true) }, as: :json
+      post verify_passkeys_path, params: {credential: @client.get(challenge:, user_verified: true)}, as: :json
       assert response.parsed_body["ok"], response.parsed_body.inspect
       post registration_options_passkeys_path, as: :json
       assert_response :success
@@ -98,7 +101,7 @@ class PasskeysTest < ActionDispatch::IntegrationTest
     sign_in users(:two)
     post verify_options_passkeys_path, as: :json
     challenge = response.parsed_body["challenge"]
-    post verify_passkeys_path, params: { credential: @client.get(challenge:, user_verified: true) }, as: :json
+    post verify_passkeys_path, params: {credential: @client.get(challenge:, user_verified: true)}, as: :json
     assert_response :unprocessable_entity
   end
 
@@ -106,13 +109,13 @@ class PasskeysTest < ActionDispatch::IntegrationTest
     sign_in
     register_passkey
     pk = users(:one).passkeys.sole
-    patch passkey_path(pk, format: :json), params: { passkey: { name: "仕事の Mac" } }
+    patch passkey_path(pk, format: :json), params: {passkey: {name: "仕事の Mac"}}
     assert response.parsed_body["ok"]
     assert_equal "仕事の Mac", pk.reload.name
 
     delete session_path
     sign_in users(:two)
-    patch passkey_path(pk, format: :json), params: { passkey: { name: "x" } }
+    patch passkey_path(pk, format: :json), params: {passkey: {name: "x"}}
     assert_response :not_found
   end
 
@@ -120,13 +123,13 @@ class PasskeysTest < ActionDispatch::IntegrationTest
     sign_in
     register_passkey
     post registration_options_passkeys_path, as: :json
-    assert_equal [ users(:one).passkeys.sole.external_id ], response.parsed_body["excludeCredentials"].map { it["id"] }
+    assert_equal [users(:one).passkeys.sole.external_id], response.parsed_body["excludeCredentials"].pluck("id")
   end
 
   test "パスキーが登録されていない改ざんした資格情報は足せない" do
     sign_in
     post registration_options_passkeys_path, as: :json
-    post passkeys_path, params: { credential: @client.create(challenge: "AAAA", user_verified: true), name: "x" }, as: :json
+    post passkeys_path, params: {credential: @client.create(challenge: "AAAA", user_verified: true), name: "x"}, as: :json
     assert_response :unprocessable_entity
     assert_equal 0, Passkey.count
   end
@@ -136,7 +139,7 @@ class PasskeysTest < ActionDispatch::IntegrationTest
     register_passkey
     delete session_path
     post options_passkey_session_path, as: :json
-    post passkey_session_path, params: { credential: @client.get(challenge: "AAAA", user_verified: true) }, as: :json
+    post passkey_session_path, params: {credential: @client.get(challenge: "AAAA", user_verified: true)}, as: :json
     assert_response :unprocessable_entity
     get root_path
     assert_redirected_to new_session_path

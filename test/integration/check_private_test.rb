@@ -13,7 +13,7 @@ class CheckPrivateTest < ActiveSupport::TestCase
   end
 
   test "架空の氏名のあとに続く、本物らしい氏名は見逃さない" do
-    [ %(["架空#{SP}花子","本田#{SP}宗一"]), %(架空#{SP}花子#{SP}本田#{SP}宗一), %(見本#{SP}一郎 本田#{SP}宗一 理事) ].each do |text|
+    [%(["架空#{SP}花子","本田#{SP}宗一"]), %(架空#{SP}花子#{SP}本田#{SP}宗一), %(見本#{SP}一郎 本田#{SP}宗一 理事)].each do |text|
       out, ok = check(text, "db/demo/seed.rb")
       assert_not ok, "見逃した: #{text}"
       assert_includes out, "氏名"
@@ -39,7 +39,7 @@ class CheckPrivateTest < ActiveSupport::TestCase
   private
 
   def check(text, path)
-    out, status = Open3.capture2e({ "CI" => "1" }, Rails.root.join("bin/check-private").to_s, "--text", path, stdin_data: "#{text}\n")
-    [ out, status.success? ]
+    out, status = Open3.capture2e({"CI" => "1"}, Rails.root.join("bin/check-private").to_s, "--text", path, stdin_data: "#{text}\n")
+    [out, status.success?]
   end
 end

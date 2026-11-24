@@ -1,5 +1,6 @@
 class ApplicationController < ActionController::Base
   include Authentication
+
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
 
@@ -13,6 +14,10 @@ class ApplicationController < ActionController::Base
   class_attribute :undoable_screen_flag, default: false
   def self.undoable_screen = self.undoable_screen_flag = true
 
+  # まだ年度で分けていない画面(デザインシステム「年度」)。その旨の帯を出す。分け終えたら外す。
+  class_attribute :year_split_pending_flag, default: false
+  def self.year_split_pending = self.year_split_pending_flag = true
+
   private
 
   # 「開く」で来たやることの対象が、いま操作している締めた年度なら、理由の欄に最初から入れておく文(デザインシステム「やること」)
@@ -21,13 +26,8 @@ class ApplicationController < ActionController::Base
     return @todo_reason_hint if defined?(@todo_reason_hint)
 
     todo = session[:todo_context] && Todo.find_by(id: session[:todo_context])
-    @todo_reason_hint = todo && todo.fiscal_year == Current.working_year && FiscalPeriod.for(todo.fiscal_year)&.closed? ? todo.reason_hint : nil
+    @todo_reason_hint = (todo && todo.fiscal_year == Current.working_year && FiscalPeriod.for(todo.fiscal_year)&.closed?) ? todo.reason_hint : nil
   end
-
-
-  # まだ年度で分けていない画面(デザインシステム「年度」)。その旨の帯を出す。分け終えたら外す。
-  class_attribute :year_split_pending_flag, default: false
-  def self.year_split_pending = self.year_split_pending_flag = true
 
   # 監査の役割は閲覧だけ(デザインシステム「役割」)。説明の畳み・AI に聞く・役割の切り替え・ログアウト・自分のパスキーは許す。
   READ_ONLY_ALLOWED = %w[sessions passkey_sessions passkeys ui_prefs working_years assistant roles pickers].freeze
@@ -36,8 +36,8 @@ class ApplicationController < ActionController::Base
 
     message = "監査の役割では、記録を変えられません"
     respond_to do |format|
-      format.json { render json: { ok: false, message: }, status: :forbidden }
-      format.any { redirect_back fallback_location: root_path, alert: message }
+      format.json { render json: {ok: false, message:}, status: :forbidden }
+      format.any { redirect_back_or_to(root_path, alert: message) }
     end
   end
 

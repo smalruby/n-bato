@@ -2,7 +2,7 @@
 # タブ: 要約・定款の全文・変更の記録。版を選べる(既定は現行の版)。事業ごとの主な活動はここで書き換える(操作履歴に残る)。
 class ArticlesController < ApplicationController
   undoable_screen
-  TABS = { "summary" => "要約", "full" => "定款の全文", "history" => "変更の記録" }.freeze
+  TABS = {"summary" => "要約", "full" => "定款の全文", "history" => "変更の記録"}.freeze
 
   def index
     @versions = ArticleVersion.ordered.to_a

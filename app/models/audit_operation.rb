@@ -13,7 +13,7 @@ class AuditOperation < ApplicationRecord
   belongs_to :target, class_name: "AuditOperation", optional: true
   has_many :audit_changes, -> { order(:id) }, dependent: :destroy
 
-  validates :kind, inclusion: { in: KINDS }
+  validates :kind, inclusion: {in: KINDS}
 
   scope :recent, -> { order(id: :desc) }
   scope :in_scope, ->(user, scope) { where(user:, scope:) }
@@ -31,6 +31,6 @@ class AuditOperation < ApplicationRecord
     return "(変更なし)" unless c
 
     text = c.summary
-    audit_changes.size > 1 ? "#{text} ほか #{audit_changes.size - 1} 件" : text
+    (audit_changes.size > 1) ? "#{text} ほか #{audit_changes.size - 1} 件" : text
   end
 end

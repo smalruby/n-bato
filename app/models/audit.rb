@@ -21,7 +21,7 @@ module Audit
 
     begin
       Current.audit_in_block = true
-      Current.audit_pending = { user:, scope:, kind:, label:, reason: nil }
+      Current.audit_pending = {user:, scope:, kind:, label:, reason: nil}
       result = yield
       finish(Current.audit_operation)
       result
@@ -37,7 +37,7 @@ module Audit
   def nested_operation
     before = Current.audit_operation
     yield
-  rescue StandardError
+  rescue
     op = Current.audit_operation
     Current.audit_operation = nil if before.nil? && op && (op.id.nil? || !AuditOperation.exists?(op.id))
     raise
@@ -46,7 +46,7 @@ module Audit
   # いまの操作とは別の操作にする(決まりで付ける印など。範囲も分ける)。終わったら外の操作に戻り、外の操作はそのまま続く。
   # user を渡さなければ、外の操作の人(無ければ Current.user)。
   def separate_operation(scope:, label: nil, user: nil, &)
-    saved = [ Current.audit_operation, Current.audit_pending, Current.audit_in_block ]
+    saved = [Current.audit_operation, Current.audit_pending, Current.audit_in_block]
     user ||= saved[0]&.user || saved[1]&.dig(:user) || Current.user
     Current.audit_operation = Current.audit_pending = nil
     Current.audit_in_block = false
@@ -80,7 +80,7 @@ module Audit
   def current_operation
     return Current.audit_operation if Current.audit_operation
 
-    attrs = Current.audit_pending || { user: Current.user, scope: Current.audit_scope, kind: "do", label: nil, reason: nil }
+    attrs = Current.audit_pending || {user: Current.user, scope: Current.audit_scope, kind: "do", label: nil, reason: nil}
     op = AuditOperation.create!(**attrs)
     Current.audit_operation = op if Current.audit_in_block
     op
@@ -104,42 +104,42 @@ module Audit
   # UndoBar に出すもの(件数と、何が戻るか)。保存・元に戻すの JSON にも入れる。
   def bar(user, scope)
     peek = peek(user, scope)
-    { **counts(user, scope), undo_peek: peek[:undo], redo_peek: peek[:redo] }
+    {**counts(user, scope), undo_peek: peek[:undo], redo_peek: peek[:redo]}
   end
 
   # UndoBar に出す「何が戻るか」。{ undo: {item:, detail:, record:, field:}, redo: … }
   def peek(user, scope)
-    { undo: preview(undo_target(user, scope), :undo), redo: preview(redo_target(user, scope), :redo) }
+    {undo: preview(undo_target(user, scope), :undo), redo: preview(redo_target(user, scope), :redo)}
   end
 
   def preview(op, direction)
     return nil unless op
 
     change = op.audit_changes.order(:id).first
-    return { item: op.label.to_s.truncate(20) } unless change
+    return {item: op.label.to_s.truncate(20)} unless change
 
     if change.event == "update" && change.fields.any?
       field = change.fields.first
       before, after = change.changeset[field]
-      from, to = direction == :undo ? [ after, before ] : [ before, after ]
+      from, to = (direction == :undo) ? [after, before] : [before, after]
       fmt = ->(v) { ApplicationController.helpers.history_value(change, field, v) }
       label = display_field_label(change, field)
-      { item: label, detail: "#{label} #{fmt.(from)} → #{fmt.(to)}", record: "#{change.auditable_type.underscore}_#{change.auditable_id}", field: display_field(field) }
+      {item: label, detail: "#{label} #{fmt.call(from)} → #{fmt.call(to)}", record: "#{change.auditable_type.underscore}_#{change.auditable_id}", field: display_field(field)}
     else
-      { item: change.summary.sub(/\A(追加|削除): /, "\\1した"), detail: change.summary, record: "#{change.auditable_type.underscore}_#{change.auditable_id}" }
+      {item: change.summary.sub(/\A(追加|削除): /, "\\1した"), detail: change.summary, record: "#{change.auditable_type.underscore}_#{change.auditable_id}"}
     end
   end
 
   # 借方・貸方の金額は画面では「金額」1 つ
   def display_field(field) = field.to_s.sub(/\A(debit|credit)_amount\z/, "amount")
-  def display_field_label(change, field) = display_field(field) == "amount" && field.to_s != "amount" ? "金額" : change.field_label(field)
+  def display_field_label(change, field) = (display_field(field) == "amount" && field.to_s != "amount") ? "金額" : change.field_label(field)
 
   def undo_target(user, scope) = AuditOperation.in_scope(user, scope).undoable.order(:id).last
   def redo_target(user, scope) = AuditOperation.in_scope(user, scope).redoable_ops.order(updated_at: :desc, id: :desc).first
 
   def counts(user, scope)
     base = AuditOperation.in_scope(user, scope)
-    { undo: base.undoable.count, redo: base.redoable_ops.count }
+    {undo: base.undoable.count, redo: base.redoable_ops.count}
   end
 
   # いちばん新しい操作を元に戻す。戻した記録を新しい操作として残す。
@@ -175,7 +175,7 @@ module Audit
 
   # 元に戻す・やり直すで、記録の形が合わないとき(表の形が変わる前の操作など)。500 にせず Conflict にする。
   # StatementInvalid は NOT NULL・外部キー・一意の制約に反したとき(docs/adr/0034)。
-  REVERT_ERRORS = [ ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound, ActiveRecord::StatementInvalid ].freeze
+  REVERT_ERRORS = [ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound, ActiveRecord::StatementInvalid].freeze
 
   def revert(change)
     klass = change.auditable_class
@@ -219,7 +219,7 @@ module Audit
       next if (diff = record.state_mismatches).empty?
 
       name = record.class.try(:model_name_label) || record.class.model_name.human
-      raise Conflict, "#{name}(##{record.id})の#{diff.join('・')}が、そのあと別の操作で変わっています"
+      raise Conflict, "#{name}(##{record.id})の#{diff.join("・")}が、そのあと別の操作で変わっています"
     end
   end
 

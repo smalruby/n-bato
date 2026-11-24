@@ -1,6 +1,7 @@
 # AI の提案の却下(イベント。日時は rejected_at)。仕訳は作らない。
 class JournalProposal::Rejection < ApplicationRecord
   include EventRecord
+
   event_of :rejected_at, entry: :reject!
 
   belongs_to :journal_proposal

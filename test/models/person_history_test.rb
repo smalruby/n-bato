@@ -17,7 +17,7 @@ class PersonHistoryTest < ActiveSupport::TestCase
     assert_equal "テスト県テスト市1-1", @p.address_on(Date.new(2025, 3, 31))
     assert_equal "テスト県テスト市2-2", @p.address_on(Date.new(2025, 10, 4))
     assert @p.changes_recorded?
-    assert_equal [ :start, :address, :address ], @p.history.map(&:kind)
+    assert_equal [:start, :address, :address], @p.history.map(&:kind)
     assert_equal "2025/04(日は不明)", @p.address_changes.first.date_label
     assert_equal "2025/10/05", @p.address_changes.last.date_label
   end
@@ -41,7 +41,7 @@ class PersonHistoryTest < ActiveSupport::TestCase
     assert_equal "たなか はなこ", @p.name_kana_on(Date.new(2025, 9, 7))
     assert_equal @p, Person.find_by_current_name("鈴木 花子")
     assert_nil Person.find_by_current_name(" ")
-    assert_equal [ :start, :name ], @p.history.map(&:kind)
+    assert_equal [:start, :name], @p.history.map(&:kind)
     assert_equal "鈴木　花子（田中　花子）", @p.history.last.name
   end
 
@@ -58,8 +58,8 @@ class PersonHistoryTest < ActiveSupport::TestCase
   end
 
   test "日付の入れ方: 日が無ければ月まで。無い日付・空の年月は受け付けない" do
-    assert_equal [ Date.new(2025, 4, 1), "month" ], Person::AddressChange.parse_date(year: "2025", month: "4", day: "")
-    assert_equal [ Date.new(2025, 4, 3), "day" ], Person::AddressChange.parse_date(year: 2025, month: 4, day: 3)
+    assert_equal [Date.new(2025, 4, 1), "month"], Person::AddressChange.parse_date(year: "2025", month: "4", day: "")
+    assert_equal [Date.new(2025, 4, 3), "day"], Person::AddressChange.parse_date(year: 2025, month: 4, day: 3)
     assert_raises(ArgumentError) { Person::AddressChange.parse_date(year: "2025", month: "2", day: "30") }
     assert_raises(ArgumentError) { Person::AddressChange.parse_date(year: "", month: "4") }
     c = Person::AddressChange.record!(@p, address: "テスト県テスト市5-5", moved_on: Date.new(2024, 4, 1), date_precision: "fiscal_year")
@@ -98,7 +98,7 @@ class PersonHistoryTest < ActiveSupport::TestCase
   test "登記の申請に入れた出来事は取り消せない" do
     OfficerTerm.create!(person: @p, role: "chair", starts_on: Date.new(2024, 7, 1), ends_on: Date.new(2026, 6, 30))
     a = Person::AddressChange.record!(@p, address: "テスト県テスト市2-2", moved_on: Date.new(2025, 4, 3))
-    RegistrationFiling.start!([ a.registration ])
+    RegistrationFiling.start!([a.registration])
     assert_raises(ArgumentError) { Person::ChangeCancellation.cancel!(a, by: @user, reason: "打ち間違い") }
   end
 end

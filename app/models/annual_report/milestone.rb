@@ -4,21 +4,22 @@
 # 記録するのは、事業報告の画面(日付の欄)・手続きの手順を済みにしたとき・決議の反映・締めた年度を直したとき(出し直しが要る)。
 class AnnualReport::Milestone < ApplicationRecord
   include EventRecord
+
   event_of :recorded_at, entry: :record!
 
   # 種類 => [事業報告の列, 名前]
   KINDS = {
-    "approved" => [ "approved_on", "総会の承認日" ],
-    "submitted" => [ "submitted_on", "所轄庁への提出日" ],
-    "bs_published" => [ "bs_published_on", "貸借対照表の公告日" ],
-    "resubmit_needed" => [ "resubmit_needed_on", "出し直しが要るとした日" ],
-    "resubmitted" => [ "resubmitted_on", "出し直した日" ]
+    "approved" => ["approved_on", "総会の承認日"],
+    "submitted" => ["submitted_on", "所轄庁への提出日"],
+    "bs_published" => ["bs_published_on", "貸借対照表の公告日"],
+    "resubmit_needed" => ["resubmit_needed_on", "出し直しが要るとした日"],
+    "resubmitted" => ["resubmitted_on", "出し直した日"]
   }.freeze
 
   belongs_to :annual_report
   belongs_to :recorded_by, class_name: "User", optional: true
 
-  validates :kind, inclusion: { in: KINDS.keys }
+  validates :kind, inclusion: {in: KINDS.keys}
 
   def self.model_name_label = "事業報告の節目"
   def self.column_for(kind) = KINDS.fetch(kind).first
@@ -41,7 +42,7 @@ class AnnualReport::Milestone < ApplicationRecord
         # 事業報告を先に書く(元に戻すの表示が「提出日 → 2026/06/28」になるように)
         report.apply_state!(column => on)
         milestone = create!(annual_report: report, kind:, dated_on: on, automatic:, recorded_by: automatic ? nil : by, recorded_at: at)
-        Audit.label!("#{report.fiscal_year}年度の事業報告: #{milestone.kind_label}を#{on ? "#{on.strftime('%Y/%m/%d')} にした" : '消した'}") unless automatic
+        Audit.label!("#{report.fiscal_year}年度の事業報告: #{milestone.kind_label}を#{on ? "#{on.strftime("%Y/%m/%d")} にした" : "消した"}") unless automatic
         milestone
       end
     end

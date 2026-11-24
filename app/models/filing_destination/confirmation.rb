@@ -1,6 +1,7 @@
 # 提出先を人が確かめた(イベント。日時は confirmed_at)。確かめた中身の要約(digest)を残し、そのあと中身を直したら確認済みでなくなる。
 class FilingDestination::Confirmation < ApplicationRecord
   include EventRecord
+
   event_of :confirmed_at, entry: :confirm!
 
   belongs_to :filing_destination

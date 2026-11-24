@@ -11,7 +11,7 @@ class LocalMailbox
 
   def deliver!(mail)
     FileUtils.mkdir_p(location)
-    path = location.join("#{Time.current.strftime('%Y%m%d-%H%M%S')}-#{SecureRandom.hex(3)}.eml")
+    path = location.join("#{Time.current.strftime("%Y%m%d-%H%M%S")}-#{SecureRandom.hex(3)}.eml")
     File.write(path, mail.to_s)
     path
   end

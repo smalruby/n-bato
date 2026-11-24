@@ -14,7 +14,7 @@ class Kaikeiou::SiwakeImporterTest < ActiveSupport::TestCase
     assert_equal "program_expense", Account.find_by!(code: 658).category
     assert_equal "admin_expense", Account.find_by!(code: 730).category
     assert_equal 3, Department.find_by!(code: 113).program_number
-    assert_equal [ 2024 ], JournalEntry.distinct.pluck(:fiscal_year)
+    assert_equal [2024], JournalEntry.distinct.pluck(:fiscal_year)
   end
 
   test "同じファイルは 2 回取り込まない" do
@@ -31,12 +31,12 @@ class Kaikeiou::SiwakeImporterTest < ActiveSupport::TestCase
 
   test "ファイルかディレクトリの中の .txt を取り込む" do
     results = Kaikeiou::SiwakeImporter.import_path(file_fixture("siwake_sample.txt").to_s)
-    assert_equal [ true ], results.map(&:created)
+    assert_equal [true], results.map(&:created)
     Dir.mktmpdir do |dir|
       File.binwrite(File.join(dir, "a.txt"), @bytes)
       File.write(File.join(dir, "readme.md"), "取り込まない")
       results = Kaikeiou::SiwakeImporter.import_path(dir)
-      assert_equal [ "同じファイルを取り込み済み" ], results.map(&:skipped_reason)
+      assert_equal ["同じファイルを取り込み済み"], results.map(&:skipped_reason)
     end
   end
 end

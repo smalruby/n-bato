@@ -3,7 +3,7 @@
 class PersonYear < ApplicationRecord
   encrypts :email, :phone
   belongs_to :person, inverse_of: :person_years
-  validates :fiscal_year, presence: true, uniqueness: { scope: :person_id }
+  validates :fiscal_year, presence: true, uniqueness: {scope: :person_id}
   after_save { person.sync_latest!(self) }
 
   def self.model_name_label = "会員・役員の年度の記録"

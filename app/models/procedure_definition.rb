@@ -15,7 +15,7 @@ class ProcedureDefinition
 
   def summary = FilingDestination.fill(@summary)
 
-  def self.all = @all ||= Dir[Rails.root.join("config/procedures/*.yml")].sort.to_h { |f| [ File.basename(f, ".yml"), load_file(f) ] }
+  def self.all = @all ||= Rails.root.glob("config/procedures/*.yml").map(&:to_s).sort.to_h { |f| [File.basename(f, ".yml"), load_file(f)] }
   def self.find(kind) = all.fetch(kind.to_s)
   def self.reload! = @all = nil
 
@@ -29,8 +29,8 @@ class ProcedureDefinition
     @name, @period, @due, @summary = data.values_at("name", "period", "due", "summary")
     @steps = data.fetch("steps").map do |s|
       Step.new(key: s.fetch("key"), title: s.fetch("title"), guide: Array(s["guide"]), law: Array(s["law"]),
-               checks: Array(s["checks"]), waits: Array(s["waits"]), waits_from: s["waits_from"], links: Array(s["links"]),
-               deadline: s["deadline"], final: s["final"], optional: s["optional"], effect: s["effect"], done_when: s["done_when"], final_label: s["final_label"], only_when: s["only_when"])
+        checks: Array(s["checks"]), waits: Array(s["waits"]), waits_from: s["waits_from"], links: Array(s["links"]),
+        deadline: s["deadline"], final: s["final"], optional: s["optional"], effect: s["effect"], done_when: s["done_when"], final_label: s["final_label"], only_when: s["only_when"])
     end
   end
 

@@ -4,6 +4,7 @@
 # 名前は Settlement(「決議」の Resolution とぶつからないように)。
 class IncomingRequest::Settlement < ApplicationRecord
   include EventRecord
+
   event_of :settled_on, entry: :settle!
 
   belongs_to :incoming_request

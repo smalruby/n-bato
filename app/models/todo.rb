@@ -3,24 +3,24 @@
 # status・waiting_on・done_at・done_by・done_note は「いまの状態」で、Todo::StatusChange.change! だけが書き換える(照合は model:verify)。
 # 題・期限・メモなどの中身は、ふつうに直してよい(操作履歴に残る)。
 class Todo < ApplicationRecord
-  STATUSES = { "todo" => "未着手", "doing" => "作業中", "wait" => "待ち", "done" => "済み" }.freeze
-  KINDS = { "screen" => "画面", "document" => "書類", "ask" => "人に聞く", "window" => "電話・窓口" }.freeze
+  STATUSES = {"todo" => "未着手", "doing" => "作業中", "wait" => "待ち", "done" => "済み"}.freeze
+  KINDS = {"screen" => "画面", "document" => "書類", "ask" => "人に聞く", "window" => "電話・窓口"}.freeze
 
   # 「開く」で移る画面。AI はこの中から選ぶ。年度に関わるものは、開く前にその年度へ切り替える。
   TARGETS = {
-    "" => [ "(n-bato の画面なし)", nil ],
-    "journal_entries" => [ "仕訳", ->(h) { h.journal_entries_path } ],
-    "vouchers" => [ "証憑・AI 仕訳", ->(h) { h.vouchers_path } ],
-    "fiscal_year" => [ "会計(年度)", ->(h) { h.fiscal_years_path } ],
-    "balance_checks" => [ "残高照合", ->(h) { h.balance_checks_path } ],
-    "people" => [ "会員・役員", ->(h) { h.people_path } ],
-    "procedures" => [ "手続き", ->(h) { h.procedures_path } ],
-    "annual_reports" => [ "事業報告・提出", ->(h) { h.annual_reports_path } ],
-    "resolutions" => [ "決議", ->(h) { h.resolutions_path } ],
-    "registrations" => [ "登記", ->(h) { h.registrations_path } ],
-    "accounts" => [ "科目と部門", ->(h) { h.accounts_path } ],
-    "organization" => [ "法人情報", ->(h) { h.organization_path } ],
-    "changes" => [ "変更の記録", ->(h) { h.changes_path } ]
+    "" => ["(n-bato の画面なし)", nil],
+    "journal_entries" => ["仕訳", ->(h) { h.journal_entries_path }],
+    "vouchers" => ["証憑・AI 仕訳", ->(h) { h.vouchers_path }],
+    "fiscal_year" => ["会計(年度)", ->(h) { h.fiscal_years_path }],
+    "balance_checks" => ["残高照合", ->(h) { h.balance_checks_path }],
+    "people" => ["会員・役員", ->(h) { h.people_path }],
+    "procedures" => ["手続き", ->(h) { h.procedures_path }],
+    "annual_reports" => ["事業報告・提出", ->(h) { h.annual_reports_path }],
+    "resolutions" => ["決議", ->(h) { h.resolutions_path }],
+    "registrations" => ["登記", ->(h) { h.registrations_path }],
+    "accounts" => ["科目と部門", ->(h) { h.accounts_path }],
+    "organization" => ["法人情報", ->(h) { h.organization_path }],
+    "changes" => ["変更の記録", ->(h) { h.changes_path }]
   }.freeze
 
   # 自動で済みにする決まり。n-bato の記録で確かめられるものだけ。
@@ -43,11 +43,11 @@ class Todo < ApplicationRecord
   has_many :status_changes, -> { order(:changed_at, :id) }, class_name: "Todo::StatusChange", dependent: :restrict_with_error
 
   validates :title, presence: true
-  validates :status, inclusion: { in: STATUSES.keys }
-  validates :kind, inclusion: { in: KINDS.keys }
-  validates :target, inclusion: { in: TARGETS.keys }
-  validates :done_rule, inclusion: { in: DONE_RULES.keys }
-  validates :resume_rule, inclusion: { in: RESUME_RULES.keys }
+  validates :status, inclusion: {in: STATUSES.keys}
+  validates :kind, inclusion: {in: KINDS.keys}
+  validates :target, inclusion: {in: TARGETS.keys}
+  validates :done_rule, inclusion: {in: DONE_RULES.keys}
+  validates :resume_rule, inclusion: {in: RESUME_RULES.keys}
   validate :state_written_by_status_change
 
   scope :unfinished, -> { where.not(status: "done") }
@@ -60,7 +60,7 @@ class Todo < ApplicationRecord
   def self.resume!(rule, note:)
     Audit.operation do
       where(status: "wait", resume_rule: rule).to_a.each do |t|
-        t.update!(note: [ t.note.presence, note ].compact.join("\n"))
+        t.update!(note: [t.note.presence, note].compact.join("\n"))
         Todo::StatusChange.change!(t, status: "doing", note:, automatic: true)
       end
     end
@@ -70,9 +70,13 @@ class Todo < ApplicationRecord
   def self.state_for(change)
     st = change&.status || "todo"
     done = st == "done"
-    { "status" => st, "waiting_on" => st == "wait" ? change.waiting_on.to_s : "",
-      "done_at" => done ? change.changed_at : nil, "done_by" => done ? (change.automatic ? "auto" : "user") : "",
-      "done_note" => done ? change.note.to_s : "" }
+    {"status" => st, "waiting_on" => (st == "wait") ? change.waiting_on.to_s : "",
+     "done_at" => done ? change.changed_at : nil, "done_by" => if done
+                                                                 change.automatic ? "auto" : "user"
+                                                               else
+                                                                 ""
+                                                               end,
+     "done_note" => done ? change.note.to_s : ""}
   end
 
   def self.model_name_label = "やること"
@@ -80,7 +84,7 @@ class Todo < ApplicationRecord
   # 元に戻す・やり直すのあとに、状態を確かめるやること(Audit.check_states!)
   def self.audit_state_owner(change) = find_by(id: change.auditable_id)
 
-  def latest_status_change = status_changes.max_by { [ it.changed_at, it.id.to_i ] }
+  def latest_status_change = status_changes.max_by { [it.changed_at, it.id.to_i] }
   def derived_state = Todo.state_for(latest_status_change)
 
   # いまの状態の列を書き換える。呼ぶのは Todo::StatusChange.change! だけ。
@@ -139,7 +143,7 @@ class Todo < ApplicationRecord
   end
 
   # 締めた年度を直すときの理由の欄に、最初から入れておく文
-  def reason_hint = [ incoming_request&.title, title ].compact.join(": ")
+  def reason_hint = [incoming_request&.title, title].compact.join(": ")
 
   private
 
@@ -151,7 +155,7 @@ class Todo < ApplicationRecord
       fresh = STATE_COLUMNS.all? { Audit.dump(self[it]).to_s == Audit.dump(Todo.state_for(nil)[it]).to_s }
       errors.add(:base, "やることは未着手で作ってください(状態を変えるときは Todo::StatusChange.change!)") unless fresh
     elsif (changed = STATE_COLUMNS & changed_attribute_names_to_save).any?
-      errors.add(:base, "#{changed.join('・')} は直接書き換えません。Todo::StatusChange.change!(やること, status: …) を使ってください")
+      errors.add(:base, "#{changed.join("・")} は直接書き換えません。Todo::StatusChange.change!(やること, status: …) を使ってください")
     end
   end
 end

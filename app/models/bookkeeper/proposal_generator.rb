@@ -13,20 +13,20 @@ module Bookkeeper
             additionalProperties: false,
             required: %w[entry_date debit_account_code debit_department_code credit_account_code credit_department_code amount summary sub_summary rationale confidence],
             properties: {
-              entry_date: { type: "string", format: "date", description: "取引日 YYYY-MM-DD" },
-              debit_account_code: { type: "integer" },
-              debit_department_code: { type: "integer", description: "部門コード。部門なしは 0" },
-              credit_account_code: { type: "integer" },
-              credit_department_code: { type: "integer", description: "部門コード。部門なしは 0" },
-              amount: { type: "integer", description: "金額(円、税込)" },
-              summary: { type: "string", description: "取引摘要(過去の仕訳の書き方に合わせる)" },
-              sub_summary: { type: "string", description: "補助摘要(品名・相手など)" },
-              rationale: { type: "string", description: "この科目・部門にした理由(日本語、1〜3 文)" },
-              confidence: { type: "string", enum: %w[high medium low] }
+              entry_date: {type: "string", format: "date", description: "取引日 YYYY-MM-DD"},
+              debit_account_code: {type: "integer"},
+              debit_department_code: {type: "integer", description: "部門コード。部門なしは 0"},
+              credit_account_code: {type: "integer"},
+              credit_department_code: {type: "integer", description: "部門コード。部門なしは 0"},
+              amount: {type: "integer", description: "金額(円、税込)"},
+              summary: {type: "string", description: "取引摘要(過去の仕訳の書き方に合わせる)"},
+              sub_summary: {type: "string", description: "補助摘要(品名・相手など)"},
+              rationale: {type: "string", description: "この科目・部門にした理由(日本語、1〜3 文)"},
+              confidence: {type: "string", enum: %w[high medium low]}
             }
           }
         },
-        questions: { type: "array", items: { type: "string" }, description: "人に確かめたいこと(無ければ空)" }
+        questions: {type: "array", items: {type: "string"}, description: "人に確かめたいこと(無ければ空)"}
       }
     }.freeze
 
@@ -92,25 +92,25 @@ module Bookkeeper
       blocks = @voucher.files.map do |file|
         data = Base64.strict_encode64(file.download)
         if file.content_type == "application/pdf"
-          { type: "document", source: { type: "base64", media_type: "application/pdf", data: data } }
+          {type: "document", source: {type: "base64", media_type: "application/pdf", data: data}}
         else
-          { type: "image", source: { type: "base64", media_type: file.content_type, data: data } }
+          {type: "image", source: {type: "base64", media_type: file.content_type, data: data}}
         end
       end
-      text = +"証憑の種類: #{@voucher.kind_label}\n"
+      text = "証憑の種類: #{@voucher.kind_label}\n"
       text << "日付(人が入力): #{@voucher.issued_on}\n" if @voucher.issued_on
       text << "金額(人が入力): #{@voucher.amount} 円\n" if @voucher.amount
       text << "説明(人が入力): #{@voucher.description}\n" if @voucher.description.present?
       text << "補足: #{@voucher.notes}\n" if @voucher.notes.present?
       text << "\nこの証憑の仕訳を提案してください。"
-      blocks << { type: "text", text: text }
+      blocks << {type: "text", text: text}
     end
 
     private
 
     def examples
       JournalEntry.active.includes(:debit_account, :credit_account, :debit_department, :credit_department)
-                  .order(entry_date: :desc).limit(40).map do |e|
+        .order(entry_date: :desc).limit(40).map do |e|
         "#{e.entry_date} 借方 #{e.debit_account.code} #{e.debit_account.display_name}#{"(#{e.debit_department.code})" if e.debit_department} / " \
           "貸方 #{e.credit_account.code} #{e.credit_account.display_name}#{"(#{e.credit_department.code})" if e.credit_department} " \
           "#{e.amount}円 摘要「#{e.summary}」#{"補助「#{e.sub_summary}」" if e.sub_summary.present?}"

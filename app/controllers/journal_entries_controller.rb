@@ -1,5 +1,6 @@
 class JournalEntriesController < ApplicationController
   include AutosaveResponse
+
   undoable_screen
   before_action :set_entry, only: %i[show edit update destroy]
   before_action :require_editable, only: %i[edit update destroy]
@@ -11,7 +12,7 @@ class JournalEntriesController < ApplicationController
     @departments = Department.in_year(@year).ordered
     @filter = journal_filter
     entries = JournalEntry.in_fiscal_year(@year).chronological
-                          .includes(:debit_account, :credit_account, :debit_department, :credit_department, :siwake_import, :journal_proposal, cancellation: :canceller)
+      .includes(:debit_account, :credit_account, :debit_department, :credit_department, :siwake_import, :journal_proposal, cancellation: :canceller)
     # 取り消した仕訳は、絞り込みの「取り消した仕訳も出す」のときだけ出す(docs/adr/0026)
     entries = entries.active unless @filter[:cancelled]
     if (id = @filter[:account_id])
@@ -23,10 +24,11 @@ class JournalEntriesController < ApplicationController
     entries = entries.where("summary LIKE :q OR sub_summary LIKE :q", q: "%#{JournalEntry.sanitize_sql_like(@filter[:q])}%") if @filter[:q]
     @entries = entries
     @new_row_date = new_row_date
-    @filter_label = [ @balance_account&.display_name, Department.in_year(@year).find_by(id: @filter[:department_id])&.display_name, (@filter[:q] && "「#{@filter[:q]}」"), (@filter[:cancelled] && "取り消した仕訳も出す") ].compact.join("・")
+    @filter_label = [@balance_account&.display_name, Department.in_year(@year).find_by(id: @filter[:department_id])&.display_name, @filter[:q] && "「#{@filter[:q]}」", @filter[:cancelled] && "取り消した仕訳も出す"].compact.join("・")
   end
 
-  def show; end
+  def show
+  end
 
   def new
     @entry = JournalEntry.new(entry_date: Date.current)
@@ -45,13 +47,14 @@ class JournalEntriesController < ApplicationController
         if saved
           redirect_to journal_entries_path(year: @entry.fiscal_year), notice: "仕訳を登録しました"
         else
-          render :new, status: :unprocessable_entity
+          render :new, status: :unprocessable_content
         end
       end
     end
   end
 
-  def edit; end
+  def edit
+  end
 
   def update
     from = @entry.fiscal_year
@@ -64,13 +67,13 @@ class JournalEntriesController < ApplicationController
       format.json do
         moved = @entry.saved_change_to_fiscal_year?
         autosave_response(@entry, value: autosave_value,
-                          **(moved ? { record: helpers.dom_id(@entry), location: journal_entries_path(year: @entry.fiscal_year) } : {}))
+                          **(moved ? {record: helpers.dom_id(@entry), location: journal_entries_path(year: @entry.fiscal_year)} : {}))
       end
       format.html do
         if saved
           redirect_to journal_entries_path(year: @entry.fiscal_year), notice: "仕訳を更新しました"
         else
-          render :edit, status: :unprocessable_entity
+          render :edit, status: :unprocessable_content
         end
       end
     end
@@ -96,7 +99,7 @@ class JournalEntriesController < ApplicationController
     scope = JournalEntry.active.in_fiscal_year(year).chronological.includes(:debit_account, :credit_account, :debit_department, :credit_department)
     scope = scope.where(siwake_import_id: nil) if params[:only] == "new"
     file = Kaikeiou::SiwakeFile.new(rows: scope.map(&:to_siwake_row))
-    send_data file.to_bytes, filename: "siwake_#{year}#{'_new' if params[:only] == 'new'}.txt", type: "text/plain; charset=Shift_JIS"
+    send_data file.to_bytes, filename: "siwake_#{year}#{"_new" if params[:only] == "new"}.txt", type: "text/plain; charset=Shift_JIS"
   end
 
   private
@@ -110,7 +113,11 @@ class JournalEntriesController < ApplicationController
     fy = FiscalYear.new(@year)
     return if fy.range.cover?(Date.current)
 
-    last = Date.parse(session[:new_row_date]) rescue nil   # 直前に足した仕訳の日付
+    last = begin
+      Date.parse(session[:new_row_date])
+    rescue
+      nil
+    end   # 直前に足した仕訳の日付
     return last if last && fy.range.cover?(last)
 
     JournalEntry.in_fiscal_year(@year).maximum(:entry_date) || fy.starts_on
@@ -129,7 +136,7 @@ class JournalEntriesController < ApplicationController
     else "AI の提案を承認して記帳した仕訳は書き換えられず、消せません。直すときは「取り消す」を使ってください"
     end
     respond_to do |format|
-      format.json { render json: { ok: false, message: }, status: :forbidden }
+      format.json { render json: {ok: false, message:}, status: :forbidden }
       format.html { redirect_to @entry, alert: message }
     end
   end
@@ -140,45 +147,48 @@ class JournalEntriesController < ApplicationController
   # デザインシステム「年度」: 年度の外の日付は保存せずに知らせ、「移す」を押したら移す。
   # 締めた年度にかかる変更は、理由を書いてもらう。止めたときは true を返す(JSON を返し済み)。
   def year_guard(from:, to:)
-    years = [ from, to ].compact.uniq
+    years = [from, to].compact.uniq
     missing = years.reject { FiscalPeriod.for(it) }
     if missing.any?
-      render json: { ok: false, code: "no_year", message: "#{missing.first}年度はまだ始めていません。日付を直してください" }, status: :conflict
+      render json: {ok: false, code: "no_year", message: "#{missing.first}年度はまだ始めていません。日付を直してください"}, status: :conflict
       return true
     end
     if to && from && to != from && params[:move].blank?
-      render json: { ok: false, code: "outside_year", from:, to:, states: year_states(years), reason_required: years.any? { FiscalPeriod.for(it).closed? },
-                     message: "#{@entry.entry_date.strftime('%Y/%m/%d')} は #{FiscalPeriod.for(to).label}の日付です。この表は #{FiscalPeriod.for(from).label}なので、まだ保存していません。" },
-             status: :conflict
+      render json: {ok: false, code: "outside_year", from:, to:, states: year_states(years), reason_required: years.any? { FiscalPeriod.for(it).closed? },
+                    message: "#{@entry.entry_date.strftime("%Y/%m/%d")} は #{FiscalPeriod.for(to).label}の日付です。この表は #{FiscalPeriod.for(from).label}なので、まだ保存していません。"},
+        status: :conflict
       return true
     end
     closed = years.select { FiscalPeriod.for(it).closed? }
     if closed.any? && params[:reason].to_s.strip.empty?
-      render json: { ok: false, code: "reason_required", states: year_states(years),
-                     message: "#{closed.map { FiscalPeriod.for(it).label }.join('・')}は締めた年度です。直すと、提出した書類と合わなくなることがあります。直す理由を書いてください。" },
-             status: :conflict
+      render json: {ok: false, code: "reason_required", states: year_states(years),
+                    message: "#{closed.map { FiscalPeriod.for(it).label }.join("・")}は締めた年度です。直すと、提出した書類と合わなくなることがあります。直す理由を書いてください。"},
+        status: :conflict
       return true
     end
     if closed.any?
       Audit.reason!(params[:reason].to_s.strip)
       FiscalPeriod.changed_after_close!(closed)
-      Audit.label!("締めた年度(#{closed.map { "#{it}年度" }.join('・')})の仕訳を直した")
+      Audit.label!("締めた年度(#{closed.map { "#{it}年度" }.join("・")})の仕訳を直した")
     end
     false
   end
 
-  def year_states(years) = years.to_h { |y| p = FiscalPeriod.for(y); [ y, { label: p.label, state: p.state, state_label: p.state_label } ] }
+  def year_states(years) = years.to_h { |y|
+    p = FiscalPeriod.for(y)
+    [y, {label: p.label, state: p.state, state_label: p.state_label}]
+  }
 
   # 絞り込み(デザインシステム FilterBar)。画面を離れても保つ。
   def journal_filter
     session.delete(:journal_filter) if params[:clear]
     if params.key?(:account_id) || params.key?(:department_id) || params.key?(:q) || params.key?(:cancelled)
-      session[:journal_filter] = { "account_id" => params[:account_id].presence&.to_i, "department_id" => params[:department_id].presence&.to_i,
-                                   "q" => params[:q].to_s.strip.presence, "cancelled" => (params[:cancelled] == "1" || nil) }.compact
+      session[:journal_filter] = {"account_id" => params[:account_id].presence&.to_i, "department_id" => params[:department_id].presence&.to_i,
+                                  "q" => params[:q].to_s.strip.presence, "cancelled" => params[:cancelled] == "1" || nil}.compact
     end
     filter = (session[:journal_filter] || {}).symbolize_keys
     # 絞り込みの科目・部門は年度ごとのデータセットなので、操作している年度の同じコードに付け替える
-    { account_id: Account, department_id: Department }.each do |key, klass|
+    {account_id: Account, department_id: Department}.each do |key, klass|
       next unless (id = filter[key])
       record = klass.find_by(id:)
       filter[key] = record&.in_year(Current.working_year)&.id
@@ -188,6 +198,6 @@ class JournalEntriesController < ApplicationController
 
   def entry_params
     params.require(:journal_entry).permit(:entry_date, :amount, :debit_account_id, :debit_department_id,
-                                          :credit_account_id, :credit_department_id, :summary, :sub_summary, :memo)
+      :credit_account_id, :credit_department_id, :summary, :sub_summary, :memo)
   end
 end

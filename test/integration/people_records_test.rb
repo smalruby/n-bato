@@ -11,38 +11,38 @@ class PeopleRecordsTest < ActionDispatch::IntegrationTest
   end
 
   test "会員資格を足す・消す。締めた年度は理由を書く" do
-    post person_memberships_path(@person), params: { membership: { fiscal_year: 2024, kind: "regular" } }
+    post person_memberships_path(@person), params: {membership: {fiscal_year: 2024, kind: "regular"}}
     assert_equal "会員資格を追加しました", flash[:notice]
-    post person_memberships_path(@person), params: { membership: { fiscal_year: 2024, kind: "regular" } }
+    post person_memberships_path(@person), params: {membership: {fiscal_year: 2024, kind: "regular"}}
     assert flash[:alert].present?, "同じ年度・種別は二重に足さない"
 
-    post person_memberships_path(@person), params: { membership: { fiscal_year: 2023, kind: "regular" } }
+    post person_memberships_path(@person), params: {membership: {fiscal_year: 2023, kind: "regular"}}
     assert_match "締めた年度です", flash[:alert]
-    post person_memberships_path(@person), params: { membership: { fiscal_year: 2023, kind: "regular" }, reason: "名簿の漏れ" }
+    post person_memberships_path(@person), params: {membership: {fiscal_year: 2023, kind: "regular"}, reason: "名簿の漏れ"}
     old = @person.memberships.find_by!(fiscal_year: 2023)
 
     delete person_membership_path(@person, old)
     assert_match "締めた年度です", flash[:alert]
-    delete person_membership_path(@person, old), params: { reason: "誤り" }
+    delete person_membership_path(@person, old), params: {reason: "誤り"}
     assert_equal "削除しました", flash[:notice]
-    assert_equal [ 2024 ], @person.memberships.reload.map(&:fiscal_year)
+    assert_equal [2024], @person.memberships.reload.map(&:fiscal_year)
   end
 
   test "役員の任期を足す・消す。締めた年度にかかるなら理由を書く" do
-    post person_officer_terms_path(@person), params: { officer_term: { role: "director", starts_on: "", ends_on: "" } }
+    post person_officer_terms_path(@person), params: {officer_term: {role: "director", starts_on: "", ends_on: ""}}
     assert flash[:alert].present?, "任期の日付が無ければ足さない"
 
-    term = { role: "director", starts_on: "2023-07-01", ends_on: "2025-06-30" }
-    post person_officer_terms_path(@person), params: { officer_term: term }
+    term = {role: "director", starts_on: "2023-07-01", ends_on: "2025-06-30"}
+    post person_officer_terms_path(@person), params: {officer_term: term}
     assert_match "2023年度", flash[:alert]
-    post person_officer_terms_path(@person), params: { officer_term: term, reason: "記録の漏れ" }
+    post person_officer_terms_path(@person), params: {officer_term: term, reason: "記録の漏れ"}
     assert_equal "役員の任期を追加しました", flash[:notice]
     t = @person.officer_terms.sole
     assert_equal "director", t.role
 
     delete person_officer_term_path(@person, t)
     assert_match "締めた年度です", flash[:alert]
-    delete person_officer_term_path(@person, t), params: { reason: "誤り" }
+    delete person_officer_term_path(@person, t), params: {reason: "誤り"}
     assert_not OfficerTerm.exists?(t.id)
   end
 
@@ -51,14 +51,14 @@ class PeopleRecordsTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     get year_switch_path(2023)
-    patch organization_path, params: { organization: { representative_name: "代表A" } }
+    patch organization_path, params: {organization: {representative_name: "代表A"}}
     assert_response :unprocessable_entity
-    patch organization_path, params: { organization: { representative_name: "代表A" }, reason: "登記に合わせる" }
+    patch organization_path, params: {organization: {representative_name: "代表A"}, reason: "登記に合わせる"}
     assert_redirected_to organization_path
     assert_equal "代表A", Organization.first.record_for(2023).representative_name
 
     get year_switch_path(2024)
-    patch organization_path, params: { organization: { name: "" } }
+    patch organization_path, params: {organization: {name: ""}}
     assert_response :unprocessable_entity
     assert flash[:alert].present?
     org = Organization.first
@@ -67,7 +67,7 @@ class PeopleRecordsTest < ActionDispatch::IntegrationTest
     assert_equal "テスト法人", org.record_for(2023).name
 
     first_year = org.first_fiscal_year
-    patch organization_path, params: { organization: { first_fiscal_year: "abc", name: "テスト法人" } }
+    patch organization_path, params: {organization: {first_fiscal_year: "abc", name: "テスト法人"}}
     assert_response :unprocessable_entity
     assert_match "第 1 期の年度は数値で入力してください", flash[:alert]
     assert_equal first_year, org.reload.first_fiscal_year, "数でない値で第 1 期の年度を消さない"

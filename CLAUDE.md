@@ -23,7 +23,7 @@ COVERAGE=1 bin/rails test      # カバレッジ(バックエンドが 100% を�
 bin/rails test:system          # ブラウザのテスト(Playwright の Chromium。版は .playwright-version。HEADFUL=1 で窓を出す)
 bin/demo                       # 架空のデータだけの環境を作り直して http://localhost:3300 で動かす(-d 裏で / --no-reset / --reset-only / --stop)
 bin/pw-check URL [--screenshot [PATH]] [--width 390] [--full]  # 画面を Playwright で開いて確かめる(localhost ならログインも自動。写しは tmp/screenshots/)
-bin/rubocop                    # スタイル(rubocop-rails-omakase)
+bin/standardrb                 # Ruby の書き方(standardrb + standard-rails。直すのは --fix。設定は .standard.yml)
 bin/brakeman --no-pager        # セキュリティ静的解析
 bin/dev                        # 開発サーバ(http://localhost:3000)
 bin/rails kaikeiou:import[PATH]        # 会計王 SIWAKE ファイル(またはディレクトリ)の取り込み
@@ -63,12 +63,12 @@ Claude Code が、アプリの代わりに仕訳を提案することもでき�
 - **UI・UX を変える順番(2026-11-20 ユーザー指定)**: ① 変更案を artifact で人間に見せ、選んでもらって合意を取る → ② `docs/design-system/` に書く → ③ 実装する。実装してから相談しない。デザインシステムに書いていない UI は作らない(画面ごとにばらばらになるのを防ぐため)。小さな不具合の修正(崩れ・誤字)はこの限りでない。
   - 見直し票とデザインシステムの原本(artifact)の場所は `CLAUDE.local.md`。
 
-- 原本は `docs/design-system/`(README・tokens.json・components.css)。色・寸法は `var(--…)` のトークンだけを使い、新しい画面は `nb-` の部品で作る。古い `.btn`・`.card`・`.data-table` は移行用にトークンで描き直してある。
+- 原本は `docs/design-system/`(README・tokens.json・components.css)。色・文字の大きさ・余白は `var(--…)` のトークンか `nb-` の部品だけで決め(並べ方の Tailwind のユーティリティ `flex`・`grid` などはよい。開発QAボード 第8回 8-7)、新しい画面は `nb-` の部品で作る。古い `.btn`・`.card`・`.data-table` は移行用にトークンで描き直してある(その画面は、触るときに `nb-` の部品へ移す)。
 - `tokens.json` か `components.css` を直したら `bin/rails design:tokens`(`app/assets/tailwind/nbato.css` を作り直す)。CSS は `bin/rails tailwindcss:build`(開発サーバーを `bin/rails s` だけで動かすと自動では作り直されない)。
-- **保存ボタンを置かない。** 入力欄は `data-controller="autosave"` の中に置き、`data-url` に PATCH(JSON)の送り先を書く。コントローラは `include AutosaveResponse` と `respond_to { format.json { autosave_response(record) } }`。
+- **保存ボタンを置かない。** 入力欄は `data-controller="autosave"` の中に置き、`data-url` に PATCH(JSON)の送り先を書く。コントローラは `include AutosaveResponse` と `respond_to { format.json { autosave_response(record) } }`。例外は作る画面(new)の送るボタンだけで、文字は動詞(「作る」「登録する」)にする(開発QAボード 第8回 8-2)。
 - **操作履歴は自動で残る**(`ApplicationRecord` の `Audited`)。リクエスト 1 回が 1 つの操作。履歴に出す文は `Audit.label!("…")`、元に戻せない操作(承認・提出・決議の反映・登記)は `Audit.final!("…")`。記録しない模型は `self.audited = false`。
 - **元に戻す・やり直す**を出す画面は、コントローラで `undoable_screen`。範囲は `audit_scope`(既定はコントローラ名)。右ペインに `history_panel`。
-- 元に戻せない操作のボタンは `confirm-twice`(2 回押し、ダイアログを出さない)。
+- 元に戻せない操作と消す操作のボタンは `confirm-twice`(2 回押し、ブラウザのダイアログを出さない。開発QAボード 第8回 8-3)。
 - 年に一度の手続きは `config/procedures/*.yml` に手順・説明・根拠の条文を書く(画面は ProceduresController)。条文は利用団体の定款(場所は `CLAUDE.local.md`)で確かめてから書く。推測で条文番号を書かない。
 - ダークモードは画面の移行が済むまで `data-theme="dark"` のときだけ。
 
@@ -86,10 +86,10 @@ Claude Code が、アプリの代わりに仕訳を提案することもでき�
 
 ## 進め方
 
-- いまはブートストラップ期。**トピックブランチは作らず `main` に直接コミット** する。コミットは意味のまとまりごとに分け、テストが通る状態でコミットする。
+- 1 つの Issue を 1 つのブランチと 1 つの PR で進める(worktree・ブランチの名前・PR・マージの決まりは `.claude/rules/git-workflow.md`)。`main` に直接コミットしない。コミットは意味のまとまりごとに分け、テストが通る状態でコミットする。コードの書き方の決まりは `.claude/rules/code-style.md`、PR のレビューはスキル `nbato-review`。
 - コミットメッセージは日本語でよい。末尾に `Co-Authored-By:` を付ける。
 - **作業記録(ジャーナル)** は `notes/journal/YYYY-MM-DD.md` に追記していく(git 管理外)。書くこと: やったこと、決めたこと(理由も)、確認した結果(数値)、詰まったこと、次にやること。セッションの終わりに必ず更新する。
-- push・GitHub リポジトリの作成など外部に出る操作は、ユーザーの確認を取ってから行う。
+- push・GitHub リポジトリの作成など外部に出る操作は、ユーザーの確認を取ってから行う。ただし `/nbato-review` を呼んだことは、その PR の中の操作(コメント・ラベル・Ready・PR のブランチへの push・子の Issue)の確かめとみなす(`main` への push とマージはスキルではしない。出す本文は `bin/check-private --text` に通す。開発QAボード 第8回 8-10)。マージは `.claude/rules/git-workflow.md` の決まりに従う。
 
 ## 公開リポジトリとしての注意(コミットするもの・手元だけのもの)
 

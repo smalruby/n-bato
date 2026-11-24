@@ -11,7 +11,7 @@ class FilingsController < ApplicationController
   before_action :load_report
 
   def show
-    @docs = [ DOCUMENTS.keys.find { it == params[:doc] } || raise(ActionController::RoutingError, "unknown document") ]
+    @docs = [DOCUMENTS.keys.find { it == params[:doc] } || raise(ActionController::RoutingError, "unknown document")]
     @title = DOCUMENTS[@docs.first]
     respond
   end
@@ -37,8 +37,8 @@ class FilingsController < ApplicationController
       format.html { render :documents }
       format.pdf do
         @pdf = true
-        send_data PdfRenderer.render(render_to_string(:documents, formats: [ :html ])),
-                  filename: "#{@fiscal_year.year}-#{@docs.one? ? @docs.first : 'pack'}.pdf", type: "application/pdf", disposition: "inline"
+        send_data PdfRenderer.render(render_to_string(:documents, formats: [:html])),
+          filename: "#{@fiscal_year.year}-#{@docs.one? ? @docs.first : "pack"}.pdf", type: "application/pdf", disposition: "inline"
       end
     end
   end

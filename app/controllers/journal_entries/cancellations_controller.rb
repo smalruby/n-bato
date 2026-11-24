@@ -13,7 +13,7 @@ class JournalEntries::CancellationsController < ApplicationController
 
   def back_path(entry)
     voucher = entry.journal_proposal&.voucher
-    params[:back_to] == "voucher" && voucher ? voucher_path(voucher) : journal_entries_path(year: entry.fiscal_year)
+    (params[:back_to] == "voucher" && voucher) ? voucher_path(voucher) : journal_entries_path(year: entry.fiscal_year)
   end
 
   def notice_for(entry)

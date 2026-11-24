@@ -1,7 +1,7 @@
 namespace :filing_destinations do
   desc "提出先を YAML から読み込む(実データは data/ に置く) 例: bin/rails 'filing_destinations:load[data/filing_destinations.yml]'"
-  task :load, [ :path ] => :environment do |_, args|
-    conf = YAML.load_file(args[:path] || "data/filing_destinations.yml", permitted_classes: [ Date, Time ])
+  task :load, [:path] => :environment do |_, args|
+    conf = YAML.load_file(args[:path] || "data/filing_destinations.yml", permitted_classes: [Date, Time])
     user = User.order(:id).first
     Audit.operation(user:, scope: "filing_destinations") do
       Audit.label!("提出先を読み込んだ")

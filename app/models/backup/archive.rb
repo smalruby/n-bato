@@ -32,8 +32,8 @@ class Backup::Archive
   def snapshot_databases(tmp)
     @storage_dir.glob("*.sqlite3").sort.to_h do |db|
       copy = File.join(tmp, db.basename.to_s)
-      SQLite3::Database.new(db.to_s, readonly: true) { it.execute("VACUUM INTO ?", [ copy ]) }
-      [ db.basename.to_s, copy ]
+      SQLite3::Database.new(db.to_s, readonly: true) { it.execute("VACUUM INTO ?", [copy]) }
+      [db.basename.to_s, copy]
     end
   end
 

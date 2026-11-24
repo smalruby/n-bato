@@ -12,11 +12,11 @@ class AuditTest < ActiveSupport::TestCase
   test "変更を操作として残し、元に戻す・やり直すができる" do
     entry = entry_op { JournalEntry.create!(entry_date: Date.new(2024, 5, 1), debit_account: @supplies, credit_account: @cash, amount: 1000, summary: "文具") }
     entry_op { entry.update!(amount: 1200) }
-    assert_equal({ undo: 2, redo: 0 }, Audit.counts(@user, "journal_entries"))
+    assert_equal({undo: 2, redo: 0}, Audit.counts(@user, "journal_entries"))
 
     Audit.undo!(@user, "journal_entries")
     assert_equal 1000, entry.reload.amount
-    assert_equal({ undo: 1, redo: 1 }, Audit.counts(@user, "journal_entries"))
+    assert_equal({undo: 1, redo: 1}, Audit.counts(@user, "journal_entries"))
 
     Audit.redo!(@user, "journal_entries")
     assert_equal 1200, entry.reload.amount
@@ -35,7 +35,7 @@ class AuditTest < ActiveSupport::TestCase
     entry_op { entry.destroy! }
     Audit.undo!(@user, "journal_entries")
     restored = JournalEntry.find(entry.id)
-    assert_equal [ 500, "電池", Date.new(2024, 5, 1) ], [ restored.amount, restored.summary, restored.entry_date ]
+    assert_equal [500, "電池", Date.new(2024, 5, 1)], [restored.amount, restored.summary, restored.entry_date]
   end
 
   test "新しい操作をすると、やり直せなくなる" do

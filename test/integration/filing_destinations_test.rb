@@ -4,14 +4,17 @@ require "test_helper"
 class FilingDestinationsTest < ActionDispatch::IntegrationTest
   include ActiveJob::TestHelper
 
-  setup { ensure_organization; sign_in }
+  setup {
+    ensure_organization
+    sign_in
+  }
 
   test "足す・直す(すぐ保存)・確かめる・消す" do
-    post filing_destinations_path, params: { kind: "authority" }
+    post filing_destinations_path, params: {kind: "authority"}
     d = FilingDestination.last
     assert_redirected_to filing_destinations_path(anchor: "dest-#{d.id}")
 
-    patch filing_destination_path(d, format: :json), params: { filing_destination: { name: "テスト市", addressee: "テスト市長　山田　太郎" } }
+    patch filing_destination_path(d, format: :json), params: {filing_destination: {name: "テスト市", addressee: "テスト市長　山田　太郎"}}
     assert response.parsed_body["ok"]
     assert_equal "テスト市長　山田　太郎", d.reload.addressee
 
@@ -100,12 +103,15 @@ class FilingDestinationsTest < ActionDispatch::IntegrationTest
     assert_redirected_to setup_path
     get setup_path
     assert_select ".nb-setup h1", "法人の名前と所在地"
-    patch setup_path, params: { name: "テスト法人", address: "" }
+    patch setup_path, params: {name: "テスト法人", address: ""}
     assert_redirected_to setup_path(step: 1)
-    patch setup_path, params: { name: "テスト法人", address: "テスト県テスト市1-1" }
+    patch setup_path, params: {name: "テスト法人", address: "テスト県テスト市1-1"}
     assert_redirected_to setup_path(step: 2)
     assert_equal "テスト県テスト市1-1", Organization.first.address
-    [ 2, 3, 4 ].each { get setup_path(step: it); assert_response :success }
+    [2, 3, 4].each {
+      get setup_path(step: it)
+      assert_response :success
+    }
   end
 
   test "提出書の宛先は確認済みの所轄庁から" do

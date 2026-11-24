@@ -15,7 +15,7 @@ class StatementsController < ApplicationController
       format.html { render :show }
       format.pdf do
         @pdf = true
-        html = render_to_string(:show, formats: [ :html ])
+        html = render_to_string(:show, formats: [:html])
         send_data PdfRenderer.render(html), filename: "#{@fiscal_year.year}-#{@kind}.pdf", type: "application/pdf", disposition: "inline"
       end
     end

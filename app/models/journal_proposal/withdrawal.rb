@@ -2,6 +2,7 @@
 # これまでは前の提案を消していたが、提案は消さずに取り下げとして残す(docs/adr/0007)。
 class JournalProposal::Withdrawal < ApplicationRecord
   include EventRecord
+
   event_of :withdrawn_at, entry: :withdraw!
 
   belongs_to :journal_proposal

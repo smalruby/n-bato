@@ -7,7 +7,7 @@ class CreateProcedures < ActiveRecord::Migration[8.1]
       t.text :note
       t.timestamps
     end
-    add_index :procedure_runs, [ :kind, :period ], unique: true
+    add_index :procedure_runs, [:kind, :period], unique: true
 
     create_table :procedure_steps do |t|
       t.references :procedure_run, null: false, foreign_key: true
@@ -18,6 +18,6 @@ class CreateProcedures < ActiveRecord::Migration[8.1]
       t.date :completed_on
       t.timestamps
     end
-    add_index :procedure_steps, [ :procedure_run_id, :key ], unique: true
+    add_index :procedure_steps, [:procedure_run_id, :key], unique: true
   end
 end
