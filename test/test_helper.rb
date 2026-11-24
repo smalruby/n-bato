@@ -20,6 +20,15 @@ module ActiveSupport
 
     # Add more helper methods to be used by all tests here...
 
+    # 事業報告を作り、承認・提出などの日付を節目のイベントで入れる(docs/adr/0038)。操作履歴には残さない(テストの準備)
+    def create_annual_report!(fiscal_year, **dates)
+      Audit.without do
+        report = AnnualReport.find_or_create_by!(fiscal_year:)
+        dates.each { |column, on| AnnualReport::Milestone.record!(report, AnnualReport::Milestone.kind_for(column), on:) }
+        report.reload
+      end
+    end
+
     # 環境変数を一時的に変える(nil は消す)。テストの後は元に戻す
     def with_env(vars)
       before = vars.keys.to_h { [ it, ENV[it] ] }

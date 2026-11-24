@@ -1,17 +1,26 @@
 # 総会・理事会の決議。書面決議(みなし決議)は、議決権を持つ全員の同意がそろった日に成立する。
+# 長いイベント(docs/adr/0038)。詳細のイベントは、同意(Consent)・同意の取消(Consent::Cancellation)・議案の反映(ResolutionItem::Application)。
+# 成立した日は、取り消していない同意から毎回決まる(列には持たない)。件名・提案日・議案などの中身は、ふつうに直してよい。
+# 同意を記録した(取り消したものも)・議案を反映した決議は消せない(出来事を消さないため)。
 class Resolution < ApplicationRecord
   BODIES = { "general_meeting" => "総会", "board" => "理事会" }.freeze
   METHODS = { "written" => "書面による決議（みなし決議）", "meeting" => "会議" }.freeze
 
   belongs_to :proposer, class_name: "Person"
   belongs_to :minutes_author, class_name: "Person", optional: true
+  before_destroy :keep_events, prepend: true
   has_many :items, -> { order(:position, :id) }, class_name: "ResolutionItem", dependent: :destroy
-  has_many :consents, dependent: :destroy
+  # 取り消していない同意(成立に数えるもの)。取り消したものも含めるときは all_consents
+  has_many :consents, -> { active }, class_name: "Consent"
+  has_many :all_consents, class_name: "Consent", dependent: :restrict_with_error
   accepts_nested_attributes_for :items, allow_destroy: true, reject_if: ->(a) { a["title"].blank? }
 
   validates :body, inclusion: { in: BODIES.keys }
   validates :voting_method, inclusion: { in: METHODS.keys }
   validates :title, :proposed_on, presence: true
+  validate { errors.add(:base, "記録に反映した議案は消せません") if items.any? { it.marked_for_destruction? && it.applied? } }
+
+  def self.model_name_label = "決議"
 
   scope :recent, -> { order(proposed_on: :desc, id: :desc) }
 
@@ -45,5 +54,16 @@ class Resolution < ApplicationRecord
   def article_reference
     refs = (Organization.current.settings || {})["written_resolution_articles"] || {}
     refs[body].presence || "定款"
+  end
+
+  private
+
+  def keep_events
+    if all_consents.exists?
+      errors.add(:base, "同意を記録した決議は消せません(同意の記録は、取り消しても残ります)")
+    elsif items.any?(&:applied?)
+      errors.add(:base, "記録に反映した議案のある決議は消せません")
+    end
+    throw :abort if errors.any?
   end
 end

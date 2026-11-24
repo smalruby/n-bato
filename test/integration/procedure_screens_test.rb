@@ -29,12 +29,12 @@ class ProcedureScreensTest < ActionDispatch::IntegrationTest
     assert response.parsed_body["ok"]
     assert_equal "通帳は来週", run.step("close_books").reload.note
 
-    post complete_procedure_step_path(run, "close_books")
-    post reopen_procedure_step_path(run, "close_books")
+    post procedure_step_status_changes_path(run, "close_books"), params: { status: "done" }
+    post procedure_step_status_changes_path(run, "close_books"), params: { status: "open" }
     assert_equal "済みを取り消しました", flash[:notice]
     assert_nil run.procedure_steps.find_by!(key: "close_books").completed_on
 
-    post skip_procedure_step_path(run, "corporate_tax"), params: { reason: "収益事業はしていない" }
+    post procedure_step_status_changes_path(run, "corporate_tax"), params: { status: "skipped", reason: "収益事業はしていない" }
     assert_match "対象外にしました", flash[:notice]
     assert_equal "skipped", run.procedure_steps.find_by!(key: "corporate_tax").status
   end

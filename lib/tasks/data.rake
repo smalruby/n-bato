@@ -19,7 +19,9 @@ namespace :data do
       end
       Array(conf["annual_reports"]).each do |h|
         report = AnnualReport.find_or_initialize_by(fiscal_year: h.fetch("fiscal_year"))
-        report.update!(h.except("fiscal_year", "programs"))
+        # 承認・提出・公告などの日付は、節目のイベントとして記録する(docs/adr/0038)
+        report.update!(h.except("fiscal_year", "programs", *AnnualReport::STATE_COLUMNS))
+        h.slice(*AnnualReport::STATE_COLUMNS).each { |column, on| AnnualReport::Milestone.record!(report, AnnualReport::Milestone.kind_for(column), on:) }
         Array(h["programs"]).each_with_index do |p, i|
           dept = Department.in_year(report.fiscal_year).find_by!(code: p.fetch("department_code"))
           pa = report.program_activities.find_or_initialize_by(department: dept)
@@ -27,7 +29,8 @@ namespace :data do
         end
       end
       Array(conf["past_submissions"]).each do |h|
-        AnnualReport.find_or_initialize_by(fiscal_year: h.fetch("fiscal_year")).update!(submitted_on: h.fetch("submitted_on"))
+        report = AnnualReport.find_or_create_by!(fiscal_year: h.fetch("fiscal_year"))
+        AnnualReport::Milestone.record!(report, "submitted", on: h.fetch("submitted_on"))
       end
       OfficerTerm.find_each { it.send(:schedule_registration) if it.representative? && it.registrations.none? }
     end

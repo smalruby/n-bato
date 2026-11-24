@@ -49,13 +49,13 @@ class ResolutionScreensTest < ActionDispatch::IntegrationTest
 
     post resolution_consents_path(@resolution), params: { consent: { person_id: @member.id, consented_on: Date.current.iso8601, via: "email" } }
     consent = @resolution.consents.sole
-    delete resolution_consent_path(@resolution, consent)
+    post resolution_consent_cancellation_path(@resolution, consent)
     assert_equal "同意の記録を取り消しました", flash[:notice]
     assert_empty @resolution.consents.reload
   end
 
   test "成立していない決議は記録に反映しない" do
-    post apply_item_resolution_path(@resolution, item_id: @resolution.items.first.id)
+    post resolution_item_application_path(@resolution, @resolution.items.first)
     assert_equal "決議が成立していません", flash[:alert]
   end
 end

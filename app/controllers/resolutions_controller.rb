@@ -1,5 +1,5 @@
 class ResolutionsController < ApplicationController
-  before_action :set_resolution, only: %i[show edit update destroy document apply_item]
+  before_action :set_resolution, only: %i[show edit update destroy document]
 
   DOCUMENTS = { "proposal" => "提案書", "consent_form" => "同意書", "minutes" => "議事録" }.freeze
 
@@ -39,9 +39,13 @@ class ResolutionsController < ApplicationController
     end
   end
 
+  # 同意を記録した・議案を反映した決議は消さない(出来事を消さないため。docs/adr/0038)
   def destroy
-    @resolution.destroy!
-    redirect_to resolutions_path, notice: "削除しました"
+    if @resolution.destroy
+      redirect_to resolutions_path, notice: "削除しました"
+    else
+      redirect_to @resolution, alert: @resolution.errors.full_messages.join(" / ")
+    end
   end
 
   def document
@@ -56,14 +60,6 @@ class ResolutionsController < ApplicationController
         send_data PdfRenderer.render(html), filename: "resolution-#{@resolution.id}-#{@doc}.pdf", type: "application/pdf", disposition: "inline"
       end
     end
-  end
-
-  def apply_item
-    item = @resolution.items.find(params[:item_id])
-    item.apply!
-    redirect_to @resolution, notice: "「#{item.title}」を記録に反映しました"
-  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound, RuntimeError => e
-    redirect_to @resolution, alert: e.message
   end
 
   private

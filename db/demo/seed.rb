@@ -221,8 +221,11 @@ module Demo
         report.program_activities.each { it.assign_attributes(content: "#{it.department.long_name}(架空)", schedule: "毎月", beneficiaries: "地域の子ども 20 人(架空)") }
         report.save!
       end
-      AnnualReport.find_by!(fiscal_year: first_year).update!(approved_on: Date.new(first_year + 1, 6, 20), submitted_on: Date.new(first_year + 1, 6, 28))
-      AnnualReport.find_by!(fiscal_year: first_year + 1).update!(approved_on: Date.new(first_year + 2, 6, 20), submitted_on: Date.new(first_year + 2, 6, 28))
+      [ first_year, first_year + 1 ].each do |y|
+        report = AnnualReport.find_by!(fiscal_year: y)
+        AnnualReport::Milestone.record!(report, "approved", on: Date.new(y + 1, 6, 20), by: user)
+        AnnualReport::Milestone.record!(report, "submitted", on: Date.new(y + 1, 6, 28), by: user)
+      end
     end
 
     # 総会(書面決議): 役員の改選と事業報告の承認。理事会(書面決議): 理事長・副理事長の互選。
@@ -236,8 +239,8 @@ module Demo
           { position: 1, kind: "annual_report_approval", title: "第2号議案 #{@meeting_year - 1}年度事業報告承認の件", fiscal_year: @meeting_year - 1 }
         ]
       )
-      gm.voters.each_with_index { |p, i| gm.consents.create!(person: p, consented_on: proposed + 5 + i, via: i.even? ? "email" : "paper") }
-      gm.items.each(&:apply!)
+      gm.voters.each_with_index { |p, i| Consent.record!(gm, person: p, consented_on: proposed + 5 + i, via: i.even? ? "email" : "paper") }
+      gm.items.each { ResolutionItem::Application.apply!(it, by: user) }
 
       established = gm.reload.established_on
       board = Resolution.create!(
@@ -245,13 +248,13 @@ module Demo
         items_attributes: [ { position: 0, kind: "officer_mutual_election", title: "理事長・副理事長の互選",
                               appointments_text: "見本　一郎 理事長\n見本　二郎 副理事長" } ]
       )
-      board.voters.each { board.consents.create!(person: it, consented_on: established + 2, via: "email") }
-      board.items.each(&:apply!)
+      board.voters.each { Consent.record!(board, person: it, consented_on: established + 2, via: "email") }
+      board.items.each { ResolutionItem::Application.apply!(it, by: user) }
 
       # 成立していない決議(同意を集めている途中)
       draft = Resolution.create!(body: "board", voting_method: "written", title: "理事会(書面決議・会場の変更)", proposed_on: [ today - 3, established + 3 ].max,
                                  proposer: @people[:chair], items_attributes: [ { position: 0, kind: "general", title: "教室の会場を変える件", content: "架空の公民館へ移す" } ])
-      draft.consents.create!(person: @people[:chair], consented_on: draft.proposed_on, via: "email")
+      Consent.record!(draft, person: @people[:chair], consented_on: draft.proposed_on, via: "email")
     end
 
     # 前の任期の就任の登記は済み、改選のあとの重任の登記は申請中、理事の住所の変更はまだ申請していない
@@ -272,23 +275,24 @@ module Demo
     end
 
     def procedures!
-      done = ProcedureRun.create!(kind: "annual_report", period: first_year + 1)
+      done = ProcedureRun.start!(kind: "annual_report", period: first_year + 1)
       on = Date.new(first_year + 2, 6, 28)
       done.steps.each do |step|
         next if step.definition.only_when
-        # 年度はもう締めてある(会計の種)ので、締める手順は済みの記録だけ
-        step.definition.effect == "close_year" ? step.update!(status: "done", completed_on: on) : step.complete!(on:)
+
+        # 年度はもう締めてある(会計の種)ので、締める手順は済みの記録だけになる
+        ProcedureStep::StatusChange.change!(step, status: "done", on:, by: user)
       end
 
-      run = ProcedureRun.create!(kind: "annual_report", period: year - 1)
-      run.steps.first(2).each { it.complete!(on: Date.new(year, 5, 10)) }
+      run = ProcedureRun.start!(kind: "annual_report", period: year - 1)
+      run.steps.first(2).each { ProcedureStep::StatusChange.change!(it, status: "done", on: Date.new(year, 5, 10), by: user) }
       run.step(run.steps[2].key).tap { it.note = "監事に送った(架空)" }.save!
 
       return unless @meeting_year.even? # 役員の改選は偶数の年
 
-      election = ProcedureRun.create!(kind: "officer_election", period: @meeting_year)
+      election = ProcedureRun.start!(kind: "officer_election", period: @meeting_year)
       established = Resolution.find_by!(body: "general_meeting").established_on
-      election.steps.first(3).each { it.complete!(on: established) }
+      election.steps.first(3).each { ProcedureStep::StatusChange.change!(it, status: "done", on: established, by: user) }
     end
 
     def member_applications!

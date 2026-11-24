@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_25_100000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "code", null: false
     t.string "name", null: false
@@ -50,6 +50,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "annual_report_milestones", force: :cascade do |t|
+    t.integer "annual_report_id", null: false
+    t.string "kind", null: false
+    t.date "dated_on"
+    t.boolean "automatic", default: false, null: false
+    t.integer "recorded_by_id"
+    t.datetime "recorded_at", null: false
+    t.index ["annual_report_id"], name: "index_annual_report_milestones_on_annual_report_id"
+    t.index ["recorded_by_id"], name: "index_annual_report_milestones_on_recorded_by_id"
   end
 
   create_table "annual_reports", force: :cascade do |t|
@@ -128,16 +139,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
     t.index ["account_id"], name: "index_balance_checks_on_account_id"
   end
 
+  create_table "consent_cancellations", force: :cascade do |t|
+    t.integer "consent_id", null: false
+    t.integer "cancelled_by_id"
+    t.datetime "cancelled_at", null: false
+    t.index ["cancelled_by_id"], name: "index_consent_cancellations_on_cancelled_by_id"
+    t.index ["consent_id"], name: "index_consent_cancellations_on_consent_id", unique: true
+  end
+
   create_table "consents", force: :cascade do |t|
     t.integer "resolution_id", null: false
     t.integer "person_id", null: false
     t.date "consented_on", null: false
     t.string "via", default: "paper", null: false
     t.string "note", default: "", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
     t.index ["person_id"], name: "index_consents_on_person_id"
-    t.index ["resolution_id", "person_id"], name: "index_consents_on_resolution_id_and_person_id", unique: true
+    t.index ["resolution_id", "person_id"], name: "index_consents_on_resolution_id_and_person_id"
     t.index ["resolution_id"], name: "index_consents_on_resolution_id"
   end
 
@@ -549,6 +566,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
     t.index ["kind", "period"], name: "index_procedure_runs_on_kind_and_period", unique: true
   end
 
+  create_table "procedure_step_status_changes", force: :cascade do |t|
+    t.integer "procedure_step_id", null: false
+    t.string "status", null: false
+    t.date "completed_on"
+    t.text "note", default: "", null: false
+    t.integer "changed_by_id"
+    t.datetime "changed_at", null: false
+    t.index ["changed_by_id"], name: "index_procedure_step_status_changes_on_changed_by_id"
+    t.index ["procedure_step_id"], name: "index_procedure_step_status_changes_on_procedure_step_id"
+  end
+
   create_table "procedure_steps", force: :cascade do |t|
     t.integer "procedure_run_id", null: false
     t.string "key", null: false
@@ -658,6 +686,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
     t.index ["registration_filing_id"], name: "index_registrations_on_registration_filing_id"
   end
 
+  create_table "resolution_item_applications", force: :cascade do |t|
+    t.integer "resolution_item_id", null: false
+    t.integer "applied_by_id"
+    t.date "applied_on", null: false
+    t.index ["applied_by_id"], name: "index_resolution_item_applications_on_applied_by_id"
+    t.index ["resolution_item_id"], name: "index_resolution_item_applications_on_resolution_item_id", unique: true
+  end
+
   create_table "resolution_items", force: :cascade do |t|
     t.integer "resolution_id", null: false
     t.integer "position", default: 0, null: false
@@ -665,7 +701,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
     t.string "title", null: false
     t.text "content", default: "", null: false
     t.json "payload"
-    t.date "applied_on"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["resolution_id"], name: "index_resolution_items_on_resolution_id"
@@ -788,10 +823,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "annual_report_milestones", "annual_reports"
+  add_foreign_key "annual_report_milestones", "users", column: "recorded_by_id"
   add_foreign_key "audit_changes", "audit_operations"
   add_foreign_key "audit_operations", "audit_operations", column: "target_id"
   add_foreign_key "audit_operations", "users"
   add_foreign_key "balance_checks", "accounts"
+  add_foreign_key "consent_cancellations", "consents"
+  add_foreign_key "consent_cancellations", "users", column: "cancelled_by_id"
   add_foreign_key "consents", "people"
   add_foreign_key "consents", "resolutions"
   add_foreign_key "filing_destination_confirmations", "filing_destinations"
@@ -841,6 +880,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
   add_foreign_key "person_name_changes", "people"
   add_foreign_key "person_name_changes", "users", column: "recorded_by_id"
   add_foreign_key "person_years", "people"
+  add_foreign_key "procedure_step_status_changes", "procedure_steps"
+  add_foreign_key "procedure_step_status_changes", "users", column: "changed_by_id"
   add_foreign_key "procedure_steps", "procedure_runs"
   add_foreign_key "program_activities", "annual_reports"
   add_foreign_key "program_activities", "departments"
@@ -860,6 +901,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_24_230000) do
   add_foreign_key "registrations", "person_address_changes"
   add_foreign_key "registrations", "person_name_changes"
   add_foreign_key "registrations", "registration_filings"
+  add_foreign_key "resolution_item_applications", "resolution_items"
+  add_foreign_key "resolution_item_applications", "users", column: "applied_by_id"
   add_foreign_key "resolution_items", "resolutions"
   add_foreign_key "resolutions", "people", column: "minutes_author_id"
   add_foreign_key "resolutions", "people", column: "proposer_id"

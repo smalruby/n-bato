@@ -1,9 +1,11 @@
-# 決議の議案 1 つ。役員の選任や事業報告の承認は、成立後に記録へ反映できる。
+# 決議の議案 1 つ(決議の中身。成立前は自由に直してよい)。役員の選任や事業報告の承認は、成立後に記録へ反映できる。
+# 反映は詳細のイベント ResolutionItem::Application(docs/adr/0038)。
 class ResolutionItem < ApplicationRecord
   KINDS = { "general" => "一般", "officer_election" => "役員の選任", "annual_report_approval" => "事業報告・決算の承認",
             "officer_mutual_election" => "理事長・副理事長の互選" }.freeze
 
   belongs_to :resolution
+  has_one :application, class_name: "ResolutionItem::Application", dependent: :restrict_with_error
   validates :kind, inclusion: { in: KINDS.keys }
   validates :title, presence: true
   validate { errors.add(:base, "「#{@unknown_names.join('、')}」が読めません（登録済みの氏名と、役（理事・監事・理事長・副理事長）を空白で区切って書く）") if @unknown_names.present? }
@@ -42,34 +44,12 @@ class ResolutionItem < ApplicationRecord
     self.payload = (payload || {}).merge("fiscal_year" => year.presence&.to_i)
   end
 
-  def applicable? = resolution.established? && applied_on.nil? && kind != "general"
+  scope :applied, -> { where(id: ResolutionItem::Application.select(:resolution_item_id)) }
+  scope :unapplied, -> { where.not(id: ResolutionItem::Application.select(:resolution_item_id)) }
 
-  # 成立した決議の内容を記録に反映する
-  def apply!
-    raise "決議が成立していません" unless resolution.established?
+  def applied? = application.present?
+  # 記録に反映した日(ResolutionItem::Application。移す前は列だった)
+  def applied_on = application&.applied_on
 
-    date = resolution.established_on
-    transaction do
-      case kind
-      when "officer_mutual_election"
-        # 理事として選任済みの任期の役名を、理事長・副理事長に変える(就任は互選の日)
-        appointments.each do |a|
-          term = OfficerTerm.where(person_id: a.fetch("person_id"), role: "director").order(:starts_on).last or
-            raise ActiveRecord::RecordNotFound, "互選の対象の理事の任期がありません"
-          term.update!(role: a.fetch("role"))
-          term.registrations.create!(kind: "representative_change", cause_on: date, due_on: date + Registration::DEADLINE_DAYS,
-                                     note: "#{term.person.name}（#{term.role_label}）の就任・重任") if term.representative?
-        end
-      when "officer_election"
-        appointments.each do |a|
-          OfficerTerm.create!(person_id: a.fetch("person_id"), role: a.fetch("role"), starts_on: date,
-                              ends_on: date.advance(years: OfficerTerm::TERM_YEARS).yesterday,
-                              appointed_by: "#{resolution.body_label}「#{resolution.title}」（#{date}）")
-        end
-      when "annual_report_approval"
-        AnnualReport.find_by!(fiscal_year: fiscal_year).update!(approved_on: date)
-      end
-      update!(applied_on: Date.current)
-    end
-  end
+  def applicable? = resolution.established? && !applied? && kind != "general"
 end

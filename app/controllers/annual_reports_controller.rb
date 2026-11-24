@@ -19,9 +19,12 @@ class AnnualReportsController < ApplicationController
     redirect_to annual_report_path(@annual_report.fiscal_year) if @annual_report.persisted?
   end
 
+  # 総会で承認した日・提出した日・公告した日の欄は、変わっていれば節目のイベントとして記録する(docs/adr/0038)
   def create
-    @annual_report = AnnualReport.new(report_params)
-    if @annual_report.save
+    attrs = report_params
+    dates = attrs.extract!(*AnnualReport::FORM_DATE_COLUMNS)
+    @annual_report = AnnualReport.new(attrs)
+    if @annual_report.save_with_dates(dates)
       redirect_to annual_report_path(@annual_report.fiscal_year), notice: "事業報告書を作りました"
     else
       render :new, status: :unprocessable_entity
@@ -33,7 +36,10 @@ class AnnualReportsController < ApplicationController
   end
 
   def update
-    if @annual_report.update(report_params)
+    attrs = report_params
+    dates = attrs.extract!(*AnnualReport::FORM_DATE_COLUMNS)
+    @annual_report.assign_attributes(attrs)
+    if @annual_report.save_with_dates(dates)
       redirect_to annual_report_path(@annual_report.fiscal_year), notice: "保存しました"
     else
       render :edit, status: :unprocessable_entity

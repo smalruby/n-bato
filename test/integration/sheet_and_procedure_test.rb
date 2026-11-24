@@ -168,7 +168,7 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
     assert response.parsed_body["ok"], response.body
     assert_equal "current", run.reload.step("close_books").status
 
-    post complete_procedure_step_path(run, "close_books")
+    post procedure_step_status_changes_path(run, "close_books"), params: { status: "done" }
     assert_equal "done", run.reload.step("close_books").status
 
     post undo_path, params: { scope: "procedure:#{run.id}" }
@@ -179,16 +179,16 @@ class SheetAndProcedureTest < ActionDispatch::IntegrationTest
     report = AnnualReport.draft_for(2025)
     report.save!
     run = ProcedureRun.create!(kind: "annual_report", period: 2025)
-    post complete_procedure_step_path(run, "submit")
+    post procedure_step_status_changes_path(run, "submit"), params: { status: "done" }
     assert_equal Date.current, report.reload.submitted_on
     assert_equal "final", AuditOperation.last.kind
-    post reopen_procedure_step_path(run, "submit")
+    post procedure_step_status_changes_path(run, "submit"), params: { status: "open" }
     assert_equal Date.current, report.reload.submitted_on
   end
 
   test "返事がそろうまで済みにできない" do
     run = ProcedureRun.create!(kind: "annual_report", period: 2025)
-    post complete_procedure_step_path(run, "audit")
+    post procedure_step_status_changes_path(run, "audit"), params: { status: "done" }
     assert_equal "todo", run.reload.step("audit").status
   end
 end

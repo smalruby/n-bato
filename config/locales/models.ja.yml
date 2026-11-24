@@ -26,8 +26,12 @@ ja:
       resolution: 決議
       resolution_item: 議案
       consent: 同意
+      consent/cancellation: 同意の取消
+      resolution_item/application: 議案の反映
+      annual_report/milestone: 事業報告の節目
       procedure_run: 手続き
       procedure_step: 手順
+      procedure_step/status_change: 手順の状態の変化
     attributes:
       account: { code: コード, name: 科目名, category: 区分, nature_code: 科目性格コード, group_name: 小区分, full_name: 正式名称 }
       department: { code: コード, name: 部門名, full_name: 正式名称 }
@@ -67,6 +71,8 @@ ja:
         approved_on: 総会の承認日
         submitted_on: 提出日
         bs_published_on: 貸借対照表の公告日
+        resubmit_needed_on: 出し直しが要るとした日
+        resubmitted_on: 出し直した日
         bs_publication_place: 公告の場所
       program_activity: { content: 事業内容, schedule: 日時・場所・従事者, beneficiaries: 受益対象者, report: 実施報告 }
       organization: { name: 法人名, first_fiscal_year: 第 1 期の年度 }
@@ -76,6 +82,9 @@ ja:
       officer_term: { person_id: 人, role: 役職, starts_on: 就任日, ends_on: 任期の終わり, left_on: 退任日, remunerated: 報酬, appointed_by: 選任の経緯, notes: メモ }
       registration: { kind: 種類, cause_on: 原因の日, due_on: 期限, registered_on: 登記した日, note: メモ }
       resolution: { body: 機関, title: 件名, proposed_on: 提案日, voting_method: 方法, held_on: 開催日, place: 場所, note: メモ }
-      resolution_item: { title: 議案, content: 内容, applied_on: 反映した日 }
+      resolution_item: { title: 議案, content: 内容 }
+      resolution_item/application: { applied_on: 反映した日 }
+      annual_report/milestone: { kind: 種類, dated_on: 日付, automatic: 決まりで }
+      procedure_step/status_change: { status: 状態, completed_on: 済んだ日, note: 理由 }
       consent: { consented_on: 同意した日, via: 方法, note: メモ }
       procedure_step: { status: 状態, checks: 確認, note: メモ, completed_on: 済んだ日 }

@@ -70,7 +70,7 @@ class TodoEventsTest < ActiveSupport::TestCase
   end
 
   test "決まりで済み・決まりで作業中に戻す(automatic)" do
-    AnnualReport.create!(fiscal_year: 2024, submitted_on: Date.new(2026, 11, 24))
+    create_annual_report!(2024, submitted_on: Date.new(2026, 11, 24))
     @todo.update!(done_rule: "annual_report_submitted")
     Todo.refresh_auto!
     @todo.reload
@@ -95,7 +95,7 @@ class TodoEventsTest < ActiveSupport::TestCase
   end
 
   test "B1: 決まりで済みにするのは、何件でも 1 つの操作(範囲 todos_auto)。元に戻しても食い違わない" do
-    AnnualReport.create!(fiscal_year: 2024, submitted_on: Date.new(2026, 11, 24))
+    create_annual_report!(2024, submitted_on: Date.new(2026, 11, 24))
     @todo.update!(done_rule: "annual_report_submitted")
     other = Todo.create!(title: "もう一つ", fiscal_year: 2024, done_rule: "annual_report_submitted")
     assert_difference -> { AuditOperation.count }, 1 do

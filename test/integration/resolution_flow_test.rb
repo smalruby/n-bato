@@ -40,7 +40,7 @@ class ResolutionFlowTest < ActionDispatch::IntegrationTest
       assert_match "令和８年１２月５日", response.body
       assert_match "定款第２９条第３項", response.body
 
-      gm.items.each { post apply_item_resolution_path(gm, item_id: it.id) }
+      gm.items.each { post resolution_item_application_path(gm, it) }
       assert_equal Date.new(2026, 12, 5), AnnualReport.find_by!(fiscal_year: 2025).approved_on
       new_terms = OfficerTerm.where(starts_on: Date.new(2026, 12, 5))
       assert_equal 4, new_terms.count
@@ -58,7 +58,7 @@ class ResolutionFlowTest < ActionDispatch::IntegrationTest
       board = Resolution.last
       assert_equal 3, board.voters.size
       @people[0..2].each { post resolution_consents_path(board), params: { consent: { person_id: it.id, consented_on: "2026-12-07", via: "paper" } } }
-      post apply_item_resolution_path(board, item_id: board.items.first.id)
+      post resolution_item_application_path(board, board.items.first)
       assert_equal "chair", OfficerTerm.find_by!(person: @people[0], starts_on: Date.new(2026, 12, 5)).role
       reg = Registration.find_by!(cause_on: Date.new(2026, 12, 7), note: "役員A（理事長）の就任・重任")
       assert_equal Date.new(2026, 12, 21), reg.due_on
