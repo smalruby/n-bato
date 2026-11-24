@@ -82,8 +82,8 @@ Rails.application.routes.draw do
   end
   # 入会申込(デザインシステム「入会申込」)
   resources :member_applications, only: %i[index show] do
-    post :approve, on: :member
-    post :reject, on: :member
+    resource :approval, only: :create, module: :member_applications
+    resource :rejection, only: :create, module: :member_applications
   end
   resources :people do
     post :apply_to_years, on: :member

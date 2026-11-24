@@ -42,7 +42,7 @@ class PeopleTest < ActionDispatch::IntegrationTest
 
   test "入会を認めるときに日付が読めなければ、申込の画面に戻す" do
     a = MemberApplication.create!(name: "申込　人", applied_on: Date.current)
-    post approve_member_application_path(a), params: {joined_on: "2026-13-40"}
+    post member_application_approval_path(a), params: {joined_on: "2026-13-40"}
     assert_redirected_to a
     assert flash[:alert].present?
   end

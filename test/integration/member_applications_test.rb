@@ -19,8 +19,10 @@ class MemberApplicationsTest < ActionDispatch::IntegrationTest
     get member_application_path(@app)
     assert_response :success
     assert_match "入会を認める", response.body
+    assert_select "form[action='#{member_application_approval_path(@app)}']"
+    assert_select "form[action='#{member_application_rejection_path(@app)}'][data-controller='confirm-twice']"
 
-    post approve_member_application_path(@app), params: {fiscal_year: 2026, joined_on: "2026-12-02"}
+    post member_application_approval_path(@app), params: {fiscal_year: 2026, joined_on: "2026-12-02"}
     @app.reload
     assert @app.approved?
     person = @app.person
@@ -37,16 +39,38 @@ class MemberApplicationsTest < ActionDispatch::IntegrationTest
 
   test "同じ氏名の人がいれば、その人に資格を足す" do
     p = Person.create!(name: "会員　花子")
-    post approve_member_application_path(@app), params: {fiscal_year: 2026, joined_on: "2026-12-02", person_id: p.id}
+    post member_application_approval_path(@app), params: {fiscal_year: 2026, joined_on: "2026-12-02", person_id: p.id}
     assert_equal p, @app.reload.person
     assert_equal 1, Person.where(name: "会員　花子").count
   end
 
   test "認めないときは理由が要る" do
-    post reject_member_application_path(@app), params: {reason: ""}
+    post member_application_rejection_path(@app), params: {reason: ""}
     assert @app.reload.received?
-    post reject_member_application_path(@app), params: {reason: "連絡がとれない"}
+    post member_application_rejection_path(@app), params: {reason: "連絡がとれない"}
     assert @app.reload.rejected?
+    op = AuditOperation.order(:id).last
+    assert_equal ["会員　花子さんの入会申込を認めないことにした", "final", "member_applications"], [op.label, op.kind, op.scope]
+  end
+
+  test "認めた操作は、入口で付けた名前で履歴に残る(元に戻せない操作)" do
+    post member_application_approval_path(@app), params: {fiscal_year: 2026, joined_on: "2026-12-02"}
+    op = AuditOperation.order(:id).last
+    assert_equal ["会員　花子さんの入会を認めた(2026年度の正会員)", "final", "member_applications"], [op.label, op.kind, op.scope]
+  end
+
+  test "古い送り先(approve・reject)は無い" do
+    assert_raises(ActionController::RoutingError) { Rails.application.routes.recognize_path("/member_applications/#{@app.id}/approve", method: :post) }
+    assert_raises(ActionController::RoutingError) { Rails.application.routes.recognize_path("/member_applications/#{@app.id}/reject", method: :post) }
+  end
+
+  test "監査の役割では、認めることも認めないこともできない" do
+    users(:one).update!(role: "auditor")
+    post member_application_approval_path(@app), params: {fiscal_year: 2026}
+    assert_match "監査", flash[:alert]
+    post member_application_rejection_path(@app), params: {reason: "理由"}
+    assert_match "監査", flash[:alert]
+    assert @app.reload.received?
   end
 
   test "フォームの回答を JSON から入れる(同じ回答は二度入れない)" do
