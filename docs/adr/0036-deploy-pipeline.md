@@ -35,7 +35,7 @@ decision-makers: 理事長(ユーザー)・Claude
 
 * **アプリ**: `.github/workflows/deploy.yml`(workflow_dispatch)。開発の Claude が `gh workflow run deploy.yml --ref main` で起動する。preflight で「main であること」「`DEPLOY_FREEZE` が true でないこと」「そのコミットの CI(ci.yml)が通ったこと」を確かめ、Environment `production` のジョブで `bin/kamal deploy`。concurrency で 1 つずつ、サーバーの側でも Kamal のロック。
 * **イメージ**: `ghcr.io/smalruby/n-bato`(公開)。Kamal は git clone から作るので、コミットしたものしか入らない。Actions は `GITHUB_TOKEN`(`packages: write`)で置く。
-  * Kamal 2.12 は、外のレジストリを使うと、サーバーでも必ず `docker login` する(飛ばす設定がない)。そのため Actions はジョブの `GITHUB_TOKEN` でログインし、終わったら `kamal registry logout --skip-local` で外す。Mac からのトークンの持ち方は開発QAボード 第9回(`r9-ghcr`)の答え待ち(第8回 8-12 で選んだ `gh-auth` は、いまの gh のログインが fine-grained で ghcr.io が受け付けないため聞き直し)。それまで `bin/kamal-secret` は `KAMAL_REGISTRY_*` を環境変数からだけ読み、どちらの案にもあとから足せるようにしておく。公開にしても、Kamal を通す限りログインは要る。公開にする良さは、鍵の無いイメージを誰でも確かめられることと、将来ほかの道(staging など)からも取れること。
+  * Kamal 2.12 は、外のレジストリを使うと、サーバーでも必ず `docker login` する(飛ばす設定がない)。そのため Actions はジョブの `GITHUB_TOKEN` でログインし、終わったら `kamal registry logout --skip-local` で外す。**Mac は ghcr.io のトークンを持たない**(開発QAボード 第9回 `r9-ghcr`: `actions-only`、おすすめ。第8回 8-12 で選んだ `gh-auth` は、いまの gh のログインが fine-grained で ghcr.io が受け付けないため聞き直した)。デプロイも、バックアップからの戻し(Restore。Environment `production-restore` で理事長が承認したあと、`production` の秘密で `bin/prod-restore` を流す)も Actions から起こす。`bin/kamal-secret` は `KAMAL_REGISTRY_*` を環境変数からだけ読み、無ければ空にする。トークンの要る Kamal の操作は `.kamal/hooks/pre-connect` が止める。`--reuse` の exec(`bin/prod-backup`・`bin/prod-runner`)とロックはトークンなしで動く。Actions が止まっているときだけ、理事長が `write:packages` だけ・期限 7 日の classic のトークンを作って Mac から操作し、終わったら消す(`docs/deploy.md`)。公開にしても、Kamal を通す限りログインは要る。公開にする良さは、鍵の無いイメージを誰でも確かめられることと、将来ほかの道(staging など)からも取れること。
 * **秘密**: `.kamal/secrets` は `bin/kamal-secret NAME` だけを呼ぶ。同じ名前の環境変数があればそれ(Actions。Environment の Secrets を env で渡す)、無ければ `$NBATO_SECRETS_DIR` のファイル(Mac)。名前とファイルの対応はこのスクリプトの表 1 か所だけ。SSH の鍵も `ssh.key_data` で秘密として読むので、Actions はファイルを書かない。
 * **SSH**: Actions だけの鍵(`NBATO_SSH_PRIVATE_KEY`)。サーバーの `authorized_keys` に `restrict` を付けて足す。ホスト鍵は Environment の変数 `NBATO_SSH_KNOWN_HOSTS` で固定し、知らない鍵ならつながない。
 * **CDK**: スタックに GitHub の OIDC プロバイダと役割 2 つを足す。
@@ -48,7 +48,7 @@ decision-makers: 理事長(ユーザー)・Claude
 ### 結果
 
 * 良い: Mac が無くてもデプロイでき、起動の記録が Actions に残る。AWS には長く使う鍵を置かない。CDK の反映の前に、人が差分を見る。Mac の道も同じ設定で動く。
-* 悪い: 秘密の置き場所が 2 つ(Mac が原本、Environment は写し)になり、鍵を変えたときは両方を直す(`docs/deploy.md` の手順 4 を流し直す)。Actions の SSH の鍵は長く使う鍵のまま(#25 で見直す)。Mac から新しいコンテナを起こす操作(予備のデプロイ・`bin/prod-restore`)にも ghcr.io のトークンが要るようになった(持ち方は第9回の答え待ち。答えが出るまで、この形を本番に入れない)。イメージの名前が変わったので、それより前の版には `kamal rollback` で戻れない。
+* 悪い: 秘密の置き場所が 2 つ(Mac が原本、Environment は写し)になり、鍵を変えたときは両方を直す(`docs/deploy.md` の手順 4 を流し直す)。Actions の SSH の鍵は長く使う鍵のまま(#25 で見直す)。Mac から新しいコンテナを起こす操作(予備のデプロイ・`bin/prod-restore`)にも ghcr.io のトークンが要るようになったので、戻しも Actions から流し、承認のための Environment が 1 つ増えた。Actions が止まると、その都度トークンを作る手間がかかる。イメージの名前が変わったので、それより前の版には `kamal rollback` で戻れない。
 
 ### 確かめ方
 
