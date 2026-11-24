@@ -3,8 +3,6 @@
 class ProcedureRun < ApplicationRecord
   has_many :procedure_steps, dependent: :restrict_with_error
 
-  def self.model_name_label = "手続き"
-
   # 手続きを始める。もう始めてあれば、その手続きを返す(二度押しでも同じ)。
   def self.start!(kind:, period:)
     find_by(kind:, period:) || Audit.operation do

@@ -8,21 +8,45 @@ ja:
       filing_destination: 提出先
       filing_destination/confirmation: 提出先の確認
       filing_destination_search: 提出先の調べもの
+      todo: やること
       todo/status_change: やることの状態の変化
+      incoming_request: 依頼
       incoming_request/settlement: 依頼の解決
+      incoming_request_message: 依頼の対話の発言
       incoming_request_message/delivery: 依頼の対話を AI に送った
       incoming_request_message/adoption: AI の案を決めた
       journal_entry: 仕訳
+      journal_entry/cancellation: 仕訳の取消
+      fiscal_period: 年度
+      organization: 法人
+      organization_year: 法人の年度ごとの記録
+      passkey: パスキー
+      member_application: 入会申込
       opening_balance: 期首残高
       balance_check: 残高の照合
       voucher: 証憑
       journal_proposal: 仕訳の提案
+      journal_proposal/approval: 提案の承認(記帳)
+      journal_proposal/rejection: 提案の却下
+      journal_proposal/withdrawal: 提案の取り下げ
       annual_report: 事業報告
       program_activity: 事業の実施
       person: 人
+      person_year: 会員・役員の年度の記録
+      person/address_change: 住所の変更
+      person/name_change: 氏名の変更
+      person/change_cancellation: 住所・氏名の出来事の取消
+      member_application/approval: 入会を認めた
+      member_application/rejection: 入会を認めなかった
       membership: 会員
       officer_term: 役員の任期
       registration: 登記
+      registration_filing: 登記の申請
+      registration_filing/submission: 登記の申請(送った)
+      registration_filing/acceptance: 登記の申請の受付
+      registration_filing/correction: 登記の申請の補正
+      registration_filing/withdrawal: 登記の申請の取下げ
+      registration_filing/completion: 登記の完了
       resolution: 決議
       resolution_item: 議案
       consent: 同意

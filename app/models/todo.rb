@@ -79,8 +79,6 @@ class Todo < ApplicationRecord
      "done_note" => done ? change.note.to_s : ""}
   end
 
-  def self.model_name_label = "やること"
-
   # 元に戻す・やり直すのあとに、状態を確かめるやること(Audit.check_states!)
   def self.audit_state_owner(change) = find_by(id: change.auditable_id)
 

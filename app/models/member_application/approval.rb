@@ -9,8 +9,6 @@ class MemberApplication::Approval < ApplicationRecord
   belongs_to :approver, class_name: "User", optional: true
   belongs_to :person
 
-  def self.model_name_label = "入会を認めた"
-
   def self.approve!(application, fiscal_year:, joined_on:, by:, person: nil, at: Time.current)
     raise ArgumentError, "届いた申込ではありません" unless application.received?
     raise ArgumentError, "#{fiscal_year}年度は締めてあります。年度の締めを解いてから認めてください" if FiscalPeriod.for(fiscal_year)&.closed?

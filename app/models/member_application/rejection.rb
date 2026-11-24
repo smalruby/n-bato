@@ -8,8 +8,6 @@ class MemberApplication::Rejection < ApplicationRecord
   belongs_to :rejecter, class_name: "User", optional: true
   validates :reason, presence: true
 
-  def self.model_name_label = "入会を認めなかった"
-
   def self.reject!(application, reason:, by:, at: Time.current)
     reason = reason.to_s.strip
     raise ArgumentError, "認めない理由を書いてください" if reason.empty?

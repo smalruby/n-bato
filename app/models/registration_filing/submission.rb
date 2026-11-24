@@ -7,8 +7,6 @@ class RegistrationFiling::Submission < ApplicationRecord
   belongs_to :registration_filing
   belongs_to :recorded_by, class_name: "User", optional: true
 
-  def self.model_name_label = "登記の申請(送った)"
-
   def self.submit!(filing, submitted_on:, application_number: "", by: nil)
     raise ArgumentError, "書類を作っている申請ではありません" unless filing.drafting?
     raise ArgumentError, "登記することが入っていません" if filing.registrations.empty?

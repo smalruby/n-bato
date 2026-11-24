@@ -9,8 +9,6 @@ class Person::AddressChange < ApplicationRecord
 
   validates :address, presence: true
 
-  def self.model_name_label = "住所の変更"
-
   def occurred_on = moved_on
 
   # 記録する(作る入口)

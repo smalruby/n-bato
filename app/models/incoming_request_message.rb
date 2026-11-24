@@ -22,8 +22,6 @@ class IncomingRequestMessage < ApplicationRecord
   # 送る前の、人の下書き
   scope :drafts, -> { where(role: "user").where.missing(:delivery) }
 
-  def self.model_name_label = "依頼の対話の発言"
-
   # 発言を書く。人の発言(role: user)は下書きになる。files は PDF と画像だけ付ける。
   def self.write!(request, role:, body:, files: [], proposal: nil, at: Time.current)
     message = create!(incoming_request: request, role:, body:, proposal:, written_at: at)

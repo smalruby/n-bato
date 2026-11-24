@@ -99,7 +99,7 @@
 - 日付は画面では `2026/11/20`、帳票では和暦の全角(`Wareki`)。
 - 製品名は英字で `n-bato`、Ruby で `NBato`、画面では `<ruby>N<rt>エヌ</rt></ruby>ばと`。
 - 書面決議のモデルは、コントローラーでは `::Resolution` と書く(Rails の helper のモジュールとぶつかるため)。
-- **モデルの日本語の名前は `config/locales/models.ja.yml`**(操作履歴の表示に使う。`model_name.human`)。クラスメソッド `self.model_name_label` には書かない(開発QAボード 第8回 8-6)。いま `model_name_label` に書いているもの(`PersonYear`・`RegistrationFiling` など)は #38 で移し、`model_name_label` を無くす。
+- **モデルの日本語の名前は `config/locales/models.ja.yml`**(操作履歴の表示に使う。`model_name.human`)。クラスメソッド `self.model_name_label` には書かない(開発QAボード 第8回 8-6)。`model_name_label` は #38 で無くした。操作履歴に残るモデルを足したら、名前を `models.ja.yml` に足す(台帳 `docs/data-model.md` の日本語の名前に合わせる。`test/models/model_names_test.rb` が確かめる)。
 
 ## 7. Ruby の書き方
 

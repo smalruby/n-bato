@@ -8,8 +8,6 @@ class RegistrationFiling::Withdrawal < ApplicationRecord
   belongs_to :recorded_by, class_name: "User", optional: true
   validates :reason, presence: true
 
-  def self.model_name_label = "登記の申請の取下げ"
-
   def self.withdraw!(filing, withdrawn_on:, reason:, by: nil)
     reason = reason.to_s.strip
     raise ArgumentError, "取り下げる理由を書いてください" if reason.empty?

@@ -17,8 +17,6 @@ class ProcedureStep < ApplicationRecord
   validate { errors.add(:key, "が手続きの定義にありません") if procedure_run && definition.nil? }
   validate :state_written_by_status_change
 
-  def self.model_name_label = "手続きの手順"
-
   # 元に戻す・やり直すのあとに、状態を確かめる手順(Audit.check_states!)
   def self.audit_state_owner(change) = find_by(id: change.auditable_id)
 

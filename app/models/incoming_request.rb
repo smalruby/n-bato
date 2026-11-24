@@ -16,8 +16,6 @@ class IncomingRequest < ApplicationRecord
 
   scope :ordered, -> { order(Arel.sql("status = 'resolved', due_on IS NULL, due_on, id")) }
 
-  def self.model_name_label = "依頼"
-
   def status_label = STATUSES.fetch(status)
   def resolved? = status == "resolved"
   def all_done? = todos.any? && todos.all?(&:done?)

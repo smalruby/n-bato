@@ -18,8 +18,6 @@ class AnnualReport < ApplicationRecord
   validates :fiscal_year, presence: true, uniqueness: true
   validate :state_written_by_milestone
 
-  def self.model_name_label = "事業報告"
-
   # 元に戻す・やり直すのあとに、状態を確かめる事業報告(Audit.check_states!)
   def self.audit_state_owner(change) = find_by(id: change.auditable_id)
 

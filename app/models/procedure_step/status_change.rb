@@ -15,7 +15,6 @@ class ProcedureStep::StatusChange < ApplicationRecord
 
   validates :status, inclusion: {in: STATUSES.keys}
 
-  def self.model_name_label = "手順の状態の変化"
   def self.audit_state_owner(change) = ProcedureStep.find_by(id: change.value("procedure_step_id"))
 
   def audit_fiscal_year = procedure_step&.procedure_run&.period

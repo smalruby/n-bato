@@ -10,8 +10,6 @@ class IncomingRequestMessage::Delivery < ApplicationRecord
 
   ALREADY = "この発言はもう AI に送ってあります".freeze
 
-  def self.model_name_label = "依頼の対話を AI に送った"
-
   # reply: AI の答え(返事 reply と、やることの案)。AI の発言として残す。
   def self.deliver!(message, masked_body:, send_attachments:, reply:, at: Time.current)
     raise ArgumentError, "送る前の下書きではありません" unless message.draft?
