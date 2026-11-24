@@ -118,11 +118,14 @@ gh_repo api --method POST "repos/$REPO/issues/$ISSUE/sub_issues" -F sub_issue_id
 gh_repo api "repos/$REPO/issues/$PR/comments" --paginate | jq -s add > tmp/review-comments-$PR.json
 # tmp/review-findings-$PR.json に A3 のメモの配列を書いてから:
 bin/review-findings render tmp/review-comments-$PR.json tmp/review-findings-$PR.json tmp/review-findings-$PR.md
+# 出す前に団体の情報が無いかを調べる(見つかったら直してから出す)
+bin/check-private --text pr-comment.md < tmp/review-findings-$PR.md
 ```
 
 - `POST` と出たら: `gh_repo pr comment "$PR" --repo "$REPO" --body-file tmp/review-findings-$PR.md`
 - `PATCH <id>` と出たら: `gh_repo api -X PATCH "repos/$REPO/issues/comments/<id>" -F body=@tmp/review-findings-$PR.md`
 - **二重に出さない**: このレビューのまとめコメントをもう出していて(途中で止まったやり直しなど)、そのあとに人のコメントが無ければ、新しい回にせず `REVIEW_ROUND=<N> bin/review-findings render ...` でその回を書き換える。
+- **見送った Question・FYI**(「見送り: …」)は、まとめコメントとは別に、親の EPIC の Issue(無ければ PR の Issue)に「見送った指摘(PR #N)」としてコメントする(`.claude/rules/git-workflow.md`)。本文は同じく `bin/check-private --text` に通す。
 
 ### A6. 人のレビューへ回す
 
