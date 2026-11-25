@@ -1,0 +1,136 @@
+name: Deploy
+
+# アプリ(Kamal)を本番に出す、いつもの道(開発QAボード 第6回、Issue #13、docs/adr/0036、docs/deploy.md)。
+#
+#   gh workflow run deploy.yml --ref main      # 起動するのは開発の Claude(gh から)
+#
+# - 出すのは、CI が通った main のコミットだけ(preflight で確かめる)。
+# - リポジトリの変数 DEPLOY_FREEZE が "true" のときは出さない(止めるスイッチ)。
+# - 同時に走るのは 1 つだけ(concurrency。走っているものは打ち切らない)。サーバーの側でも
+#   Kamal のロック(bin/prod-runner・bin/prod-restore と同じもの)を取るので、運用のスクリプトとも重ならない。
+# - 秘密は Environment「production」(main だけ・承認者なし。CDK の production-infra とは別。開発QAボード 第8回 8-11)の Secrets から、環境変数で bin/kamal-secret に渡す。
+#   値は画面にも記録にも出さない(GitHub が隠す。こちらでも名前しか書かない)。
+# - Mac は ghcr.io のトークンを持たないので、Mac からは出さない(開発QAボード 第9回 r9-ghcr)。Actions が止まって
+#   いるときだけ、docs/deploy.md の「Actions が止まっているとき」の手順で、期限の短いトークンを使って Mac から出す。
+# - バックアップからの戻しは .github/workflows/restore.yml(理事長の承認のあと)。
+#
+# ゆくゆくは Merge Queue で main に入ったら自動で出す(#24)。そのときは on: に足す。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: 出してよいかを確かめる
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: main であること・止めるスイッチ・CI が通ったこと
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          DEPLOY_FREEZE: ${{ vars.DEPLOY_FREEZE }}
+        run: |
+          set -euo pipefail
+          if [ "${REF}" != "refs/heads/main" ]; then
+            echo "::error::出せるのは main だけです(いま: ${REF})。gh workflow run deploy.yml --ref main"
+            exit 1
+          fi
+          if [ "${DEPLOY_FREEZE}" = "true" ]; then
+            echo "::error::DEPLOY_FREEZE が true なので出しません(止めるスイッチ。docs/deploy.md)"
+            exit 1
+          fi
+          # main への push で走った CI(.github/workflows/ci.yml)の、このコミットの最新の結果
+          result=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${SHA}&branch=main&event=push&per_page=1" \
+            --jq '.workflow_runs[0] // {} | "\(.status // "none") \(.conclusion // "none")"')
+          if [ "${result}" != "completed success" ]; then
+            echo "::error::${SHA} の CI が通っていません(${result})。CI が通ってから起動し直す"
+            exit 1
+          fi
+          {
+            echo "### 出すコミット"
+            echo
+            echo "- \`${SHA}\`(CI: 通った)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: 本番に出す(kamal deploy)
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Environment「production」は main からだけ使える(Deployment branches)。秘密はここの Secrets。
+    environment:
+      name: production
+      url: https://n-bato.smalruby.app
+    permissions:
+      contents: read
+      packages: write # ghcr.io/smalruby/n-bato に置く(GITHUB_TOKEN)
+    steps:
+      - name: 止めるスイッチ(順番を待っている間に入れられたとき)
+        env:
+          DEPLOY_FREEZE: ${{ vars.DEPLOY_FREEZE }}
+        run: |
+          if [ "${DEPLOY_FREEZE}" = "true" ]; then
+            echo "::error::DEPLOY_FREEZE が true なので出しません"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/kamal-setup
+        with:
+          known-hosts: ${{ vars.NBATO_SSH_KNOWN_HOSTS }}
+
+      - name: kamal deploy
+        env:
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          NBATO_MAIL_FROM: ${{ secrets.NBATO_MAIL_FROM }}
+          NBATO_BACKUP_BUCKET: ${{ secrets.NBATO_BACKUP_BUCKET }}
+          NBATO_BACKUP_AWS_ACCESS_KEY_ID: ${{ secrets.NBATO_BACKUP_AWS_ACCESS_KEY_ID }}
+          NBATO_BACKUP_AWS_SECRET_ACCESS_KEY: ${{ secrets.NBATO_BACKUP_AWS_SECRET_ACCESS_KEY }}
+          # Actions だけの鍵(Mac の n-bato-deploy とは別。サーバーから外せば Actions だけ入れなくなる)
+          NBATO_SSH_PRIVATE_KEY: ${{ secrets.NBATO_SSH_PRIVATE_KEY }}
+          # ghcr.io: このジョブの GITHUB_TOKEN(ジョブが終われば使えなくなる)
+          KAMAL_REGISTRY_USERNAME: ${{ github.actor }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # 秘密がそろっていること(名前だけを書く。値は出さない)
+          missing=0
+          for name in RAILS_MASTER_KEY ANTHROPIC_API_KEY SMTP_USERNAME SMTP_PASSWORD NBATO_MAIL_FROM \
+                      NBATO_BACKUP_BUCKET NBATO_BACKUP_AWS_ACCESS_KEY_ID NBATO_BACKUP_AWS_SECRET_ACCESS_KEY \
+                      NBATO_SSH_PRIVATE_KEY KAMAL_REGISTRY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Environment production の Secrets に ${name} がありません(docs/deploy.md)"
+              missing=1
+            fi
+          done
+          [ "${missing}" -eq 0 ] || exit 1
+
+          # サーバーの docker login(Kamal が取ってくるときにする)を、成功でも失敗でも最後に外す
+          trap 'bin/kamal registry logout --skip-local || echo "::warning::サーバーの ghcr.io からの logout に失敗した(トークンはジョブの終わりで使えなくなる)"' EXIT
+
+          bin/kamal deploy
+
+          {
+            echo "### 出した"
+            echo
+            echo "- \`${GITHUB_SHA}\` → https://n-bato.smalruby.app"
+            echo "- イメージ: \`ghcr.io/smalruby/n-bato:${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -35,9 +35,9 @@ EMAIL=... PASSWORD=... NAME=... bin/rails users:create
 bin/setup-worktree <名前> [<ブランチ>]  # 隣のディレクトリ(../n-bato-<名前>)に worktree を作る。決まりは .claude/rules/git-workflow.md
 bin/rails server -p 3100 -d            # 開発サーバ(画面の確認は Playwright でスクリーンショット)
 RAILS_MASTER_KEY=$(cat config/master.key) docker compose up -d --build   # 手元の Docker(http://localhost:3200)
-NBATO_SECRETS_DIR=... bin/kamal deploy                 # 本番(https://n-bato.smalruby.app、Lightsail)。秘密の置き場所は CLAUDE.local.md
+gh workflow run deploy.yml --ref main                 # 本番(https://n-bato.smalruby.app、Lightsail)に出す(GH_TOKEN は CLAUDE.local.md)。Mac は ghcr.io のトークンを持たない(docs/deploy.md)
 NBATO_SECRETS_DIR=... bin/prod-runner --dry-run|--apply script.rb  # 運用のスクリプトを本番で流す(試し流し/本番流し。使い方はファイルの先頭)
-NBATO_SECRETS_DIR=... bin/prod-backup [--list]              # 書く前のバックアップ(storage/backups/)。戻すのは bin/prod-restore NAME(人に確かめてから)
+NBATO_SECRETS_DIR=... bin/prod-backup [--list]              # 書く前のバックアップ(storage/backups/)。戻すのは gh workflow run restore.yml -f backup=NAME(人に確かめてから。理事長の承認のあと流れる)
 NBATO_SECRETS_DIR=... bin/backup-fetch DIR            # 本番のバックアップ(毎晩 4:00 に S3 へ)を手元に取り出す。確かめは bin/rails "backup:verify[DIR]"
 (cd infra && npx cdk diff)                             # 本番の AWS の部品(NBatoStack)。deploy は人に確かめてから
 ```

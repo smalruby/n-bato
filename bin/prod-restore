@@ -4,17 +4,28 @@
 #
 #   NBATO_SECRETS_DIR=... bin/prod-restore production-YYYYMMDD-HHMMSS.sqlite3
 #
+# いつもは GitHub Actions の Restore(.github/workflows/restore.yml)から流す。新しいコンテナを起こすので
+# ghcr.io のトークンが要り、Mac はそれを持たないため(開発QAボード 第9回 r9-ghcr、docs/deploy.md)。
+# Actions では、秘密は環境変数で来る(NBATO_SECRETS_DIR は要らない)。名前の入れ直しの代わりに、
+# NBATO_RESTORE_CONFIRMED に同じ名前を入れる(理事長が Environment production-restore で承認したあと)。
+#
 # 手順: ロックを取る → いまの状態も写す(戻しを取り消せるように)→ アプリを止める(この間、画面は開けない)
 #       → 止めたまま、新しいコンテナで写しを本体に置き換える → アプリを起動する → /up を確かめる
 set -euo pipefail
 name="${1:?使い方: bin/prod-restore production-YYYYMMDD-HHMMSS.sqlite3(一覧は bin/prod-backup --list)}"
 [[ "$name" =~ ^production-[0-9]{8}-[0-9]{6}\.sqlite3$ ]] || { echo "名前の形が違う: $name" >&2; exit 1; }
-: "${NBATO_SECRETS_DIR:?NBATO_SECRETS_DIR に秘密の置き場所を入れてください}"
+if [ "${GITHUB_ACTIONS:-}" != "true" ]; then
+  : "${NBATO_SECRETS_DIR:?NBATO_SECRETS_DIR に秘密の置き場所を入れてください}"
+fi
 cd "$(dirname "$0")/.."
 
 echo "本番の DB を $name に戻します。そのあとの変更はすべて消え、しばらく画面が開けなくなります。"
-read -r -p "続けるなら、戻す名前をもう一度入力してください: " again
-[ "$again" = "$name" ] || { echo "やめました" >&2; exit 1; }
+if [ -n "${NBATO_RESTORE_CONFIRMED:-}" ]; then
+  [ "$NBATO_RESTORE_CONFIRMED" = "$name" ] || { echo "NBATO_RESTORE_CONFIRMED が戻す名前と違うので、やめました" >&2; exit 1; }
+else
+  read -r -p "続けるなら、戻す名前をもう一度入力してください: " again
+  [ "$again" = "$name" ] || { echo "やめました" >&2; exit 1; }
+fi
 
 bin/kamal lock acquire -m "prod-restore $name" > /dev/null
 trap 'bin/kamal lock release > /dev/null 2>&1 || echo "ロックを外せなかった。bin/kamal lock release で外す" >&2' EXIT

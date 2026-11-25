@@ -1,0 +1,167 @@
+name: Deploy Infra
+
+# infra/(CDK の NBatoStack)を本番に反映する(開発QAボード 第6回 r6-cdk、docs/adr/0036、docs/deploy.md)。
+#
+# - main に infra/ の変更が入ったとき、または手で(gh workflow run deploy-infra.yml --ref main)。
+# - まず読むだけの役割で差分を出し(ジョブの要約に残す)、差分があれば Environment「production-infra」の
+#   承認を待つ。理事長が差分を読んで承認したら、反映する役割で cdk deploy する。
+# - 削除・置き換え(サーバーやバケットを作り直すもの)を含む差分は、ここでは出さない。人が読んで、
+#   Mac から出す(サーバーを作り直すとデータが消えるため)。
+# - DEPLOY_FREEZE が "true" のときは出さない(アプリの Deploy と両方に効かせる。開発QAボード 第8回 8-14)。
+#   CDK だけ急ぐときは、人が決めてから一時的に切る(docs/deploy.md「CDK だけ急いで反映するとき」)。
+# - 同時に走るのは 1 つだけ。
+#
+# staging(#26)を足すときは、ジョブを staging → production の順に並べる(smalruby3-editor の Deploy Infra と同じ形)。
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-deploy-production
+  cancel-in-progress: false # CloudFormation の更新を途中で止めない
+
+env:
+  AWS_REGION: ap-northeast-1
+
+jobs:
+  diff:
+    name: 本番との差分(読むだけ)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - name: main であること・止めるスイッチ・役割があること
+        working-directory: .
+        env:
+          REF: ${{ github.ref }}
+          DEPLOY_FREEZE: ${{ vars.DEPLOY_FREEZE }}
+          ROLE_ARN: ${{ secrets.AWS_CDK_DIFF_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          if [ "${REF}" != "refs/heads/main" ]; then
+            echo "::error::出せるのは main だけです(いま: ${REF})"
+            exit 1
+          fi
+          if [ "${DEPLOY_FREEZE}" = "true" ]; then
+            echo "::error::DEPLOY_FREEZE が true なので出しません"
+            exit 1
+          fi
+          if [ -z "${ROLE_ARN}" ]; then
+            echo "::error::リポジトリの Secrets に AWS_CDK_DIFF_ROLE_ARN がありません(docs/deploy.md の「初めに一度だけ」)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: infra/.node-version
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_CDK_DIFF_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      - run: npm ci
+
+      - id: diff
+        name: cdk diff と、危ない変更の確かめ
+        env:
+          OIDC_PROVIDER_ARN: ${{ secrets.AWS_GITHUB_OIDC_PROVIDER_ARN }}
+        run: |
+          set -euo pipefail
+          context=()
+          [ -z "${OIDC_PROVIDER_ARN}" ] || context=(-c "githubOidcProviderArn=${OIDC_PROVIDER_ARN}")
+          status=0
+          npx cdk diff NBatoStack "${context[@]}" --method template --no-color --fail-on destructive \
+            > "${RUNNER_TEMP}/cdk-diff.txt" 2>&1 || status=$?
+          cat "${RUNNER_TEMP}/cdk-diff.txt"
+          {
+            echo "### 本番(NBatoStack)との差分"
+            echo
+            echo '```'
+            grep -vE '^\s*$' "${RUNNER_TEMP}/cdk-diff.txt" | tail -n 200
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${status}" -ne 0 ]; then
+            echo "::error::差分に削除・置き換えがある(か、diff に失敗した)ので、ここでは出しません。人が差分を読み、Mac から cdk deploy する(docs/deploy.md)"
+            exit 1
+          fi
+          if grep -qE 'There were no differences|Number of stacks with differences: 0' "${RUNNER_TEMP}/cdk-diff.txt"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "本番との差分なし。反映しない。"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: 本番に反映する(cdk deploy、承認のあと)
+    needs: diff
+    if: needs.diff.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    # Environment「production-infra」: main だけ・承認者(理事長)が要る。アプリの Deploy の「production」
+    # (承認なし)とは分ける(開発QAボード 第8回 8-11)。AWS の側も、このジョブだけが
+    # 反映する役割を引き受けられる(sub = repo:smalruby@5109157/n-bato@1470020651:environment:production-infra)。
+    environment: production-infra
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - name: 止めるスイッチ・役割があること
+        working-directory: .
+        env:
+          DEPLOY_FREEZE: ${{ vars.DEPLOY_FREEZE }}
+          ROLE_ARN: ${{ secrets.AWS_CDK_DEPLOY_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          if [ "${DEPLOY_FREEZE}" = "true" ]; then
+            echo "::error::DEPLOY_FREEZE が true なので出しません"
+            exit 1
+          fi
+          if [ -z "${ROLE_ARN}" ]; then
+            echo "::error::Environment production-infra の Secrets に AWS_CDK_DEPLOY_ROLE_ARN がありません(docs/deploy.md)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: infra/.node-version
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_CDK_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      - run: npm ci
+
+      - name: cdk deploy
+        env:
+          OIDC_PROVIDER_ARN: ${{ secrets.AWS_GITHUB_OIDC_PROVIDER_ARN }}
+        run: |
+          set -euo pipefail
+          context=()
+          [ -z "${OIDC_PROVIDER_ARN}" ] || context=(-c "githubOidcProviderArn=${OIDC_PROVIDER_ARN}")
+          # 承認は Environment で済んでいる
+          npx cdk deploy NBatoStack "${context[@]}" --require-approval never --no-color

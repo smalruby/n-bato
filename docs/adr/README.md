@@ -39,6 +39,7 @@
 | [0033](0033-no-browser-back.md) | ブラウザの「戻る」を使わなくてよい画面(パンくず・PDF は別のタブ) — 見直し票 第21回 | 採用 |
 | [0034](0034-todo-and-request-events.md) | やること・依頼の作り替え(状態の変化・解決・送った・決めた) | 提案中 |
 | [0035](0035-iam-user-per-purpose.md) | 本番が AWS を使う鍵は、用途ごとに IAM ユーザーを分け、できることを絞る — 開発QAボード 第7回 | 採用 |
+| [0036](0036-deploy-pipeline.md) | 本番へのデプロイは GitHub Actions から、AI が起動する(イメージは ghcr.io、秘密は Environment、CDK は承認のあと) — 開発QAボード 第6回 | 採用 |
 | [0037](0037-pdf-on-lambda.md) | PDF は AWS Lambda の Chromium で作り、Rails はジョブから S3 を通して頼む — 開発QAボード 第7回 | 決定 |
 | [0038](0038-procedure-resolution-filing-events.md) | 手続き・決議・提出の作り替え(手順の状態の変化・事業報告の節目・同意の取消・議案の反映) | 提案中 |
 

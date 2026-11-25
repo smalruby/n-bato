@@ -1,0 +1,31 @@
+name: Kamal の準備
+description: 本番に Kamal でつなぐ準備(Ruby と gem・サーバーのホスト鍵の固定)。Deploy と Restore が使う(docs/deploy.md)。
+
+inputs:
+  known-hosts:
+    description: サーバーのホスト鍵の行(Environment production の変数 NBATO_SSH_KNOWN_HOSTS)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
+      with:
+        ruby-version: .ruby-version
+        bundler-cache: true
+
+    - name: サーバーのホスト鍵を固定する
+      shell: bash
+      env:
+        KNOWN_HOSTS: ${{ inputs.known-hosts }}
+      run: |
+        set -euo pipefail
+        if [ -z "${KNOWN_HOSTS}" ]; then
+          echo "::error::Environment production の変数 NBATO_SSH_KNOWN_HOSTS がありません(docs/deploy.md)"
+          exit 1
+        fi
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+        printf '%s\n' "${KNOWN_HOSTS}" > ~/.ssh/known_hosts
+        # 知らないホスト鍵なら、つながずに止める(net-ssh も ~/.ssh/config を読む)
+        printf 'Host n-bato.smalruby.app\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+        chmod 600 ~/.ssh/known_hosts ~/.ssh/config
