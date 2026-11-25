@@ -250,7 +250,7 @@ GEM
     parser (3.3.14.0)
       ast (~> 2.4.1)
       racc
-    playwright-ruby-client (1.58.1)
+    playwright-ruby-client (1.65.1)
       base64
       concurrent-ruby (>= 1.1.6)
       mime-types (>= 3.0)
@@ -486,7 +486,7 @@ DEPENDENCIES
   importmap-rails
   jbuilder
   kamal
-  playwright-ruby-client (~> 1.58.1)
+  playwright-ruby-client (~> 1.65.1)
   propshaft
   puma (>= 5.0)
   rails (~> 8.1.4)
