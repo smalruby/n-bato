@@ -71,7 +71,7 @@ describe('GitHub Actions の役割(OIDC、docs/adr/0036)', () => {
   test('差分を出す役割は smalruby/n-bato の PR と main だけが使え、読むことしかできない', () => {
     template.hasResourceProperties('AWS::IAM::Role', {
       RoleName: 'n-bato-github-cdk-diff',
-      ...trust(['repo:smalruby/n-bato:pull_request', 'repo:smalruby/n-bato:ref:refs/heads/main']),
+      ...trust(['repo:smalruby@5109157/n-bato@1470020651:pull_request', 'repo:smalruby@5109157/n-bato@1470020651:ref:refs/heads/main']),
     });
     expect(actionsOf(template, 'CdkDiffRole')).toEqual([
       'cloudformation:DescribeStacks', 'cloudformation:GetTemplate', 'cloudformation:GetTemplateSummary', 'cloudformation:ListStackResources',
@@ -82,7 +82,7 @@ describe('GitHub Actions の役割(OIDC、docs/adr/0036)', () => {
   test('反映する役割は Environment production-infra のジョブだけが使え、CDK の bootstrap の役割を引き受けるだけ', () => {
     template.hasResourceProperties('AWS::IAM::Role', {
       RoleName: 'n-bato-github-cdk-deploy',
-      ...trust(['repo:smalruby/n-bato:environment:production-infra']),
+      ...trust(['repo:smalruby@5109157/n-bato@1470020651:environment:production-infra']),
     });
     expect(actionsOf(template, 'CdkDeployRole')).toEqual(['sts:AssumeRole', 'sts:TagSession']);
     const policy = Object.values(template.findResources('AWS::IAM::Policy'))

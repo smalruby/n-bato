@@ -21,6 +21,11 @@ export const BACKUP_PREFIX = 'n-bato/';
 export const BACKUP_RETENTION_DAYS = 30;
 // GitHub Actions の OIDC で信じるリポジトリと、役割の名前(staging を足すときも production の名前は変えない)
 export const GITHUB_REPOSITORY = 'smalruby/n-bato';
+// Actions の OIDC のトークンの sub の頭。このリポジトリは GitHub の「変わらない形の sub」(use_immutable_subject)なので、
+// 組織とリポジトリの名前に ID が付く(名前を変えたり、同じ名前で作り直されたりしても、別のリポジトリが役割を使えない)。
+// ID は公開の情報: `gh api repos/smalruby/n-bato --jq '.owner.id, .id'`。確かめは
+// `gh api repos/smalruby/n-bato/actions/oidc/customization/sub`(sub_claim_prefix)。
+export const GITHUB_OIDC_SUB_PREFIX = 'repo:smalruby@5109157/n-bato@1470020651';
 export const CDK_DIFF_ROLE_NAME = 'n-bato-github-cdk-diff';
 export const CDK_DEPLOY_ROLE_NAME = 'n-bato-github-cdk-deploy';
 // cdk deploy のジョブの Environment。承認者が要るので、アプリのデプロイ(Environment「production」、承認なし)とは分ける
@@ -132,7 +137,7 @@ export class NBatoStack extends cdk.Stack {
     const principal = (subjects: string[]) => new iam.OpenIdConnectPrincipal(provider, {
       StringEquals: {
         [`${issuer}:aud`]: 'sts.amazonaws.com',
-        [`${issuer}:sub`]: subjects.map((s) => `repo:${GITHUB_REPOSITORY}:${s}`),
+        [`${issuer}:sub`]: subjects.map((s) => `${GITHUB_OIDC_SUB_PREFIX}:${s}`),
       },
     });
 

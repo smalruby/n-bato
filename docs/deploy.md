@@ -41,10 +41,12 @@
 
 | 役割 | 使えるジョブ(OIDC の sub) | できること |
 |---|---|---|
-| `n-bato-github-cdk-diff` | `repo:smalruby/n-bato:pull_request`、`repo:smalruby/n-bato:ref:refs/heads/main` | NBatoStack のテンプレートを読む、bootstrap の版を読む。**それだけ**(バケットの中身は読めない) |
-| `n-bato-github-cdk-deploy` | `repo:smalruby/n-bato:environment:production-infra` | CDK の bootstrap の役割(`cdk-hnb659fds-*-role-<アカウント>-<リージョン>`)を引き受ける。それだけ |
+| `n-bato-github-cdk-diff` | `repo:smalruby@5109157/n-bato@1470020651:pull_request`、`repo:smalruby@5109157/n-bato@1470020651:ref:refs/heads/main` | NBatoStack のテンプレートを読む、bootstrap の版を読む。**それだけ**(バケットの中身は読めない) |
+| `n-bato-github-cdk-deploy` | `repo:smalruby@5109157/n-bato@1470020651:environment:production-infra` | CDK の bootstrap の役割(`cdk-hnb659fds-*-role-<アカウント>-<リージョン>`)を引き受ける。それだけ |
 
 フォークからの PR には OIDC のトークンが出ないので、差分の役割はフォークからは使えない。
+
+sub の頭が `repo:smalruby@5109157/n-bato@1470020651` なのは、このリポジトリが GitHub の「変わらない形の sub」(`use_immutable_subject`)を使うため(組織とリポジトリの ID が付く。名前を変えても、同じ名前で作り直されても、別のリポジトリは役割を使えない)。確かめは `gh api repos/smalruby/n-bato/actions/oidc/customization/sub` の `sub_claim_prefix`。初めは名前だけの形で作り、Actions が引き受けられなかった(2026-11-26)。
 
 ## 初めに一度だけ(人と AI)
 

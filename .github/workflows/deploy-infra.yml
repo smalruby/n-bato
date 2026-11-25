@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     # Environment「production-infra」: main だけ・承認者(理事長)が要る。アプリの Deploy の「production」
     # (承認なし)とは分ける(開発QAボード 第8回 8-11)。AWS の側も、このジョブだけが
-    # 反映する役割を引き受けられる(sub = repo:smalruby/n-bato:environment:production-infra)。
+    # 反映する役割を引き受けられる(sub = repo:smalruby@5109157/n-bato@1470020651:environment:production-infra)。
     environment: production-infra
     permissions:
       contents: read
