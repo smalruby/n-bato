@@ -99,6 +99,10 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [:id]
 
+  # 受け付けるホスト名は NBATO_URL のものだけ(#58。DNS rebinding・Host ヘッダーの偽り)。/up は kamal-proxy が IP で確かめるので除く
+  config.hosts = [nbato_url.host]
+  config.host_authorization = {exclude: ->(request) { request.path == "/up" }}
+
   # Enable DNS rebinding protection and other `Host` header attacks.
   # config.hosts = [
   #   "example.com",     # Allow requests from example.com

@@ -14,7 +14,8 @@
 #   bin/check-private --all           リポジトリのすべてのファイルを調べる
 #   bin/check-private --history       履歴のすべてのコミットで足された行を調べる(CI)
 #   bin/check-private --install-hook  pre-commit フックに入れる
-#   bin/check-private --text PATH     標準入力の文を、PATH のファイルの中身として調べる(許可の一覧の試し。test/integration/check_private_test.rb)
+#   bin/check-private --text PATH     標準入力の文を、PATH のファイルの中身として調べる(許可の一覧の試し。test/integration/check_private_test.rb)。
+#                                     標準入力が空なら PATH のファイルを読む(Issue・PR の本文を出す前に)
 
 require "open3"
 require "yaml"
@@ -89,7 +90,11 @@ def skip?(path) = path.nil? || SKIP.include?(path) || SKIP_PREFIX.any? { path.st
 lines =
   if (i = ARGV.index("--text"))
     path = ARGV.fetch(i + 1) { abort "--text のあとにファイルの名前を書いてください" }
-    $stdin.read.force_encoding("UTF-8").scrub.each_line.with_index(1).map { |l, n| [ path, n, l.chomp ] }
+    # 標準入力が空なら PATH のファイルを読む(#58。ファイルを渡したつもりで空を調べ、見逃していたことがあった)
+    text = $stdin.tty? ? "" : $stdin.read
+    text = File.binread(path) if text.empty? && File.file?(path)
+    abort "check-private: 調べる文が空です(標準入力に流すか、PATH にファイルを書いてください)" if text.empty?
+    text.force_encoding("UTF-8").scrub.each_line.with_index(1).map { |l, n| [ path, n, l.chomp ] }
   elsif ARGV.include?("--all")
     out, = Open3.capture2("git", "ls-files", "-z")
     out.split("\0").flat_map do |path|

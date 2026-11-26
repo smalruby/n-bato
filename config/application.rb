@@ -1,6 +1,17 @@
 require_relative "boot"
 
-require "rails/all"
+# 使う部品だけ読み込む(#58)。Action Mailbox(メールの受け口)と Action Text は使わないので外す。
+# 公開しているサーバーで、外から届く口を増やさないため
+require "rails"
+require "active_model/railtie"
+require "active_job/railtie"
+require "active_record/railtie"
+require "active_storage/engine"
+require "action_controller/railtie"
+require "action_mailer/railtie"
+require "action_view/railtie"
+require "action_cable/engine"
+require "rails/test_unit/railtie"
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
