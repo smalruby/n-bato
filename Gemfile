@@ -1,5 +1,9 @@
 source "https://rubygems.org"
 
+# Ruby は 4.0.10 以上だけ(それより前の版には危険な脆弱性がある。2026-11-26 理事長)。
+# 古い Ruby では bundle が止まるので、手元・CI・Docker のビルド・Actions のどこでも動かない
+ruby ">= 4.0.10"
+
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 8.1.4"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
