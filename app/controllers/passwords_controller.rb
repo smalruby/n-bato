@@ -1,5 +1,8 @@
 class PasswordsController < ApplicationController
   allow_unauthenticated_access
+  # 再設定のメールを何度でも送らせない・token を試させない(#58)
+  rate_limit to: 5, within: 3.minutes, only: :create, with: -> { redirect_to new_password_path, alert: "しばらくしてからもう一度お試しください" }
+  rate_limit to: 10, within: 3.minutes, only: :update, with: -> { redirect_to new_password_path, alert: "しばらくしてからもう一度お試しください" }
   before_action :set_user_by_token, only: %i[edit update]
 
   def new

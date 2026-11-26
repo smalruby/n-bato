@@ -5,6 +5,10 @@ on:
   push:
     branches: [ main ]
 
+# CI は読むだけ(#58。GitHub のトークンで書き込ませない)
+permissions:
+  contents: read
+
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest

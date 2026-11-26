@@ -1,1 +1,3 @@
-# See https://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
+# 事務の画面なので、検索エンジンには載せない(#58)
+User-agent: *
+Disallow: /

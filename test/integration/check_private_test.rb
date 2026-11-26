@@ -36,6 +36,22 @@ class CheckPrivateTest < ActiveSupport::TestCase
     assert_not ok
   end
 
+  test "標準入力が空なら、PATH のファイルの中身を調べる(#58)" do
+    Tempfile.create(["body", ".md"]) do |f|
+      f.write("連絡は 090-0000-0000 へ\n")
+      f.flush
+      out, status = Open3.capture2e({"CI" => "1"}, Rails.root.join("bin/check-private").to_s, "--text", f.path, stdin_data: "")
+      assert_not status.success?, out
+      assert_includes out, "電話番号"
+    end
+  end
+
+  test "標準入力もファイルも空なら、通さずに止まる(#58)" do
+    out, status = Open3.capture2e({"CI" => "1"}, Rails.root.join("bin/check-private").to_s, "--text", "no-such-file.md", stdin_data: "")
+    assert_not status.success?
+    assert_includes out, "調べる文が空です"
+  end
+
   private
 
   def check(text, path)
