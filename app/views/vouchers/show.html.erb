@@ -39,9 +39,9 @@
   <div class="card">
     <% @voucher.files.each do |file| %>
       <% if file.image? %>
-        <%= link_to image_tag(url_for(file), class: "max-h-80 mx-auto mb-2"), url_for(file), target: "_blank", rel: "noopener", title: "別のタブで開く" %>
+        <%= link_to image_tag(voucher_file_path(@voucher, file), class: "max-h-80 mx-auto mb-2"), voucher_file_path(@voucher, file), target: "_blank", rel: "noopener", title: "別のタブで開く" %>
       <% else %>
-        <p><%= new_tab_link_to file.filename.to_s, url_for(file), class: "underline" %></p>
+        <p><%= new_tab_link_to file.filename.to_s, voucher_file_path(@voucher, file), class: "underline" %></p>
       <% end %>
     <% end %>
     <% if @voucher.files.empty? %><p class="text-stone-500 text-sm">ファイルなし</p><% end %>
