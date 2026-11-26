@@ -25,6 +25,9 @@ module NBato
     config.i18n.default_locale = :ja
     # 画像の変換(サムネイル)は使わない
     config.active_storage.variant_processor = :disabled
+    # 添付(証憑など)は、ログインを確かめるコントローラーだけで出す(#27)。
+    # Active Storage の道筋(/rails/active_storage/…)は、署名付きの URL を知っていればログインなしで開けるので作らない
+    config.active_storage.draw_routes = false
     config.i18n.available_locales = [:ja, :en]
     # config.eager_load_paths << Rails.root.join("extras")
   end

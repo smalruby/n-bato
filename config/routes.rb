@@ -101,6 +101,8 @@ Rails.application.routes.draw do
   resources :vouchers do
     post :propose, on: :member
     post :reject, on: :member
+    # 添付はログインした人だけに出す(#27)
+    resources :files, only: :show, module: :vouchers
   end
   # AI の提案への出来事(イベント)は、それぞれ「作る」で表す(docs/adr/0008)
   resources :journal_proposals, only: [] do
