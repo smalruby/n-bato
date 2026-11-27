@@ -7,17 +7,21 @@ versions=("${@:-158.0.0 153.0.0 147.0.2 143.0.4}")
 read -r -a versions <<< "${versions[*]}"
 cat > /tmp/sp.js <<'JS'
 const { spawnSync } = require('child_process');
+const { createRequire } = require('module');
+const { pathToFileURL } = require('url');
 (async () => {
-  const c = (await import(process.argv[2] + '/node_modules/@sparticuz/chromium/build/index.js')).default;
+  const m = await import(pathToFileURL(createRequire(process.argv[2] + '/').resolve('@sparticuz/chromium')).href);
+  const c = m.default ?? m;
   const exe = await c.executablePath();
   for (const [name, extra] of [
     ['dump-dom', ['--dump-dom', 'data:text/html,<p>ok</p>']],
     ['print-to-pdf', ['--print-to-pdf=/tmp/o.pdf', '--no-pdf-header-footer', 'data:text/html,<p>ok</p>']],
     ['dump-dom-single', ['--single-process', '--dump-dom', 'data:text/html,<p>ok</p>']],
+    ['dump-dom-verbose', ['--enable-logging=stderr', '--v=1', '--dump-dom', 'about:blank']],
   ]) {
     const t0 = Date.now();
     const r = spawnSync(exe, [...c.args, '--user-data-dir=/tmp/p-' + name, ...extra], { encoding: 'utf8', timeout: 25000 });
-    console.log(`${name}: status=${r.status} signal=${r.signal} ${Date.now() - t0}ms out=${JSON.stringify((r.stdout || '').slice(0, 80))} err=${JSON.stringify((r.stderr || '').slice(-400))}`);
+    console.log(`${name}: status=${r.status} signal=${r.signal} ${Date.now() - t0}ms out=${JSON.stringify((r.stdout || '').slice(0, 80))} err=${JSON.stringify((r.stderr || '').slice(name.endsWith('verbose') ? -3000 : -400))}`);
   }
 })();
 JS
