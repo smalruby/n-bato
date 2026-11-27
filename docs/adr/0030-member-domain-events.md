@@ -35,8 +35,15 @@ decision-makers: 理事長(ユーザー)・Claude
 ## 結果
 
 * 良い: 誰がいつ入会を認めたかが、出来事として残る。
-* 悪い: 入会を認めたあとの「元に戻す」はできなくなった。会費の納入と退任は、まだ列のまま。
+* 悪い: 入会を認めたあとの「元に戻す」はできなくなった。会費の納入と退任は、まだ列のまま(#17 でイベントにした。補足)。
 
 ## 確かめ方
 
 `test/models/member_application_events_test.rb`、`test/integration/member_applications_test.rb`、`bin/rails model:verify`。
+
+## 補足
+
+* 2026-11-27(#17): 理事長の「リファクタリングの残りはやりきって」を受けて、会費の納入と退任も、画面より先にイベントへ分けた。`Membership::FeePayment.record!`(paid_on)・`OfficerTerm::Resignation.resign!`(left_on)。古い列(`memberships.fee_amount`・`fee_paid_on`、`officer_terms.left_on`)はマイグレーションでイベントに移して消した。
+  * 「使われない入口を作らない」との兼ね合い: 退任は `data:load` の `left_on` が入口を使う。会費は、運用のスクリプトから記録する入口になる。記録する画面は、これまでどおり見直し票で決めてから作る。
+  * 納めた記録・退任の記録のある会員資格・任期は消せない(`restrict_with_error`)。打ち間違いを直す取り消しのイベントは、画面を作るときに足す。
+  * 確かめ方: `test/models/fee_payment_and_resignation_test.rb`、`test/integration/people_records_test.rb`。

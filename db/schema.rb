@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_25_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_27_120000) do
   create_table "accounts", force: :cascade do |t|
     t.integer "code", null: false
     t.string "name", null: false
@@ -416,17 +416,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_100000) do
     t.index ["source_key"], name: "index_member_applications_on_source_key", unique: true
   end
 
+  create_table "membership_fee_payments", force: :cascade do |t|
+    t.integer "membership_id", null: false
+    t.integer "recorder_id"
+    t.integer "amount", null: false
+    t.date "paid_on", null: false
+    t.index ["membership_id"], name: "index_membership_fee_payments_on_membership_id", unique: true
+    t.index ["recorder_id"], name: "index_membership_fee_payments_on_recorder_id"
+  end
+
   create_table "memberships", force: :cascade do |t|
     t.integer "person_id", null: false
     t.integer "fiscal_year", null: false
     t.string "kind", default: "regular", null: false
     t.date "joined_on"
-    t.integer "fee_amount"
-    t.date "fee_paid_on"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["fiscal_year", "person_id", "kind"], name: "index_memberships_on_fiscal_year_and_person_id_and_kind", unique: true
     t.index ["person_id"], name: "index_memberships_on_person_id"
+  end
+
+  create_table "officer_term_resignations", force: :cascade do |t|
+    t.integer "officer_term_id", null: false
+    t.integer "recorder_id"
+    t.text "reason", default: "", null: false
+    t.date "left_on", null: false
+    t.index ["officer_term_id"], name: "index_officer_term_resignations_on_officer_term_id", unique: true
+    t.index ["recorder_id"], name: "index_officer_term_resignations_on_recorder_id"
   end
 
   create_table "officer_terms", force: :cascade do |t|
@@ -434,7 +450,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_100000) do
     t.string "role", null: false
     t.date "starts_on", null: false
     t.date "ends_on", null: false
-    t.date "left_on"
     t.boolean "remunerated", default: false, null: false
     t.string "appointed_by", default: "", null: false
     t.text "notes", default: "", null: false
@@ -869,7 +884,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_100000) do
   add_foreign_key "member_application_rejections", "member_applications"
   add_foreign_key "member_application_rejections", "users", column: "rejecter_id"
   add_foreign_key "member_applications", "people"
+  add_foreign_key "membership_fee_payments", "memberships"
+  add_foreign_key "membership_fee_payments", "users", column: "recorder_id"
   add_foreign_key "memberships", "people"
+  add_foreign_key "officer_term_resignations", "officer_terms"
+  add_foreign_key "officer_term_resignations", "users", column: "recorder_id"
   add_foreign_key "officer_terms", "people"
   add_foreign_key "opening_balances", "accounts"
   add_foreign_key "organization_years", "organizations"

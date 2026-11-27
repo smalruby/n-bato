@@ -46,6 +46,22 @@ class PeopleRecordsTest < ActionDispatch::IntegrationTest
     assert_not OfficerTerm.exists?(t.id)
   end
 
+  test "会費を納めた記録・退任の記録は画面に出て、その会員資格・任期は消せない(#17)" do
+    m = @person.memberships.create!(fiscal_year: 2024, kind: "regular")
+    Membership::FeePayment.record!(m, amount: 3000, paid_on: Date.new(2024, 6, 10))
+    t = @person.officer_terms.create!(role: "director", starts_on: Date.new(2024, 6, 1), ends_on: Date.new(2026, 5, 31))
+    OfficerTerm::Resignation.resign!(t, left_on: Date.new(2025, 1, 15))
+
+    get person_path(@person)
+    assert_includes response.body, "会費 3,000 円"
+
+    delete person_membership_path(@person, m)
+    assert_equal "会費を納めた記録があるので消せません", flash[:alert]
+    delete person_officer_term_path(@person, t)
+    assert_equal "退任の記録があるので消せません", flash[:alert]
+    assert Membership.exists?(m.id) && OfficerTerm.exists?(t.id)
+  end
+
   test "法人情報: 操作している年度の記録を直す。締めた年度は理由を書く" do
     get edit_organization_path
     assert_response :success

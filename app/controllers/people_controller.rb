@@ -11,7 +11,7 @@ class PeopleController < ApplicationController
     range = FiscalYear.new(@year).range
     @people = Person.ordered.includes(:memberships, :officer_terms, :person_years)
     @help_states = [:borrowed] if @people.any? { it.borrowed_year(@year) }
-    @officers = OfficerTerm.includes(person: :person_years).select { it.starts_on <= range.end && (it.left_on || it.ends_on) >= range.begin }
+    @officers = OfficerTerm.includes(:resignation, person: :person_years).select { it.starts_on <= range.end && (it.left_on || it.ends_on) >= range.begin }
   end
 
   def show
