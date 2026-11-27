@@ -56,7 +56,7 @@ describe('うまくいくとき', () => {
     expect(browser.jsEnabled).toBe(false);
     expect(browser.interception).toBe(true);
     expect(browser.closed).toBe(true);
-    expect(browser.pdfOptions).toMatchObject({ format: 'A4', printBackground: true, preferCSSPageSize: true, pageRanges: '1-301' });
+    expect(browser.pdfOptions).toMatchObject({ format: 'A4', printBackground: true, preferCSSPageSize: true, pageRanges: '1-26' });
     expect(readdirSync(tmpRoot)).toEqual([]);
     expect(logs).toHaveLength(1);
     expect(JSON.parse(logs[0])).toMatchObject({ status: 'ok', Pages: 2, request_id: 'pdf-12-a1', input_key: req.input_key.slice(0, 12) });
@@ -150,8 +150,8 @@ describe('入力', () => {
 });
 
 describe('組版', () => {
-  test('301 ページ → TOO_MANY_PAGES(出力を置かない)', async () => {
-    const { res } = await run(requestFor(html), new FakeBrowser({ pdf: fakePdf(301) }));
+  test('26 ページ → TOO_MANY_PAGES(出力を置かない)', async () => {
+    const { res } = await run(requestFor(html), new FakeBrowser({ pdf: fakePdf(26) }));
     expect(res.error).toMatchObject({ code: 'TOO_MANY_PAGES', retryable: false });
     expect(s3Mock.commandCalls(PutObjectCommand)).toHaveLength(0);
   });
@@ -165,7 +165,7 @@ describe('組版', () => {
   });
 
   test('PDF が大きすぎる → OUTPUT_TOO_LARGE(ストリームの途中で止める)', async () => {
-    const req = requestFor(html, { limits: { max_pages: 300, max_output_bytes: 1000 } });
+    const req = requestFor(html, { limits: { max_pages: 25, max_output_bytes: 1000 } });
     const { res, tmpRoot } = await run(req, new FakeBrowser({ pdf: fakePdf(2, 200_000) }));
     expect(res.error).toMatchObject({ code: 'OUTPUT_TOO_LARGE', retryable: false });
     expect(readdirSync(tmpRoot)).toEqual([]);

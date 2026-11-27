@@ -30,7 +30,7 @@ export const requestFor = (html: string, over: Partial<PdfRequest> = {}): PdfReq
     input: { bucket: BUCKET, key: `v1/in/12-${inputKey}.html`, sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length },
     output_prefix: `v1/out/${inputKey}/`,
     options: { format: 'A4', print_background: true, prefer_css_page_size: true },
-    limits: { max_pages: 300, max_output_bytes: 52428800 },
+    limits: { max_pages: 25, max_output_bytes: 52428800 },
     deadline_at: Date.now() + 600_000,
     ...over,
   };

@@ -444,7 +444,7 @@ const render = async (
       if (pdfTimeout <= 0) throw new RenderError('RENDER_TIMEOUT', 'no time left');
       const p = page;
       const writePdf = async (): Promise<void> => {
-        // 上限 + 1 ページまでしか組まない(301 ページ目があれば TOO_MANY_PAGES。300 を超える大きな表で時間とメモリを使わない)
+        // 上限 + 1 ページまでしか組まない(26 ページ目があれば TOO_MANY_PAGES。上限を超える大きな表で時間とメモリを使わない)
         const pdfOptions = {
           format: req.options.format,
           printBackground: req.options.print_background,

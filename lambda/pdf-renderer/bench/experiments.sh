@@ -9,7 +9,7 @@ which=${1:-all}
 run() { node out/bench/run.js "$@"; }
 docs=(bench/out/docs/*.html)
 stress=(bench/out/stress/*.html)
-heavy=(bench/out/stress/stress-ledger-300.html bench/out/stress/stress-long-table.html bench/out/stress/stress-images-9mb.html bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-awkward.html bench/out/docs/filing-pack.html bench/out/docs/ledgers.html)
+heavy=(bench/out/stress/stress-ledger-25.html bench/out/stress/stress-long-table.html bench/out/stress/stress-images-9mb.html bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-awkward.html bench/out/docs/filing-pack.html bench/out/docs/ledgers.html)
 
 # 0 まず 1 つの書類で立ち上がるかを見る。だめなら Chromium のログを出して止める(すべての実験が同じ理由で落ちるのを待たない)
 run --label e0-smoke --memory 1024 bench/out/docs/ledgers.html
@@ -30,26 +30,17 @@ if [[ $which == all || $which == 1 ]]; then
 fi
 if [[ $which == all || $which == 2 ]]; then
   # ② PDF の受け取り方(一度に / ストリーム)
-  run --label e2-buffer --memory 1024 --receive buffer bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-images-9mb.html bench/out/stress/stress-ledger-300.html
-  run --label e2-stream --memory 1024 --receive stream bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-images-9mb.html bench/out/stress/stress-ledger-300.html
+  run --label e2-buffer --memory 1024 --receive buffer bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-images-9mb.html bench/out/stress/stress-ledger-25.html
+  run --label e2-stream --memory 1024 --receive stream bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-images-9mb.html bench/out/stress/stress-ledger-25.html
 fi
 if [[ $which == all || $which == 3 ]]; then
   # ③ /tmp の大きさ(/dev/shm のあるなしは記録の dev_shm_mb)
-  run --label e3-tmp-512 --memory 1024 --tmp 512 bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-ledger-300.html
+  run --label e3-tmp-512 --memory 1024 --tmp 512 bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-ledger-25.html
 fi
 if [[ $which == all || $which == 5 ]]; then
   # ⑤ 関数のメモリをどこまで下げられるか(すべての書類とストレス)。④ の測り方の並びは、どの行にもある
-  for mem in 512 768 1024 1536 2048 2560 3008; do
+  for mem in 512 768 1024 1536; do
     run --label "e5-mem-$mem" --memory "$mem" "${docs[@]}" "${stress[@]}"
-  done
-fi
-if [[ $which == all || $which == 6 ]]; then
-  # ⑥ ① で js-heap-96 だけが 300 ページを 1024MB で通した(ただし 55 秒)。間の値で、メモリと時間の釣り合いを見る
-  big=(bench/out/stress/stress-ledger-300.html bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-long-table.html)
-  for heap in 128 256 512; do
-    for mem in 1024 1536; do
-      run --label "e6-heap-$heap-mem-$mem" --memory "$mem" --add "--js-flags=--max-old-space-size=$heap" "${big[@]}"
-    done
   done
 fi
 node out/bench/summary.js bench/out/results.tsv

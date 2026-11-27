@@ -30,7 +30,7 @@ const ledgerPages = (n: number): string => {
   return parts.join('');
 };
 
-// 区切りの無い長い表(見出しがページごとにくり返されるか)
+// 区切りの無い長い表(見出しがページごとにくり返されるか)。1,000 行で 24 ページほど
 const longTable = (rows: number): string => {
   const parts = [head(), '<h1>長い表(見本)</h1><table><thead><tr><th>番号</th><th>科目</th><th>摘要</th><th>金額</th></tr></thead><tbody>'];
   for (let i = 1; i <= rows; i += 1) parts.push(`<tr><td>${i}</td><td>旅費交通費</td><td>見本の摘要 ${'長い文'.repeat(i % 7)}</td><td class="amount">${i * 13}</td></tr>`);
@@ -105,7 +105,7 @@ const images = (count: number, totalBytes: number): string => {
   return parts.join('');
 };
 
-// PDF が大きくなるもの: ページごとに違うフィルタをかけた画像(Chromium が高い解像度の絵にして埋める)
+// PDF が大きくなるもの: ページごとに違うフィルタをかけた画像(Chromium が高い解像度の絵にして埋める)。40 ページで 50MB を超えた
 const hugePdf = (pages: number): string => {
   const img = noisePng(700, 700).toString('base64');
   const parts = [head(`.f { width: 180mm; height: 250mm; background-image: url(data:image/png;base64,${img}); background-size: cover; }`)];
@@ -118,14 +118,15 @@ const main = (): void => {
   const out = process.argv[2] ?? 'out/stress';
   mkdirSync(out, { recursive: true });
   const files: Record<string, string> = {
-    'stress-ledger-300': ledgerPages(300),
-    'stress-ledger-301': ledgerPages(301),
-    'stress-long-table': longTable(2000),
+    // 1 回に作るのは 25 ページまで(2026-11-27 理事長。それより多い書類はジョブを分ける。いまは無い)
+    'stress-ledger-25': ledgerPages(25),
+    'stress-ledger-26': ledgerPages(26),
+    'stress-long-table': longTable(1000),
     'stress-awkward': awkward(),
     'stress-glyphs': glyphs(),
     'stress-images-9mb': images(20, 9 * 1024 * 1024),
     'stress-images-11mb': images(20, 11 * 1024 * 1024 + 200 * 1024),
-    'stress-huge-pdf': hugePdf(40),
+    'stress-huge-pdf': hugePdf(25),
   };
   for (const [name, html] of Object.entries(files)) {
     writeFileSync(join(out, `${name}.html`), html);

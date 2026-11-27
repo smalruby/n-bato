@@ -130,7 +130,7 @@ const main = async (): Promise<void> => {
       input: { bucket: BUCKET, key, sha256: createHash('sha256').update(html).digest('hex'), bytes: Math.min(html.length, 10485760) },
       output_prefix: `v1/out/${inputKey}/`,
       options: { format: 'A4', print_background: true, prefer_css_page_size: true },
-      limits: { max_pages: 300, max_output_bytes: 52428800 },
+      limits: { max_pages: 25, max_output_bytes: 52428800 },
       deadline_at: Date.now() + 600_000,
     };
     const { res, ms } = await invoke(request);
