@@ -8,6 +8,7 @@
   - 7-4 `new-user`: PDF 専用の IAM ユーザー(ADR-0035)。
   - 7-5 `build-now-switch-safely`: いま作る。12/7 より前に切り替えられなければ 1 月。しばらく Chrome に戻せるスイッチを残す。**Lambda は強くする**(過去に「Chromium のメモリが 100MB を超えると止まる」「通信の失敗のやり直しが適切でない」ことがあった)。
   - **関数のメモリ(開発QAボード 第9回 `r9-adr0037`、2026-11-25、理事長)**: 「Lambda はなるべくメモリを少なくして、1GB か、できれば 500MB 程度か。ただ、Chromium を動かすので 1GB は必要かもしれない。実験して適切な値にして」。→ 4.2・4.10 ⑤・8.2 を直した(約 3008MB をやめ、1024MB から始めて、実験で決める)。
+  - **ページの上限(2026-11-27、理事長。この PR の会話で)**: 「そもそも 300 ページの帳簿は対象外でいい。最大 25 ページ、それ以上はジョブを分割にしよう。いまのところそのような帳票はない」。→ config.json の `max_pages` を 25 にし、ストレスを 25・26 ページにした(2.3・7.3)。分け方は、25 ページを超える書類ができたときに決める。
   - **過去の不具合の様子(開発QAボード 第8回 `r8-lambda-past`、2026-11-25、理事長。[Issue #22 のコメント](https://github.com/smalruby/n-bato/issues/22#issuecomment-7138129159))**: 「Chromium の設定で、使えるメモリの既定が 100MB 程度だったはず。環境変数かオプションで避けた。関数のメモリは 6GB の設定だったので、関数のメモリは原因ではない」。→ 4.1・4.10 ①・9 章を直した。
   - **方針の変更(2026-11-24、理事長)**: 12 月に止める期間はなくした(「改修はどんどんやって、問題があれば都度直す」)。受け入れの条件(8.2)が通ったらすぐ切り替え、手で Chrome に戻すスイッチは残す。
 - 運用の手間を小さくする(理事長の方針)。部品と自動の切り替えを増やさず、手で戻せる形にする。
@@ -76,12 +77,14 @@ sequenceDiagram
 
 ### 1.2 Lambda の中身(コンテナイメージ)
 
-- ランタイム: Node.js 22(`public.ecr.aws/lambda/nodejs:22`、x86_64、**ダイジェスト(@sha256:…)で固定**)。`@sparticuz/chromium`(npm の最新 153.0.0、2026-09-11)+ `puppeteer-core`。2 つの版は固定し、README の「Puppeteer が対応する Chromium の版に合わせる」に従って組にする([SP])。
-  - x86_64 にする理由: npm の包みに入っているのは x64 だけ。arm64 は v135 から別の包み(`-min`)(同上)。
-- **Chromium はイメージを作るときに取り出しておく**(`@sparticuz/chromium` は立ち上がりのたびに brotli の圧縮を /tmp に展開する)。Dockerfile の中で一度 `executablePath()` を呼んで取り出し、`/opt/chromium/` に写す。動くときはその場所を直に使う。立ち上がりが速くなり、/tmp を使わない。
-- **フォントは本番の Rails と同じファイル**: Dockerfile の段の 1 つを Rails の本番と同じ Debian にして `fonts-noto-cjk` を入れ、Noto Serif CJK・Noto Sans CJK(Regular・Bold)の `.ttc` を `/var/task/fonts/` に写す。`@sparticuz/chromium` の fontconfig は `/var/task/fonts` を探す([SP]:「Lambda には何のフォントもない」)。
-  - 作るときに、フォントのファイルの SHA-256 をまとめた `font_digest` と、**フォントが持つ字の一覧(cmap)を小さいファイル `coverage.bin` に書き出す**(4.9)。`font_digest` は応答の `renderer` に入れる。
-  - `serif` の行き先が Open Sans(包みの英字のフォント)にならないことを、7.3 の `pdffonts` で守る。
+- ランタイム: Node.js 22(`public.ecr.aws/lambda/nodejs:22`、x86_64、**ダイジェスト(@sha256:…)で固定**)+ `puppeteer-core`(25.19.0)。**Chromium は Google の Chrome for Testing の `chrome-headless-shell`**(puppeteer-core が対応する版 158.0.8127.88)。zip は Dockerfile で落とし、**SHA-256 で固定**して確かめる。2 つの版は組にして固定する(puppeteer-core を上げるときは、その版が対応する Chromium に合わせて上げる)。
+  - x86_64 にする理由: Chrome for Testing の Linux 版は x64 だけ。
+  - **`@sparticuz/chromium` をやめた(P1、2026-11-27)**: 143・147・153・158 のどの版も、包みの勧めどおり(Lambda の素のイメージ・実行のときに /tmp へ展開・包みの旗)に立ち上げても、x86_64 の ubuntu(GitHub Actions)と Lambda のイメージで何も出さずに止まった(`--dump-dom` も `--print-to-pdf` も、20〜40 秒待って出ない)。同じ ubuntu の上で、Playwright の使う `chrome-headless-shell` は同じ旗ですぐ動いた。本物の Lambda では動くのかもしれないが、手元・CI で確かめられないものは使わない。
+  - `chrome-headless-shell` が読む .so(nss・nspr・atk・dbus-libs・X11 の一部・mesa-libgbm・libxkbcommon・alsa-lib など)は、Amazon Linux 2023 の包みを `dnf` で入れる(足りないものは `ldd` で確かめた)。イメージは 1.2GB(Lambda の上限 10GB の中)。
+- **Chromium はイメージの中に置いたまま使う**(`/opt/chromium/`)。動くときに /tmp へ展開しない。立ち上がりが速くなり、/tmp を使わない。
+- **フォントは本番の Rails と同じファイル**: Dockerfile の段の 1 つを Rails の本番と同じ Debian にして `fonts-noto-cjk` を入れ、Noto Serif CJK・Noto Sans CJK(Regular・Bold)の `.ttc` を `/var/task/fonts/` に写す。fontconfig は自前の `fonts.conf`(`FONTCONFIG_FILE`)で `/var/task/fonts` だけを探し、キャッシュは `/tmp/fontconfig` に置く。`serif` は Noto Serif CJK JP、`sans-serif` は Noto Sans CJK JP に向ける。
+  - 作るときに、フォントのファイルの SHA-256 をまとめた `font_digest` と、**フォントが持つ字の一覧を小さいファイル `coverage.txt` に書き出す**(`fc-query --format='%{charset}'`。4.9)。`font_digest` は応答の `renderer` に入れる。
+  - `serif` の行き先が Noto 以外にならないことを、7.3 の `pdffonts` で守る(P1 の実験では、すべての PDF が `NotoSerifCJKjp-Regular`・`-Bold` だけを埋めた)。
 - コードの置き場所: `lambda/pdf-renderer/`(`package.json`・`Dockerfile`・`src/handler.ts`・`schema/`・`config.json`・`test/`)。CDK は `infra/lib/pdf-renderer.ts`(6 章)。
 - `lambda/pdf-renderer/config.json` に関数のメモリ・時間切れ・上限の数を 1 つだけ書き、CDK・Lambda・Rails のテストが同じものを読む(値がずれないように)。
 
@@ -127,7 +130,7 @@ renderer_key = engine ":" build ":" font_digest          (例 "lambda:2026.12.1-
 | `input` | `{bucket, key, sha256, bytes}` | key は `^v1/in/[0-9]+-[0-9a-f]{64}\.html$`、bytes ≤ 10MB |
 | `output_prefix` | `v1/out/<input_key>/` | Lambda が `<renderer_id>.pdf` を足す |
 | `options` | 2.2 | |
-| `limits` | `{max_pages, max_output_bytes}` | 300・50MB(config.json) |
+| `limits` | `{max_pages, max_output_bytes}` | 25・50MB(config.json)。**1 回に作るのは 25 ページまで**(2026-11-27 理事長。それより多い書類は、Rails がジョブを分けて作る。いまは 25 ページを超える書類は無いので、分け方は要るときに決める) |
 | `deadline_at` | UNIX ミリ秒 | 過ぎていたら作らずに `DEADLINE_EXCEEDED` |
 
 - バケットとキーの形を Lambda の側でも確かめる。バケットは関数の環境変数と同じでなければ断る。
@@ -187,12 +190,13 @@ VPC には置かない(レビュー Q6。部品と運用の手間を増やさな
 
 ### 4.2 メモリ
 
+- **関数のメモリは 768MB**(P1 の実験 ⑤ の結果。2026-11-27 理事長「Lambda のメモリが少なくてよいのはメリットが大きい」。4.10.1)。
 - **関数は 1 つ**(レビュー Q5)。**メモリはなるべく少なく**(開発QAボード 第9回): 1024MB から始め、P1 の実験 ⑤ で 512・768・1024・1536MB を比べ、6 つの書類とストレス(7.3)がすべて作れ、いちばん重いもののメモリの山が 50% 以下で、時間が関数の時間切れの半分以下に収まる **いちばん小さい値** にする。[SP] は最低 512MB・1600MB 以上をすすめる。Lambda は 1,769MB で vCPU 1 つ分になり、メモリを減らすと CPU も減って遅くなる([L-quota])ので、時間も見る。1024MB で条件を満たさなければ、測った表を付けて ADR-0037 を書き足し、PR で知らせる。新しいアカウントはメモリの上限が下げられていることがある([L-quota])ので、cdk deploy の前に上限を確かめる。重い入力のやり直しも同じ関数で 1 回だけ。
 - `/tmp` は 1024MB。
 - 測り方(毎回):
   - **正は Lambda の `REPORT` の行の `Max Memory Used`**(実行の環境まるごと。子のプロセスも入る)。CloudWatch Logs Insights で書類の種類ごとにまとめる。
-  - 関数の中でも 100 ミリ秒ごとに、Chromium のプロセスの集まり(プロセスグループ)の各プロセスの `/proc/<pid>/status` の `VmRSS` と Node の `process.memoryUsage().rss` を足し、その最大を `peak_rss_mb` にして応答とログに入れる(`heapUsed` は使わない)。Rails は `PdfRendering#peak_memory_mb` に残す。REPORT との差は P1 の実験 ④ で確かめる。
-  - Embedded Metric Format でメトリクス `PeakRssMb`・`DurationMs`・`Pages`・`MissingGlyphs` を出す。**`PeakRssMb` が関数のメモリの 50% を超えたら警報**(SNS でメール)。
+  - 関数の中でも 100 ミリ秒ごとに、Node と Chromium のプロセスの集まり(プロセスグループ)の各プロセスの PSS(`/proc/<pid>/smaps_rollup`。読めなければ `VmRSS`)を足し、その最大を `peak_rss_mb` にして応答とログに入れる(`heapUsed` は使わない)。Rails は `PdfRendering#peak_memory_mb` に残す。**この値はコンテナの山より 200〜300MB 大きく出る**(4.10.1 ④。書類どうしを比べる目安)。
+  - Embedded Metric Format でメトリクス `PeakRssMb`・`DurationMs`・`Pages`・`MissingGlyphs` を出す(比べる目安)。**警報は REPORT の `Max Memory Used` が関数のメモリの 50% を超えたとき**(ログのメトリクスフィルタで REPORT の行から取る。SNS でメール)。`PeakRssMb` は大きく出るので警報に使わない(4.10.1 ④)。
 - 切り替えの条件(8.2): 本番の実データで、**いちばん重い書類のメモリの山が関数のメモリの 50% 以下**。
 
 ### 4.3 時間切れ(外側ほど長く)
@@ -270,7 +274,7 @@ Solid Queue は、プロセスが落ちたりデプロイで止まったりす�
 
 - 立ち上がり: イメージは数百 MB。Chromium を作るときに取り出しておく(1.2)ので、展開の分は速くなる。デプロイの直後とひさしぶりの呼び出しは数秒かかる見込み(未確認。P1 で `cold_start` と時間を測る)。ジョブで待つので画面は固まらない。常に温める(Provisioned Concurrency)はしない。
 - 同時に動く数: **Rails の側の 2(5.5)と AWS Budgets の警報で守る。予約の同時実行(reserved concurrency)は要らない**(レビュー F9)。新しいアカウントは同時実行の上限が 10 のことがあり、AWS は予約しない分を 100 残すことを求めるので、予約は付けられないかもしれない(未確認)。アカウントの上限が大きいと分かったときだけ、保険として 3 を付けてもよい。
-- 失敗したときの見え方(文と並びは見直し票): 待つ画面が「作れませんでした」に変わり、分類ごとの平らな文(「ページが多すぎます(上限 300 ページ)」「いま混んでいます。もう一度作るを押してください」)と、HTML を開いてブラウザで印刷する案内を出す。
+- 失敗したときの見え方(文と並びは見直し票): 待つ画面が「作れませんでした」に変わり、分類ごとの平らな文(「ページが多すぎます(上限 25 ページ)」「いま混んでいます。もう一度作るを押してください」)と、HTML を開いてブラウザで印刷する案内を出す。
 
 ### 4.9 豆腐(□)を見つける
 
@@ -292,6 +296,31 @@ Solid Queue は、プロセスが落ちたりデプロイで止まったりす�
 | ⑤ | **関数のメモリをどこまで下げられるか(第9回)** | ①〜③ で決めた旗・受け取り方で、関数のメモリを 512・768・1024・1536MB にして、6 つの書類とストレス(7.3)・大きな PDF を作る。組ごとに、作れたか・メモリの山(REPORT)・時間(冷えた立ち上がりと温まったとき)。4.2 の条件を満たすいちばん小さい値を config.json に書く。手元のコンテナでは `docker run --memory` で目安を取り、本物の Lambda(P3)で確かめ直す |
 
 順番は ① を先にする(第8回の答え)。② 〜 ④ は原因でなくても安い守りなので続けて通す。⑤ は最後(旗と受け取り方でメモリの山が変わるため)。結果で、旗・/tmp・受け取り方・関数のメモリを決め直し、この文書を直す。
+
+#### 4.10.1 P1 の実験の結果(2026-11-27、GitHub Actions の ubuntu-24.04・x86_64、手元のコンテナ)
+
+- 流し方: `lambda/pdf-renderer/bench/experiments.sh`(CI の「CI - PDF renderer」の bench の仕事。PR にラベル `pdf-bench`)。Lambda のコンテナは読み取り専用・/tmp 1024MB(tmpfs)・`/dev/shm` なし(`--ipc none`)・root でない利用者(993:990)・`--memory` と `--cpus`(メモリ ÷ 1,769)。S3 は adobe/s3mock。1 つの入力ごとにコンテナを立ち上げ直す(冷えた立ち上がり)。
+- 入力: 架空のデータの書類 31 種類(提出の書類・計算書類・元帳・決議 3 件・登記 2 件・様式の例。`bench/fetch-demo-html.sh`)と、ストレス 8 つ(`bench/stress.ts`。25・26 ページの元帳、1,000 行の長い表、画像 9MB・11MB、1 ページより長い避ける塊、外字、50MB を超える PDF)。
+- **メモリの山**は、コンテナまるごとの cgroup の `memory.peak`(REPORT の `Max Memory Used` に当たる)。
+
+| 入力 | 512MB | 768MB | 1024MB | 1536MB |
+|---|---|---|---|---|
+| 書類 31 種類(いちばん重いもの) | 150MB(29%)・3.6 秒 | 155MB(20%)・2.5 秒 | 155MB(15%)・2.0 秒 | 154MB(10%)・1.5 秒 |
+| 元帳 25 ページ | 255MB(50%)・4.8 秒 | 255MB(33%)・3.2 秒 | 261MB(25%)・2.4 秒 | 256MB(17%)・1.9 秒 |
+| 長い表 24 ページ | 235MB(46%) | 236MB(31%) | 234MB(23%) | 236MB(15%) |
+| 画像 9MB(7 ページ) | 334MB(65%)・6.1 秒 | 340MB(44%)・3.5 秒 | 347MB(34%) | 347MB(23%) |
+| 元帳 26 ページ | `TOO_MANY_PAGES` | 同じ | 同じ | 同じ |
+| 画像 11MB | `INPUT_TOO_LARGE` | 同じ | 同じ | 同じ |
+| 50MB を超える PDF(25 ページ) | OOM で `BROWSER_CRASHED` | OOM で `BROWSER_CRASHED` | `OUTPUT_TOO_LARGE`(山 823MB) | `OUTPUT_TOO_LARGE` |
+
+- すべての PDF が、ページ数が `pdfinfo` と同じで、埋めたフォントは `NotoSerifCJKjp-Regular`・`-Bold` だけ。外字のストレスだけ `missing_glyphs` が 1(𪚲 などフォントに無い字)。
+- **① Chromium の側のメモリの上限**: 再現しなかった。`--disable-dev-shm-usage` のあり・なし(`/dev/shm` 64MB を付けても)、`--js-flags=--max-old-space-size=96`・`2048`、`--single-process` のどれでも、25 ページまでの入力はすべて作れ、山もほぼ同じ(`--single-process` だけ 15% ほど少ない)。100MB で止まることは無かった。過去の不具合は、当時の包み・Chromium の版によるものだった見込み(推測)。→ **旗は変えない**(`--single-process` は付けない。1 つのプロセスが落ちるとまとめて落ちるため。山の差は小さい)。
+  - なお、はじめに 300 ページの元帳で測ったとき(上限を 25 にする前)は、山が関数のメモリによらず約 1,425MB で、1536MB 未満では OOM になった。`--js-flags=--max-old-space-size=96` だけが 1024MB で通した(山 981MB)が 55 秒かかった。
+- **② 受け取り方**: `page.pdf()`(一度に)とストリーム(`createPDFStream`)で、山・時間とも違いは測れる差ではなかった。→ **ストリームのまま**(PDF が大きいときに、Node の側に PDF 全体を持たない)。
+- **③ /tmp・/dev/shm**: Lambda と同じく `/dev/shm` なしで動く(`--disable-dev-shm-usage` で /tmp を使う)。/tmp 512MB でも作れた。→ **/tmp は 1024MB のまま**(PDF を書き出す場所。50MB の上限の 20 倍)。
+- **④ 測り方のずれ**: 関数の中の値(`peak_rss_mb`)は、コンテナの山より 200〜300MB 大きく出る。各プロセスの VmRSS を足すと共有のページを重ねて数えるので、PSS(`/proc/<pid>/smaps_rollup`)を足すように直したが、それでも 25 ページの元帳で 483MB(コンテナは 258MB)。Chromium の本体(220MB)とフォントのファイルをメモリに写したぶん(ファイルのページ)が、コンテナの山には入らないため(推測)。→ **警報の 50% は REPORT の `Max Memory Used` で見る**(関数の中の値は、書類どうしを比べる目安)。本物の Lambda(P3)で、REPORT と並べて確かめ直す。
+- **⑤ 関数のメモリ**: **768MB**(2026-11-27 理事長。おすすめ)。512MB は、本物の書類では山 29% で足りるが、10MB 近い画像の書類が 65% になり 4.2 の条件を外れる。768MB は 25 ページまでのストレスがすべて 50% 以下(いちばん重いのは画像 9MB の 44%)、時間は最大 3.5 秒(時間切れ 90 秒の半分より十分短い)。
+  - 50MB を超える PDF は、768MB では `OUTPUT_TOO_LARGE` の前に OOM で `BROWSER_CRASHED` になる(やり直してもまた止まる)。本物の書類で 50MB を超えるものは無い(いちばん大きいもので 0.6MB)。`BROWSER_CRASHED` は 4.4 の重い入力(`heavy`)なので、ジョブは 1 回だけやり直し、2 回続けばその入力を 1 時間止める(作れない入力)。
 
 ## 5. Rails の側
 
@@ -426,7 +455,7 @@ format.pdf { respond_with_pdf PrintDocument::Statement.new(fiscal_year: @fiscal_
 - 予約の同時実行: 付けない(4.8・レビュー F9)。
 - ログ: `logGroup` を作り、保存は 30 日。
 - **VPC には置かない**(3.2)。
-- 警報: `PeakRssMb > 50%`・`Errors`・`Throttles`。**AWS Budgets**: 月の見込みの数倍(例 5 ドル)で知らせる。宛先は運用の側で決める。
+- 警報: REPORT の `Max Memory Used` > 50%(4.2)・`Errors`・`Throttles`。環境変数は `PDF_BUCKET` だけ(**`PDF_EXPERIMENT` などの実験の変数を付けない**。付けると Chromium の標準エラーがログに出る)。**AWS Budgets**: 月の見込みの数倍(例 5 ドル)で知らせる。宛先は運用の側で決める。
 
 ### 6.2 S3
 
@@ -478,7 +507,7 @@ docker run --read-only --tmpfs /tmp:size=1024m --ipc=none --user 993:990 --cpus=
   -e HOME=/tmp -e TMPDIR=/tmp …(Runtime Interface Emulator)
 ```
 
-- S3 は MinIO(このコンテナとだけつながる網)。関数は `S3_ENDPOINT` をテストのときだけ受ける。
+- S3 は adobe/s3mock(このコンテナとだけつながる網。MinIO は公開のイメージが無くなった)。関数は `S3_ENDPOINT` をテストのときだけ受ける。
 - **本物の Lambda でもストレスを流す**(P3 のあと、架空のデータで)。手元のコンテナと REPORT の値を比べる。
 
 ### 7.3 見比べ(ゴールデン)とストレス
@@ -487,7 +516,7 @@ docker run --read-only --tmpfs /tmp:size=1024m --ipc=none --user 993:990 --cpus=
 
 - 6 つの書類のすべての種類(`PrintDocument.all_for_acceptance` を架空のデータで)。
 - ストレス(作った HTML):
-  - 300 ページの元帳(約 15,000 行の表)→ 作れる。301 ページ → `TOO_MANY_PAGES`。
+  - 25 ページの元帳(1 ページ 40 行)→ 作れる。26 ページ → `TOO_MANY_PAGES`(はじめは 300 ページにしていたが、2026-11-27 に理事長が 25 ページまでにした。300 ページは山が 1,425MB で、50% 以下には 3,008MB が要った)。
   - **表の見出し(`thead`)がページごとにくり返されること**。
   - **改ページを避ける行(`break-inside: avoid`)が 1 ページより長いとき**(行が切れずに消える・無限に送られることがないか)。
   - **改ページの数**が両方で同じ(`break-before`・`break-after` の指定の数と PDF のページの区切り)。
@@ -531,7 +560,7 @@ HTML に次を入れ、**どれにも要求が届かず**(待ち受けのサー�
 
 ### 7.7 CDK(`infra/test`、jest)
 
-バケット(公開なし・SSE・TLS・1 日・途中のマルチパート 1 日)、IAM ユーザーの権限がこの表の対象だけ(ListBucket が無い)、関数のメモリ・時間切れが config.json と同じ・/tmp・アーキテクチャ・`retryAttempts: 0`・エイリアス、関数が 1 つ、VPC が無い、ログの保存 30 日、Budgets、アクセスキーが 0。
+バケット(公開なし・SSE・TLS・1 日・途中のマルチパート 1 日)、IAM ユーザーの権限がこの表の対象だけ(ListBucket が無い)、関数のメモリ・時間切れが config.json と同じ・/tmp・アーキテクチャ・`retryAttempts: 0`・エイリアス、関数が 1 つ、関数の環境変数が `PDF_BUCKET` だけ(`PDF_EXPERIMENT`・`PDF_FLAGS_*`・`PDF_RECEIVE`・`S3_ENDPOINT` が無い)、VPC が無い、ログの保存 30 日、Budgets、アクセスキーが 0。
 
 ## 8. 切り替えの段取り・受け入れ・費用
 

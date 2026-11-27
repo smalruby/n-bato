@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://n-bato.smalruby.app/schema/pdf-renderer/response.v1.json",
+  "title": "n-bato の PDF を作る Lambda の応答(プロトコル 1。docs/design/pdf-lambda.md 2.3)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol", "request_id", "status", "metrics", "renderer"],
+  "properties": {
+    "protocol": { "const": 1 },
+    "request_id": { "type": ["string", "null"], "maxLength": 64 },
+    "status": { "enum": ["ok", "error"] },
+    "reused": { "type": "boolean" },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bucket", "key", "bytes", "pages"],
+      "properties": {
+        "bucket": { "type": "string" },
+        "key": { "type": "string", "pattern": "^v1/out/[0-9a-f]{64}/[0-9a-f]{16}\\.pdf$" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "pages": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "retryable", "detail"],
+      "properties": {
+        "code": {
+          "enum": [
+            "INVALID_REQUEST", "UNSUPPORTED_PROTOCOL", "DEADLINE_EXCEEDED",
+            "INPUT_NOT_FOUND", "INPUT_CHECKSUM_MISMATCH", "INPUT_TOO_LARGE",
+            "TOO_MANY_PAGES", "OUTPUT_TOO_LARGE",
+            "RENDER_TIMEOUT", "BROWSER_CRASHED", "BROWSER_LAUNCH_FAILED",
+            "S3_ERROR", "INTERNAL"
+          ]
+        },
+        "retryable": { "type": "boolean" },
+        "detail": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cold_start", "duration_ms", "launch_ms", "render_ms", "upload_ms", "peak_rss_mb", "memory_limit_mb", "tmp_free_mb", "blocked_requests", "missing_glyphs", "missing_codepoints"],
+      "properties": {
+        "cold_start": { "type": "boolean" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "launch_ms": { "type": "integer", "minimum": 0 },
+        "render_ms": { "type": "integer", "minimum": 0 },
+        "upload_ms": { "type": "integer", "minimum": 0 },
+        "peak_rss_mb": { "type": "integer", "minimum": 0 },
+        "memory_limit_mb": { "type": ["integer", "null"], "minimum": 0 },
+        "tmp_free_mb": { "type": ["integer", "null"], "minimum": 0 },
+        "blocked_requests": { "type": "integer", "minimum": 0 },
+        "missing_glyphs": { "type": "integer", "minimum": 0 },
+        "missing_codepoints": {
+          "type": "array",
+          "maxItems": 50,
+          "items": { "type": "string", "pattern": "^U\\+[0-9A-F]{4,6}$" }
+        }
+      }
+    },
+    "renderer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "chromium", "puppeteer", "font_digest", "renderer_id"],
+      "properties": {
+        "build": { "type": "string" },
+        "chromium": { "type": "string" },
+        "puppeteer": { "type": "string" },
+        "font_digest": { "type": "string" },
+        "renderer_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" }
+      }
+    }
+  }
+}

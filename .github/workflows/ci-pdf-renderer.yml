@@ -1,0 +1,115 @@
+name: CI - PDF renderer
+
+# PDF を作る Lambda(lambda/pdf-renderer/、#22、docs/design/pdf-lambda.md 7.1・7.2・4.10)。
+# - test: 型と jest(Lambda の中のテスト)。変えたら毎回。
+# - bench: イメージを作り、架空のデータの書類とストレスで、手元のコンテナの実験 ①〜⑤ を流す(x86_64。AWS は使わない)。
+#   時間がかかるので、PR にラベル pdf-bench を付けたとき・手で流したときだけ。結果は数の表(まとめと artifact)。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - 'lambda/pdf-renderer/**'
+      - '.github/workflows/ci-pdf-renderer.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'lambda/pdf-renderer/**'
+      - '.github/workflows/ci-pdf-renderer.yml'
+  workflow_dispatch:
+    inputs:
+      experiments:
+        description: '流す実験(all・1・2・3・5)'
+        default: 'all'
+
+concurrency:
+  group: "${{ github.workflow }} @ ${{ github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lambda の型とテスト
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lambda/pdf-renderer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: lambda/pdf-renderer/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm audit --omit=dev --audit-level=moderate
+      - run: npx tsc --noEmit
+      - run: npx jest --ci
+
+  bench:
+    name: 手元のコンテナでの実験(①〜⑤)
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pdf-bench'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Ruby(架空のデータの書類を作るため)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: lambda/pdf-renderer/package-lock.json
+      - name: pdfinfo・pdffonts
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+      - name: 架空のデータの書類(bin/demo と同じ種)の印刷用 HTML を取り出す
+        env:
+          NBATO_DEMO: "1"
+          RAILS_ENV: development
+        run: |
+          bin/rails demo:reset
+          bin/rails server -p 3300 -d
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3300/up && break; sleep 1; done
+          lambda/pdf-renderer/bench/fetch-demo-html.sh
+      - name: イメージを作る
+        working-directory: lambda/pdf-renderer
+        run: docker build -t n-bato-pdf-renderer:dev --build-arg RENDERER_BUILD=ci-${{ github.sha }} .
+      - name: Chromium がこのイメージで立ち上がるか(Lambda と同じ形の制限)
+        run: |
+          timeout 60 docker run --rm --read-only --tmpfs /tmp:size=1024m --ipc none --user 993:990 --memory=1024m \
+            -e HOME=/tmp -e TMPDIR=/tmp --entrypoint /opt/chromium/chrome-headless-shell n-bato-pdf-renderer:dev \
+            --no-sandbox --no-zygote --disable-dev-shm-usage --in-process-gpu --user-data-dir=/tmp/profile \
+            --dump-dom 'data:text/html,<p>ok</p>' 2>&1 | tee /tmp/smoke.txt | tail -n 20
+          grep -q '<p>ok</p>' /tmp/smoke.txt
+      - name: 実験
+        working-directory: lambda/pdf-renderer
+        shell: bash  # pipefail を付ける(| tee で終わりの値が消えないように)
+        env:
+          EXPERIMENTS: ${{ github.event.inputs.experiments || 'all' }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc -p tsconfig.json --outDir out
+          node out/bench/stress.js bench/out/stress
+          bench/experiments.sh "$EXPERIMENTS" | tee bench/out/summary.md
+          cat bench/out/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: 結果を残す(数の表と、架空のデータの PDF)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-bench
+          path: |
+            lambda/pdf-renderer/bench/out/results.tsv
+            lambda/pdf-renderer/bench/out/summary.md
+            lambda/pdf-renderer/bench/out/pdf
+          if-no-files-found: ignore
+          retention-days: 14
