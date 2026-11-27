@@ -74,7 +74,7 @@ end
 
 gem "rails-i18n", "~> 8.1"
 
-gem "ferrum", "~> 0.20.2"
+gem "ferrum", "~> 0.21.0"
 
 gem "anthropic", "~> 2.11"
 
