@@ -1,0 +1,29 @@
+{
+  "name": "n-bato-pdf-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "n-bato の印刷用 HTML を PDF にする AWS Lambda(#22、docs/design/pdf-lambda.md)",
+  "type": "commonjs",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1178.0",
+    "@smithy/node-http-handler": "4.14.2",
+    "ajv": "8.20.0",
+    "puppeteer-core": "25.19.0"
+  },
+  "devDependencies": {
+    "@smithy/util-stream": "^4.8.2",
+    "@sparticuz/chromium": "158.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.19.1",
+    "aws-sdk-client-mock": "^4.1.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "~5.9.3"
+  }
+}
