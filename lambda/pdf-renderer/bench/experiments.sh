@@ -39,8 +39,17 @@ if [[ $which == all || $which == 3 ]]; then
 fi
 if [[ $which == all || $which == 5 ]]; then
   # ⑤ 関数のメモリをどこまで下げられるか(すべての書類とストレス)。④ の測り方の並びは、どの行にもある
-  for mem in 512 768 1024 1536; do
+  for mem in 512 768 1024 1536 2048 2560 3008; do
     run --label "e5-mem-$mem" --memory "$mem" "${docs[@]}" "${stress[@]}"
+  done
+fi
+if [[ $which == all || $which == 6 ]]; then
+  # ⑥ ① で js-heap-96 だけが 300 ページを 1024MB で通した(ただし 55 秒)。間の値で、メモリと時間の釣り合いを見る
+  big=(bench/out/stress/stress-ledger-300.html bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-long-table.html)
+  for heap in 128 256 512; do
+    for mem in 1024 1536; do
+      run --label "e6-heap-$heap-mem-$mem" --memory "$mem" --add "--js-flags=--max-old-space-size=$heap" "${big[@]}"
+    done
   done
 fi
 node out/bench/summary.js bench/out/results.tsv
