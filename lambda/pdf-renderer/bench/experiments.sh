@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # P1 の実験 ①〜⑤ を順に流す(docs/design/pdf-lambda.md 4.10)。x86_64 の Linux(GitHub Actions の ubuntu)で流す。
-# Mac(arm64)の Docker は x86_64 を Rosetta でまねるが、その上では Chromium 158 が立ち上がらない(CPU を使わずに止まる。2026-11-27 に確かめた)。
+# Mac(arm64)の Docker(x86_64 を Rosetta でまねる)でも動くが、時間とメモリの数は本番と同じ CPU の CI で取る。
 #   bench/experiments.sh [①〜⑤ のうち流すもの(既定 all)]
 # 前に: docker build -t n-bato-pdf-renderer:dev .、bench/fetch-demo-html.sh(架空のデータの 6 つの書類)、node out/bench/stress.js bench/out/stress
 set -euo pipefail

@@ -195,8 +195,8 @@ VPC には置かない(レビュー Q6。部品と運用の手間を増やさな
 - `/tmp` は 1024MB。
 - 測り方(毎回):
   - **正は Lambda の `REPORT` の行の `Max Memory Used`**(実行の環境まるごと。子のプロセスも入る)。CloudWatch Logs Insights で書類の種類ごとにまとめる。
-  - 関数の中でも 100 ミリ秒ごとに、Chromium のプロセスの集まり(プロセスグループ)の各プロセスの `/proc/<pid>/status` の `VmRSS` と Node の `process.memoryUsage().rss` を足し、その最大を `peak_rss_mb` にして応答とログに入れる(`heapUsed` は使わない)。Rails は `PdfRendering#peak_memory_mb` に残す。REPORT との差は P1 の実験 ④ で確かめる。
-  - Embedded Metric Format でメトリクス `PeakRssMb`・`DurationMs`・`Pages`・`MissingGlyphs` を出す。**`PeakRssMb` が関数のメモリの 50% を超えたら警報**(SNS でメール)。
+  - 関数の中でも 100 ミリ秒ごとに、Node と Chromium のプロセスの集まり(プロセスグループ)の各プロセスの PSS(`/proc/<pid>/smaps_rollup`。読めなければ `VmRSS`)を足し、その最大を `peak_rss_mb` にして応答とログに入れる(`heapUsed` は使わない)。Rails は `PdfRendering#peak_memory_mb` に残す。**この値はコンテナの山より 200〜300MB 大きく出る**(4.10.1 ④。書類どうしを比べる目安)。
+  - Embedded Metric Format でメトリクス `PeakRssMb`・`DurationMs`・`Pages`・`MissingGlyphs` を出す(比べる目安)。**警報は REPORT の `Max Memory Used` が関数のメモリの 50% を超えたとき**(ログのメトリクスフィルタで REPORT の行から取る。SNS でメール)。`PeakRssMb` は大きく出るので警報に使わない(4.10.1 ④)。
 - 切り替えの条件(8.2): 本番の実データで、**いちばん重い書類のメモリの山が関数のメモリの 50% 以下**。
 
 ### 4.3 時間切れ(外側ほど長く)
@@ -455,7 +455,7 @@ format.pdf { respond_with_pdf PrintDocument::Statement.new(fiscal_year: @fiscal_
 - 予約の同時実行: 付けない(4.8・レビュー F9)。
 - ログ: `logGroup` を作り、保存は 30 日。
 - **VPC には置かない**(3.2)。
-- 警報: `PeakRssMb > 50%`・`Errors`・`Throttles`。**AWS Budgets**: 月の見込みの数倍(例 5 ドル)で知らせる。宛先は運用の側で決める。
+- 警報: REPORT の `Max Memory Used` > 50%(4.2)・`Errors`・`Throttles`。環境変数は `PDF_BUCKET` だけ(**`PDF_EXPERIMENT` などの実験の変数を付けない**。付けると Chromium の標準エラーがログに出る)。**AWS Budgets**: 月の見込みの数倍(例 5 ドル)で知らせる。宛先は運用の側で決める。
 
 ### 6.2 S3
 
@@ -507,7 +507,7 @@ docker run --read-only --tmpfs /tmp:size=1024m --ipc=none --user 993:990 --cpus=
   -e HOME=/tmp -e TMPDIR=/tmp …(Runtime Interface Emulator)
 ```
 
-- S3 は MinIO(このコンテナとだけつながる網)。関数は `S3_ENDPOINT` をテストのときだけ受ける。
+- S3 は adobe/s3mock(このコンテナとだけつながる網。MinIO は公開のイメージが無くなった)。関数は `S3_ENDPOINT` をテストのときだけ受ける。
 - **本物の Lambda でもストレスを流す**(P3 のあと、架空のデータで)。手元のコンテナと REPORT の値を比べる。
 
 ### 7.3 見比べ(ゴールデン)とストレス
@@ -560,7 +560,7 @@ HTML に次を入れ、**どれにも要求が届かず**(待ち受けのサー�
 
 ### 7.7 CDK(`infra/test`、jest)
 
-バケット(公開なし・SSE・TLS・1 日・途中のマルチパート 1 日)、IAM ユーザーの権限がこの表の対象だけ(ListBucket が無い)、関数のメモリ・時間切れが config.json と同じ・/tmp・アーキテクチャ・`retryAttempts: 0`・エイリアス、関数が 1 つ、VPC が無い、ログの保存 30 日、Budgets、アクセスキーが 0。
+バケット(公開なし・SSE・TLS・1 日・途中のマルチパート 1 日)、IAM ユーザーの権限がこの表の対象だけ(ListBucket が無い)、関数のメモリ・時間切れが config.json と同じ・/tmp・アーキテクチャ・`retryAttempts: 0`・エイリアス、関数が 1 つ、関数の環境変数が `PDF_BUCKET` だけ(`PDF_EXPERIMENT`・`PDF_FLAGS_*`・`PDF_RECEIVE`・`S3_ENDPOINT` が無い)、VPC が無い、ログの保存 30 日、Budgets、アクセスキーが 0。
 
 ## 8. 切り替えの段取り・受け入れ・費用
 

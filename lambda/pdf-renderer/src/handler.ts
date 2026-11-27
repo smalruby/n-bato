@@ -127,7 +127,7 @@ const defaultS3 = (env: NodeJS.ProcessEnv) => (opts: { requestTimeoutMs: number;
   new S3Client({
     maxAttempts: opts.maxAttempts,
     requestHandler: new NodeHttpHandler({ connectionTimeout: Math.min(5_000, opts.requestTimeoutMs), requestTimeout: opts.requestTimeoutMs }),
-    // 手元のコンテナの試験(MinIO)のときだけ。本番の関数には付けない(CDK)
+    // 手元のコンテナの試験(adobe/s3mock)のときだけ。本番の関数には付けない(CDK)
     ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT, forcePathStyle: true } : {}),
   });
 
