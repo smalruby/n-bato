@@ -46,8 +46,10 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | MemberApplication | 入会 | LE | 1 人の 1 回の入会の申込から決定まで | 申込の出どころのキー | フォームなどからの入会申込。いまの状態(status・人・年度・入会日・決めた日・理由)は認めた・認めないのイベントから決まる(docs/adr/0030) | applied_on(申し込んだ日) | 済 |
 | MemberApplication::Approval | 入会を認めた | E | 1 つの申込の承認 | 申込が同じ(1 申込に 1 つ) | 人の記録と正会員の資格を作る | approved_at | 済 |
 | MemberApplication::Rejection | 入会を認めなかった | E | 1 つの申込の不承認 | 申込が同じ(1 申込に 1 つ) | 理由は必須(定款第7条第4項) | rejected_at | 済 |
-| Membership | 会員資格 | 交差 | 1 人の 1 年度の会員資格 | 人と年度が同じ | 正会員・活動会員など | 入会日・会費を納めた日(会費の納入はイベントへ。会費の画面ができるとき。docs/adr/0030) | 待 |
-| OfficerTerm | 役員の任期 | 交差 | 1 人の 1 つの役の 1 期 | 人・役・始まりが同じ | 理事・監事・理事長・副理事長。代表権のある任期ができると登記の事由を作る | starts_on・ends_on は中身の日付(選ばれた任期)。退任(left_on)はイベントへ(退任の画面ができるとき。docs/adr/0030) | 待 |
+| Membership | 会員資格 | 交差 | 1 人の 1 年度の会員資格 | 人と年度が同じ | 正会員・活動会員など。会費を納めた記録があると消せない | joined_on(入会日。中身の日付)。会費の納入は Membership::FeePayment(#17、docs/adr/0030) | 済 |
+| Membership::FeePayment | 会費の納入 | E | 1 つの会員資格(1 人の 1 年度)の会費の納入 | 会員資格が同じ(1 つに 1 回) | 金額は 0 円以上。いまは画面が無く、data:load・運用のスクリプトから記録する | paid_on | 済 |
+| OfficerTerm | 役員の任期 | 交差 | 1 人の 1 つの役の 1 期 | 人・役・始まりが同じ | 理事・監事・理事長・副理事長。代表権のある任期ができると登記の事由を作る。退任の記録があると消せない | starts_on・ends_on は中身の日付(選ばれた任期)。任期の途中の退任は OfficerTerm::Resignation(#17、docs/adr/0030) | 済 |
+| OfficerTerm::Resignation | 役員の退任 | E | 1 つの任期の途中の退任 | 任期が同じ(1 つに 1 回) | 職務の最後の日(OfficerTerm#last_day)になる。いまは画面が無く、data:load・運用のスクリプトから記録する | left_on | 済 |
 | OpeningBalance | 期首残高 | R | 1 年度の 1 科目の繰越額 | 年度と科目が同じ | 仕訳より前の年度の繰越 | — | 待 |
 | Organization | 法人 | R | 利用団体 1 つ | — | 法人 | 設立日(中身の日付) | 待 |
 | FilingDestination | 提出先 | R | 書類を出す 1 つの窓口 | 種類と機関が同じ | 所轄庁・法人住民税(県・市)・登記・税務署・その他(docs/adr/0027) | — | 済 |
@@ -118,6 +120,8 @@ n-bato のすべてのモデルの、和名・英名・分類・日時の列を�
 | 住所が変わった・氏名が変わった | Person::AddressChange.record!・Person::NameChange.record! | 元に戻せない操作。打ち間違いは Person::ChangeCancellation.cancel!(いちばん新しい出来事だけ) |
 | 住所・氏名の移り変わり | Person#history | 名簿・届出書・登記は Person#address_on・display_name_on(その日の値) |
 | 入会を認める・認めない | MemberApplication::Approval.approve!・MemberApplication::Rejection.reject! | 元に戻せない操作(ADR-0007) |
+| 会費を納めた | Membership::FeePayment.record! | 元に戻せない操作。いまは画面が無い(data:load・運用のスクリプト) |
+| 役員が退任した | OfficerTerm::Resignation.resign! | 元に戻せない操作。いまは画面が無い(data:load の left_on・運用のスクリプト) |
 | 登記がいること | Registration | 年度に依存しない |
 | 選んだもので登記の申請を始める | RegistrationFiling.start! | 書類を作っている間は、登記することを足す・外す(include!・exclude!) |
 | 申請した・受付・補正・完了・取り下げ | RegistrationFiling::Submission.submit! ほか | 元に戻せない操作 |
@@ -157,6 +161,8 @@ erDiagram
   Person ||--o{ PersonYear : "年度ごとの連絡先"
   Person ||--o{ Membership : "会員資格"
   Person ||--o{ OfficerTerm : "役員の任期"
+  Membership ||--o| "Membership::FeePayment" : "会費を納めた"
+  OfficerTerm ||--o| "OfficerTerm::Resignation" : "退任した"
   MemberApplication ||--o| "MemberApplication::Approval" : "認める"
   MemberApplication ||--o| "MemberApplication::Rejection" : "認めない"
   "MemberApplication::Approval" }o--|| Person : "人の記録"

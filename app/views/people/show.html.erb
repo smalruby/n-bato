@@ -31,7 +31,7 @@
     <h2 class="section-title mt-0">会員資格</h2>
     <table class="data-table">
       <% @person.memberships.sort_by(&:fiscal_year).each do |m| %>
-        <tr><td><%= m.fiscal_year %>年度</td><td><%= m.kind_label %></td><td><%= m.fee_paid_on && "会費 #{yen(m.fee_amount)} 円（#{l m.fee_paid_on}）" %></td>
+        <tr><td><%= m.fiscal_year %>年度</td><td><%= m.kind_label %></td><td><%= m.fee_payment && "会費 #{yen(m.fee_payment.amount)} 円（#{l m.fee_payment.paid_on}）" %></td>
           <td><%= render "shared/delete_with_reason", url: person_membership_path(@person, m), closed: FiscalPeriod.for(m.fiscal_year)&.closed? %></td></tr>
       <% end %>
     </table>

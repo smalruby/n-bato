@@ -39,7 +39,9 @@ ja:
       member_application/approval: 入会を認めた
       member_application/rejection: 入会を認めなかった
       membership: 会員
+      membership/fee_payment: 会費の納入
       officer_term: 役員の任期
+      officer_term/resignation: 役員の退任
       registration: 登記
       registration_filing: 登記の申請
       registration_filing/submission: 登記の申請(送った)
@@ -102,8 +104,10 @@ ja:
       organization: { name: 法人名, first_fiscal_year: 第 1 期の年度 }
       organization_year: { name: 法人名 }
       person: { name: 氏名, name_kana: ふりがな, address: 住所, email: メール, phone: 電話, notes: メモ }
-      membership: { fiscal_year: 年度, kind: 種別, joined_on: 入会日, fee_amount: 会費, fee_paid_on: 会費の納入日 }
-      officer_term: { person_id: 人, role: 役職, starts_on: 就任日, ends_on: 任期の終わり, left_on: 退任日, remunerated: 報酬, appointed_by: 選任の経緯, notes: メモ }
+      membership: { fiscal_year: 年度, kind: 種別, joined_on: 入会日 }
+      membership/fee_payment: { membership_id: 会員資格, recorder_id: 記録した人, amount: 会費, paid_on: 会費の納入日 }
+      officer_term: { person_id: 人, role: 役職, starts_on: 就任日, ends_on: 任期の終わり, remunerated: 報酬, appointed_by: 選任の経緯, notes: メモ }
+      officer_term/resignation: { officer_term_id: 役員の任期, recorder_id: 記録した人, reason: 理由, left_on: 退任日 }
       registration: { kind: 種類, cause_on: 原因の日, due_on: 期限, registered_on: 登記した日, note: メモ }
       resolution: { body: 機関, title: 件名, proposed_on: 提案日, voting_method: 方法, held_on: 開催日, place: 場所, note: メモ }
       # applied_on は議案の反映(ResolutionItem::Application)に移した。移す前の操作履歴に出るので名前は残す

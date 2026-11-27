@@ -12,6 +12,13 @@ class Person < ApplicationRecord
   encrypts :address, :email, :phone
   year_records :person_years, %i[email phone notes]
 
+  # 会費を納めた記録(イベント)のある人は消さない。会員資格を消す前に止める(prepend)ので、理由が画面に出る
+  before_destroy(prepend: true) do
+    next unless Membership::FeePayment.joins(:membership).exists?(memberships: {person_id: id})
+
+    errors.add(:base, "会費を納めた記録があるので消せません")
+    throw :abort
+  end
   has_many :memberships, dependent: :destroy
   has_many :officer_terms, dependent: :restrict_with_error
   has_many :address_changes, -> { order(:moved_on, :id) }, class_name: "Person::AddressChange", dependent: :restrict_with_error

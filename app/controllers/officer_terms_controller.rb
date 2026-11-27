@@ -5,7 +5,7 @@ class OfficerTermsController < ApplicationController
   before_action { @person = Person.find(params[:person_id]) }
 
   def create
-    t = @person.officer_terms.new(params.require(:officer_term).permit(:starts_on, :ends_on, :left_on, :remunerated, :appointed_by, :notes))
+    t = @person.officer_terms.new(params.require(:officer_term).permit(:starts_on, :ends_on, :remunerated, :appointed_by, :notes))
     t.role = params.dig(:officer_term, :role).presence_in(OfficerTerm::ROLES.keys) # 役員の役名(権限ではない)
     return redirect_to(@person, alert: @reason_needed) unless closed_year_reason_ok?(fiscal_years_between(t.starts_on, t.left_on || t.ends_on), "役員の任期")
 
@@ -16,7 +16,6 @@ class OfficerTermsController < ApplicationController
     t = @person.officer_terms.find(params[:id])
     return redirect_to(@person, alert: @reason_needed) unless closed_year_reason_ok?(fiscal_years_between(t.starts_on, t.left_on || t.ends_on), "役員の任期")
 
-    t.destroy!
-    redirect_to @person, notice: "削除しました"
+    t.destroy ? redirect_to(@person, notice: "削除しました") : redirect_to(@person, alert: "退任の記録があるので消せません")
   end
 end

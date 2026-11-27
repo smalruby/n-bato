@@ -7,6 +7,8 @@ class OfficerTerm < ApplicationRecord
 
   belongs_to :person
   has_many :registrations, dependent: :nullify
+  # 任期の途中の退任はイベント(OfficerTerm::Resignation.resign!)。退任の記録のある任期は消せない
+  has_one :resignation, class_name: "OfficerTerm::Resignation", dependent: :restrict_with_error
 
   after_create :schedule_registration, if: :representative?
   validates :role, inclusion: {in: ROLES.keys}
@@ -18,6 +20,7 @@ class OfficerTerm < ApplicationRecord
   def role_label = ROLES[role]
   def title = TITLES[role]
   def director? = role != "auditor"
+  def left_on = resignation&.left_on
 
   # 任期満了後に次の選任(誰かの新しい任期の始まり)があった日。それまでは伸長規定で職務を続ける。
   def next_election_on
@@ -45,8 +48,8 @@ class OfficerTerm < ApplicationRecord
 
   def holdover_on?(date) = serving_on?(date) && expired_on?(date)
 
-  def self.serving_on(date) = includes(:person).chronological.select { it.serving_on?(date) }
-  def self.serving_in(fiscal_year) = includes(:person).chronological.select { it.period_in(fiscal_year) }
+  def self.serving_on(date) = includes(:person, :resignation).chronological.select { it.serving_on?(date) }
+  def self.serving_in(fiscal_year) = includes(:person, :resignation).chronological.select { it.period_in(fiscal_year) }
 
   # 代表権があるか(定款。data/organization.yml の settings.representative_roles で変えられる)
   def representative?

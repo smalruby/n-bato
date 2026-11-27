@@ -15,7 +15,9 @@ namespace :data do
       end
       Array(conf["officer_terms"]).each do |h|
         term = OfficerTerm.find_or_initialize_by(person: people.fetch(h.fetch("name")), role: h.fetch("role"), starts_on: h.fetch("starts_on"))
-        term.update!(h.slice("ends_on", "left_on", "remunerated", "appointed_by", "notes").compact)
+        term.update!(h.slice("ends_on", "remunerated", "appointed_by", "notes").compact)
+        # 任期の途中の退任はイベント(docs/adr/0030)。もう記録があれば何もしない
+        OfficerTerm::Resignation.resign!(term, left_on: h["left_on"]) if h["left_on"] && term.resignation.nil?
       end
       Array(conf["annual_reports"]).each do |h|
         report = AnnualReport.find_or_initialize_by(fiscal_year: h.fetch("fiscal_year"))
