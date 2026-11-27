@@ -1,11 +1,24 @@
 // メモリの山を測る(docs/design/pdf-lambda.md 4.2)。正は Lambda の REPORT の Max Memory Used。
-// ここでは 100 ミリ秒ごとに、Chromium のプロセスグループの各プロセスの VmRSS と Node の RSS を足し、その最大を取る。
-// heapUsed は使わない(過去の不具合: JS のヒープだけを見ていた)。Linux でないとき(テスト)は Node の RSS だけ。
+// ここでは 100 ミリ秒ごとに、Node と Chromium のプロセスグループの各プロセスの PSS を足し、その最大を取る。
+// PSS(/proc/<pid>/smaps_rollup)は共有のページを使うプロセスの数で割るので、足しても重ならない。
+// VmRSS を足すと共有のページを何度も数え、コンテナの山(cgroup の memory.peak)より 300MB ほど大きく出た(P1 の実験 ④、2026-11-27)。
+// smaps_rollup が読めないとき(古いカーネル)は VmRSS。heapUsed は使わない(過去の不具合: JS のヒープだけを見ていた)。
+// Linux でないとき(テスト)は Node の RSS だけ。
 import { readdirSync, readFileSync } from 'node:fs';
 
 const KB = 1024;
 
-export const vmRssKb = (pid: number): number => {
+export const pssKb = (pid: number | 'self'): number => {
+  try {
+    const m = /^Pss:\s+(\d+)\s+kB/m.exec(readFileSync(`/proc/${pid}/smaps_rollup`, 'utf8'));
+    if (m) return Number(m[1]);
+  } catch {
+    // 読めないときは VmRSS
+  }
+  return vmRssKb(pid);
+};
+
+export const vmRssKb = (pid: number | 'self'): number => {
   try {
     const m = /VmRSS:\s+(\d+)\s+kB/.exec(readFileSync(`/proc/${pid}/status`, 'utf8'));
     return m ? Number(m[1]) : 0;
@@ -62,12 +75,13 @@ export class MemorySampler {
 
   sample(): void {
     const mu = process.memoryUsage();
-    const chromiumKb = this.pgrp ? groupPids(this.pgrp).reduce((sum, pid) => sum + vmRssKb(pid), 0) : 0;
+    const chromiumKb = this.pgrp ? groupPids(this.pgrp).reduce((sum, pid) => sum + pssKb(pid), 0) : 0;
+    const nodeKb = pssKb('self') || mu.rss / KB;
     const s: MemorySample = {
-      nodeRssMb: mu.rss / KB / KB,
+      nodeRssMb: nodeKb / KB,
       chromiumRssMb: chromiumKb / KB,
       heapUsedMb: mu.heapUsed / KB / KB,
-      totalMb: mu.rss / KB / KB + chromiumKb / KB,
+      totalMb: nodeKb / KB + chromiumKb / KB,
     };
     this.peak = {
       totalMb: Math.max(this.peak.totalMb, s.totalMb),

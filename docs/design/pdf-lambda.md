@@ -76,12 +76,14 @@ sequenceDiagram
 
 ### 1.2 Lambda の中身(コンテナイメージ)
 
-- ランタイム: Node.js 22(`public.ecr.aws/lambda/nodejs:22`、x86_64、**ダイジェスト(@sha256:…)で固定**)。`@sparticuz/chromium`(npm の最新 153.0.0、2026-09-11)+ `puppeteer-core`。2 つの版は固定し、README の「Puppeteer が対応する Chromium の版に合わせる」に従って組にする([SP])。
-  - x86_64 にする理由: npm の包みに入っているのは x64 だけ。arm64 は v135 から別の包み(`-min`)(同上)。
-- **Chromium はイメージを作るときに取り出しておく**(`@sparticuz/chromium` は立ち上がりのたびに brotli の圧縮を /tmp に展開する)。Dockerfile の中で一度 `executablePath()` を呼んで取り出し、`/opt/chromium/` に写す。動くときはその場所を直に使う。立ち上がりが速くなり、/tmp を使わない。
-- **フォントは本番の Rails と同じファイル**: Dockerfile の段の 1 つを Rails の本番と同じ Debian にして `fonts-noto-cjk` を入れ、Noto Serif CJK・Noto Sans CJK(Regular・Bold)の `.ttc` を `/var/task/fonts/` に写す。`@sparticuz/chromium` の fontconfig は `/var/task/fonts` を探す([SP]:「Lambda には何のフォントもない」)。
-  - 作るときに、フォントのファイルの SHA-256 をまとめた `font_digest` と、**フォントが持つ字の一覧(cmap)を小さいファイル `coverage.bin` に書き出す**(4.9)。`font_digest` は応答の `renderer` に入れる。
-  - `serif` の行き先が Open Sans(包みの英字のフォント)にならないことを、7.3 の `pdffonts` で守る。
+- ランタイム: Node.js 22(`public.ecr.aws/lambda/nodejs:22`、x86_64、**ダイジェスト(@sha256:…)で固定**)+ `puppeteer-core`(25.19.0)。**Chromium は Google の Chrome for Testing の `chrome-headless-shell`**(puppeteer-core が対応する版 158.0.8127.88)。zip は Dockerfile で落とし、**SHA-256 で固定**して確かめる。2 つの版は組にして固定する(puppeteer-core を上げるときは、その版が対応する Chromium に合わせて上げる)。
+  - x86_64 にする理由: Chrome for Testing の Linux 版は x64 だけ。
+  - **`@sparticuz/chromium` をやめた(P1、2026-11-27)**: 143・147・153・158 のどの版も、包みの勧めどおり(Lambda の素のイメージ・実行のときに /tmp へ展開・包みの旗)に立ち上げても、x86_64 の ubuntu(GitHub Actions)と Lambda のイメージで何も出さずに止まった(`--dump-dom` も `--print-to-pdf` も、20〜40 秒待って出ない)。同じ ubuntu の上で、Playwright の使う `chrome-headless-shell` は同じ旗ですぐ動いた。本物の Lambda では動くのかもしれないが、手元・CI で確かめられないものは使わない。
+  - `chrome-headless-shell` が読む .so(nss・nspr・atk・dbus-libs・X11 の一部・mesa-libgbm・libxkbcommon・alsa-lib など)は、Amazon Linux 2023 の包みを `dnf` で入れる(足りないものは `ldd` で確かめた)。イメージは 1.2GB(Lambda の上限 10GB の中)。
+- **Chromium はイメージの中に置いたまま使う**(`/opt/chromium/`)。動くときに /tmp へ展開しない。立ち上がりが速くなり、/tmp を使わない。
+- **フォントは本番の Rails と同じファイル**: Dockerfile の段の 1 つを Rails の本番と同じ Debian にして `fonts-noto-cjk` を入れ、Noto Serif CJK・Noto Sans CJK(Regular・Bold)の `.ttc` を `/var/task/fonts/` に写す。fontconfig は自前の `fonts.conf`(`FONTCONFIG_FILE`)で `/var/task/fonts` だけを探し、キャッシュは `/tmp/fontconfig` に置く。`serif` は Noto Serif CJK JP、`sans-serif` は Noto Sans CJK JP に向ける。
+  - 作るときに、フォントのファイルの SHA-256 をまとめた `font_digest` と、**フォントが持つ字の一覧を小さいファイル `coverage.txt` に書き出す**(`fc-query --format='%{charset}'`。4.9)。`font_digest` は応答の `renderer` に入れる。
+  - `serif` の行き先が Noto 以外にならないことを、7.3 の `pdffonts` で守る(P1 の実験では、すべての PDF が `NotoSerifCJKjp-Regular`・`-Bold` だけを埋めた)。
 - コードの置き場所: `lambda/pdf-renderer/`(`package.json`・`Dockerfile`・`src/handler.ts`・`schema/`・`config.json`・`test/`)。CDK は `infra/lib/pdf-renderer.ts`(6 章)。
 - `lambda/pdf-renderer/config.json` に関数のメモリ・時間切れ・上限の数を 1 つだけ書き、CDK・Lambda・Rails のテストが同じものを読む(値がずれないように)。
 
