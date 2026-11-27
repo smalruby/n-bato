@@ -84,11 +84,13 @@ jobs:
       - name: イメージを作る
         working-directory: lambda/pdf-renderer
         run: docker build -t n-bato-pdf-renderer:dev --build-arg RENDERER_BUILD=ci-${{ github.sha }} .
-      - name: Chromium の立ち上がりの切り分け(確かめ)
-        continue-on-error: true
-        working-directory: lambda/pdf-renderer
+      - name: Chromium がこのイメージで立ち上がるか(Lambda と同じ形の制限)
         run: |
-          bench/debug-launch2.sh
+          timeout 60 docker run --rm --read-only --tmpfs /tmp:size=1024m --ipc none --user 993:990 --memory=1024m \
+            -e HOME=/tmp -e TMPDIR=/tmp --entrypoint /opt/chromium/chrome-headless-shell n-bato-pdf-renderer:dev \
+            --no-sandbox --no-zygote --disable-dev-shm-usage --in-process-gpu --user-data-dir=/tmp/profile \
+            --dump-dom 'data:text/html,<p>ok</p>' 2>&1 | tee /tmp/smoke.txt | tail -n 20
+          grep -q '<p>ok</p>' /tmp/smoke.txt
       - name: 実験
         working-directory: lambda/pdf-renderer
         shell: bash  # pipefail を付ける(| tee で終わりの値が消えないように)

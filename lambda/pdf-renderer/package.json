@@ -18,7 +18,6 @@
   },
   "devDependencies": {
     "@smithy/util-stream": "^4.8.2",
-    "@sparticuz/chromium": "158.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.19.1",
     "aws-sdk-client-mock": "^4.1.0",

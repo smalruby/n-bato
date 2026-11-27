@@ -111,7 +111,7 @@ export const makeDeps = (s3: S3Client, browser: FakeBrowser | (() => Promise<Bro
   const launches: unknown[] = [];
   const deps: Deps = {
     config: { ...config },
-    env: { PDF_BUCKET: BUCKET, CHROMIUM_PATH: '/opt/chromium/chromium', AWS_SECRET_ACCESS_KEY: 'must-not-leak', PATH: '/usr/bin' },
+    env: { PDF_BUCKET: BUCKET, CHROMIUM_PATH: '/opt/chromium/chrome-headless-shell', AWS_SECRET_ACCESS_KEY: 'must-not-leak', PATH: '/usr/bin' },
     now: () => Date.now(),
     log: (l) => logs.push(l),
     tmpRoot,

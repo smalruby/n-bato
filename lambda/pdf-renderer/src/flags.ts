@@ -1,6 +1,6 @@
 // Chromium の起動の旗(docs/design/pdf-lambda.md 3.2・4.1)。
 // puppeteer の既定の旗は使わず(ignoreDefaultArgs: true)、ここの一覧だけで起こす。一覧そのものを test/flags.test.ts で固定する。
-// もとは puppeteer-core 25.19.0 の既定と @sparticuz/chromium 158.0.0 の chromium.args。
+// もとは puppeteer-core 25.19.0 の既定と、Lambda 向けの包み @sparticuz/chromium 158.0.0 の chromium.args(Chromium の本体は Chrome for Testing の chrome-headless-shell。Dockerfile)。
 // 外したもの: --disable-web-security・--allow-running-insecure-content(通信の禁止を弱めるため)、
 //   --enable-automation・--auto-open-devtools-for-tabs など、PDF に要らないもの。
 // メモリに効く旗(--disable-dev-shm-usage・--js-flags・--single-process)は実験 ①(4.10)で決めた。結果は docs/design/pdf-lambda.md 4.10。
@@ -35,7 +35,7 @@ export const CHROMIUM_FLAGS: readonly string[] = Object.freeze([
   '--use-mock-keychain',
   '--hide-scrollbars',
   '--mute-audio',
-  // @sparticuz/chromium の chromium.args から(Lambda で動かすため)
+  // @sparticuz/chromium の chromium.args から(Lambda で動かすため。包みそのものは使わない)
   '--disable-domain-reliability',
   '--disable-print-preview',
   '--disk-cache-size=33554432',

@@ -141,6 +141,8 @@ const defaultLaunch = async (opts: LaunchOptions): Promise<BrowserLike> => {
     env: opts.env,
     pipe: true, // WebSocket を使わない(100MiB の maxPayload に当たらない。4.1)
     headless: 'shell',
+    // 最初のページを待たない(既定の旗を使わないので about:blank が付かず、待つと時間切れになる。ページは newPage で開く)
+    waitForInitialPage: false,
     timeout: opts.timeout,
     // 実験のときだけ、Chromium の標準出力と標準エラーをログに流す(立ち上がらない理由を見るため。本番では付けない)
     dumpio: opts.dumpio ?? false,
@@ -405,7 +407,7 @@ const render = async (
     const launchStarted = deps.now();
     try {
       browser = await deps.launch({
-        executablePath: deps.env.CHROMIUM_PATH ?? '/opt/chromium/chromium',
+        executablePath: deps.env.CHROMIUM_PATH ?? '/opt/chromium/chrome-headless-shell',
         args: chromiumFlags(deps.env),
         userDataDir: join(work, 'profile'),
         env: { ...chromiumEnv(deps.env), TMPDIR: work, HOME: work },
