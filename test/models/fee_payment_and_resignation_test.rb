@@ -56,5 +56,8 @@ class FeePaymentAndResignationTest < ActiveSupport::TestCase
     OfficerTerm::Resignation.resign!(@term, left_on: Date.new(2027, 1, 15))
     assert_not @membership.destroy
     assert_not @term.destroy
+    assert_not @person.destroy
+    assert_equal ["会費を納めた記録があるので消せません"], @person.errors.full_messages
+    assert Membership.exists?(@membership.id)
   end
 end
