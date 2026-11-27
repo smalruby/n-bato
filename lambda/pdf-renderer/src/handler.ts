@@ -80,7 +80,7 @@ export type BrowserLike = {
   process(): { pid?: number; kill(signal?: NodeJS.Signals): boolean } | null;
   connected?: boolean;
 };
-export type LaunchOptions = { executablePath: string; args: string[]; userDataDir: string; env: NodeJS.ProcessEnv; timeout: number };
+export type LaunchOptions = { executablePath: string; args: string[]; userDataDir: string; env: NodeJS.ProcessEnv; timeout: number; dumpio?: boolean };
 
 export type Deps = {
   config: Config;
@@ -142,6 +142,8 @@ const defaultLaunch = async (opts: LaunchOptions): Promise<BrowserLike> => {
     pipe: true, // WebSocket を使わない(100MiB の maxPayload に当たらない。4.1)
     headless: 'shell',
     timeout: opts.timeout,
+    // 実験のときだけ、Chromium の標準出力と標準エラーをログに流す(立ち上がらない理由を見るため。本番では付けない)
+    dumpio: opts.dumpio ?? false,
     protocolTimeout: 60_000,
     handleSIGINT: false,
     handleSIGTERM: false,
@@ -408,6 +410,7 @@ const render = async (
         userDataDir: join(work, 'profile'),
         env: { ...chromiumEnv(deps.env), TMPDIR: work, HOME: work },
         timeout: 20_000,
+        dumpio: deps.env.PDF_EXPERIMENT === '1',
       });
     } catch (e) {
       // 実験のときだけ、立ち上がらなかった理由の文を出す(HTML を読む前なので中身は入らない)

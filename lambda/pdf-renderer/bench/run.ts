@@ -149,7 +149,7 @@ const main = async (): Promise<void> => {
       pdfinfoPages = (/Pages:\s+(\d+)/.exec(sh('pdfinfo', [pdfPath], true)) ?? [])[1] ?? '';
       fonts = pdfFonts(pdfPath);
     }
-    writeFileSync(join(OUT, 'pdf', label, `${name}.log`), logs.split('\n').slice(-40).join('\n'));
+    writeFileSync(join(OUT, 'pdf', label, `${name}.log`), logs.split('\n').slice(-200).join('\n'));
     sh('docker', ['rm', '-f', container], true);
     const m = r.metrics ?? {};
     const row = [

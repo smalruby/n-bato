@@ -84,6 +84,13 @@ jobs:
       - name: イメージを作る
         working-directory: lambda/pdf-renderer
         run: docker build -t n-bato-pdf-renderer:dev --build-arg RENDERER_BUILD=ci-${{ github.sha }} .
+      - name: Chromium を直に立ち上げる(確かめ。Lambda と同じ形の制限)
+        continue-on-error: true
+        run: |
+          timeout 60 docker run --rm --read-only --tmpfs /tmp:size=1024m --ipc none --user 993:990 --memory=1024m \
+            -e HOME=/tmp -e TMPDIR=/tmp --entrypoint /opt/chromium/chromium n-bato-pdf-renderer:dev \
+            --headless --no-sandbox --no-zygote --disable-dev-shm-usage --in-process-gpu --disable-gpu \
+            --user-data-dir=/tmp/profile --enable-logging=stderr --v=0 --dump-dom 'data:text/html,<p>ok</p>' 2>&1 | tail -n 80
       - name: 実験
         working-directory: lambda/pdf-renderer
         env:

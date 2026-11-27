@@ -11,6 +11,14 @@ docs=(bench/out/docs/*.html)
 stress=(bench/out/stress/*.html)
 heavy=(bench/out/stress/stress-ledger-300.html bench/out/stress/stress-long-table.html bench/out/stress/stress-images-9mb.html bench/out/stress/stress-huge-pdf.html bench/out/stress/stress-awkward.html bench/out/docs/filing-pack.html bench/out/docs/ledgers.html)
 
+# 0 まず 1 つの書類で立ち上がるかを見る。だめなら Chromium のログを出して止める(すべての実験が同じ理由で落ちるのを待たない)
+run --label e0-smoke --memory 1024 bench/out/docs/ledgers.html
+if ! tail -n 1 bench/out/results.tsv | cut -f12 | grep -qx ok; then
+  echo "立ち上がらない。Chromium のログ:" >&2
+  cat bench/out/pdf/e0-smoke/ledgers.log >&2
+  exit 1
+fi
+
 if [[ $which == all || $which == 1 ]]; then
   # ① Chromium の側のメモリの上限(第一の候補)。関数のメモリは 1024MB に固定
   run --label e1-base --memory 1024 "${heavy[@]}"
