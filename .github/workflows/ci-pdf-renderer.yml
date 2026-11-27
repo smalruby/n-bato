@@ -88,8 +88,6 @@ jobs:
         continue-on-error: true
         working-directory: lambda/pdf-renderer
         run: |
-          sudo apt-get install -y -qq strace
-          npm ci --no-audit --no-fund
           bench/debug-launch.sh
       - name: 実験
         working-directory: lambda/pdf-renderer
